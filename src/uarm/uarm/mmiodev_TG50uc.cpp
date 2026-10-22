@@ -138,6 +138,7 @@ static void tg50ucPrvReset(struct TG50uc *uc)
 		uc->port[i].prevState = 0;
 		tg50ucPrvRecalcGpioVals(uc, &uc->port[i]);
 	}
+    tg50ucPrvRecalcKeypadMatrix(uc); // restore idle-high keyboard columns
 }
 
 static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, bool write, void* buf)
@@ -348,6 +349,7 @@ struct TG50uc* tg50ucInit(struct ArmMem *physMem, struct PxaGpio *gpio, int8_t g
 			uc->keyVals[r][c] = *keyMap++;
 	}
 	
+	tg50ucPrvRecalcKeypadMatrix(uc); // establish column pullups before firmware reads
 	if (!memRegionAdd(physMem, TG50_UC_BASE, TG50_UC_SIZE, tg50ucPrvMemAccessF, uc)) { free(uc); return nullptr; }
 	
 	return uc;
