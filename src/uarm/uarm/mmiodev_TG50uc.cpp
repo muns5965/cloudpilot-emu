@@ -165,20 +165,23 @@ static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, 
 					val = uc->port[(pa >> 2) & 3].curState;
 				break;
 			
-			case 0x20:	//GPIOA direction (RW)
-			case 0x24:	//GPIOD direction (RW)
-			case 0x28:	//GPIOC direction (RW)
-			case 0x2c:	//GPIOD direction (RW)
-				if (write)
-					uc->port[(pa >> 2) & 3].direction = val;
-				else {
-					val = uc->port[(pa >> 2) & 3].direction;
-					tg50ucPrvRecalcKeypadMatrix(uc);
-					tg50ucPrvRecalcGpioVals(uc, &uc->port[(pa >> 2) & 3]);
-				}
-				break;
-			
-			case 0x40:	//GPIOA set (WO)
+			case 0x20: // GPIOA direction
+            case 0x24: // GPIOB direction
+            case 0x28: // GPIOC direction (keyboard rows)
+            case 0x2c: // GPIOD direction
+                if (write) {
+                    auto& port = uc->port[(pa >> 2) & 3];
+                    port.direction = static_cast<uint16_t>(val);
+                    if (pa == 0x28)
+                        tg50ucPrvRecalcKeypadMatrix(uc);
+                    else
+                        tg50ucPrvRecalcGpioVals(uc, &port);
+                } else {
+                    val = uc->port[(pa >> 2) & 3].direction;
+                }
+                break;
+
+            case 0x40:	//GPIOA set (WO)
 			case 0x44:	//GPIOB set (WO)
 			case 0x48:	//GPIOC set (WO)
 			case 0x4c:	//GPIOD set (WO)
