@@ -316,7 +316,8 @@ namespace {
 
         auto sdlRenderer =
             make_unique<SdlRenderer>(window, soc, scale, displayConfiguration, rotation);
-        SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation);
+        SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation,
+                                        deviceType == DeviceType5::deviceTypeSonyTG50);
 
         SdlAudioDriver audioDriver(soc, audioQueue);
         if (!options.disableAudio) audioDriver.Start();

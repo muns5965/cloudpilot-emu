@@ -15,11 +15,11 @@
 
 ## Goal
 
-Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). The native TG50 build now completes **Setup (including pen calibration) and reaches the CLIÉ Launcher**. Next: wire the TG50's built-in QWERTY keyboard to host keys, then savestates, and only then browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
+Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). The native TG50 build now completes **Setup (including pen calibration) and reaches the CLIÉ Launcher**. The built-in QWERTY keyboard is wired to host keys. Next: the power key/sleep path and savestates, and only then browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
 
 ## 개발 목표
 
-CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 현재 네이티브 TG50 빌드는 **펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 진입**합니다. 다음 단계는 TG50 내장 QWERTY 키보드를 PC 키에 연결하는 것이며, 이어서 상태 저장, 그다음 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
+CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 현재 네이티브 TG50 빌드는 **펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 진입**합니다. TG50 내장 QWERTY 키보드는 PC 키에 연결됐습니다. 다음 단계는 전원 키·슬립 경로와 상태 저장이며, 그다음 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
 
 ---
 
@@ -36,9 +36,9 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | Setup 1–4 incl. pen calibration | **Works** | E2 touch-translation patch disabled for TG50 (`soc_PXA.cpp`) |
 | CLIÉ Launcher | **Reached; responds to taps** | — |
 | AD7873 touch controller | **Works** on the 320×320 screen | `src/uarm/uarm/sspdev_AD7873.cpp` |
-| Sony controller MMIO / 8×8 keyboard matrix | Ported; matrix modelled, **key input not yet tested** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
-| Host keys → TG50 keys | **Incomplete**: only hard keys 1–4, arrows, jog select and power are mapped; **letter keys not wired** | `sonyTG50HostKey()`; common `KeyId` has only these 10 keys |
-| Host power key → GPIO0 | Not wired (GPIO0 stays released) | Original uARM also drives GPIO0 low while pressed |
+| Sony controller MMIO / 8×8 keyboard matrix | **Works**: typing in Memo Pad verified | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| Host keys → TG50 keys | **Works** for letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/PageDown; jog select moved to F11 | `keys.h`, `SdlEventHandler.cpp` (TG50 only), `sonyTG50HostKey()`. PC digit keys are not mapped (use Blue + top row). Very fast typing (~40 ms per key) drops some keys; original uARM does not |
+| Host power key (Esc) | Matrix key only; GPIO0 not driven | Driving GPIO0 as original uARM does ends in a Fatal Exception (sleep path); needs investigation |
 | Native window skin | Shows the E2 Graffiti silkscreen, which has no function on TG50 | TG50 has a QWERTY keyboard and no silkscreen; shares the E2 `mode_320x320` display configuration |
 | AN32502A power (I²C) | Ported, not individually tested | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
 | AK4534 audio codec (I²C) | Register model only, no PCM output | `src/uarm/uarm/i2sdev_AK4534.cpp` |
@@ -59,9 +59,9 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | Setup 1~4(펜 보정 포함) | **동작** | TG50에서 E2용 펜 좌표 변환 패치 해제(`soc_PXA.cpp`) |
 | CLIÉ 런처 | **진입, 터치 반응 확인** | — |
 | AD7873 터치 컨트롤러 | 320×320 화면에서 **동작** | `src/uarm/uarm/sspdev_AD7873.cpp` |
-| Sony 컨트롤러 MMIO·8×8 키 매트릭스 | 이식 완료, 매트릭스 모델 있음, **키 입력 미시험** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
-| PC 키 → TG50 키 연결 | **미완성**: 하드웨어 버튼 1~4·방향키·조그 선택·전원만 연결, **글자 키 미연결** | `sonyTG50HostKey()`, 공통 `KeyId`에 이 10개만 있음 |
-| PC 전원 키 → GPIO0 | 미연결(GPIO0은 항상 해제 상태) | 원본 uARM은 누르는 동안 GPIO0을 Low로 내림 |
+| Sony 컨트롤러 MMIO·8×8 키 매트릭스 | **동작**: 메모장 입력 확인 | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| PC 키 → TG50 키 연결 | **동작**: 글자, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue(F7), Red(F9), Home, PageUp/PageDown. 조그 선택은 F11로 이동 | `keys.h`, `SdlEventHandler.cpp`(TG50 전용), `sonyTG50HostKey()`. PC 숫자 키는 미연결(Blue + 윗줄 사용). 아주 빠른 입력(키당 약 40ms)에서 일부 누락, 원본 uARM은 누락 없음 |
+| PC 전원 키(Esc) | 매트릭스 키만 전달, GPIO0은 구동 안 함 | 원본처럼 GPIO0까지 구동하면 Fatal Exception(슬립 경로) 발생, 원인 조사 필요 |
 | 네이티브 창 스킨 | E2 그래피티 실크스크린이 그려지며 TG50에서는 기능 없음 | TG50은 QWERTY 키보드가 있고 실크스크린이 없음. E2와 같은 `mode_320x320` 화면 설정을 공유 |
 | AN32502A 전원 관리(I²C) | 이식 완료, 개별 시험 안 함 | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
 | AK4534 오디오 코덱(I²C) | 레지스터 모델만, PCM 출력 없음 | `src/uarm/uarm/i2sdev_AK4534.cpp` |
@@ -73,7 +73,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 
 ## Development order
 
-1. **QWERTY keyboard input**: log what the ROM's keyboard driver reports for one matrix key, then map host letter, Shift, Ctrl, Space, Enter and Backspace keys onto the TG50 matrix, and drive GPIO0 from the host power key.
+1. **Power key and sleep**: find why driving GPIO0 from the power key ends in a Fatal Exception; check fast-typing key drops against original uARM; optionally map PC digit keys to Blue + top row.
 2. **TG50 display configuration**: drop the E2 silkscreen (or replace it with a keyboard image) without changing the E2's shared configuration.
 3. **Savestates**: serialize TG50 device state so session files can be saved and resumed.
 4. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
@@ -83,7 +83,7 @@ Detailed file-level checklist and fix history: [docs/sony-tg50-port.md](docs/son
 
 ## 개발 순서
 
-1. **QWERTY 키보드 입력:** 매트릭스 키 하나를 눌렀을 때 ROM 키보드 드라이버가 내는 값을 기록한 뒤, PC의 글자·Shift·Ctrl·Space·Enter·Backspace 키를 TG50 매트릭스에 연결하고, PC 전원 키로 GPIO0을 구동합니다.
+1. **전원 키·슬립:** 전원 키로 GPIO0을 구동하면 Fatal Exception이 나는 원인을 찾고, 빠른 입력 누락을 원본 uARM과 비교하며, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
 2. **TG50 화면 설정:** E2와 공유하는 설정은 건드리지 않고 E2 실크스크린을 없애거나 키보드 그림으로 바꿉니다.
 3. **상태 저장:** TG50 장치 상태를 직렬화해 세션 파일 저장·재개를 지원합니다.
 4. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.
@@ -155,7 +155,7 @@ What to expect on first launch:
 2. Pen calibration: tap the center of each of the three targets accurately (top-left, bottom-right, center).
 3. Setup 3: tap **Next**; Setup 4: tap **Done**. The CLIÉ Launcher appears.
 
-The E2 silkscreen drawn below the screen does nothing on TG50, and letter keys on the host keyboard are not yet connected.
+The E2 silkscreen drawn below the screen does nothing on TG50. Type with the PC keyboard: letters, Space, Enter, Backspace, Shift, Ctrl; F7 = Blue (digits/symbols), F9 = Red, Home = launcher, F11 = jog select, Esc = power (matrix only).
 
 ## 실험용 TG50 네이티브 ROM 실행
 
@@ -173,4 +173,4 @@ Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션입
 2. 펜 보정: 표적 3개(왼쪽 위, 오른쪽 아래, 가운데)의 중심을 정확히 누릅니다.
 3. Setup 3에서 **Next**, Setup 4에서 **Done**을 누르면 CLIÉ 런처가 나타납니다.
 
-화면 아래에 그려지는 E2 실크스크린은 TG50에서 동작하지 않으며, PC 키보드의 글자 키는 아직 연결되지 않았습니다.
+화면 아래에 그려지는 E2 실크스크린은 TG50에서 동작하지 않습니다. 입력은 PC 키보드로 합니다: 글자, Space, Enter, Backspace, Shift, Ctrl, F7 = Blue(숫자·기호), F9 = Red, Home = 런처, F11 = 조그 선택, Esc = 전원(매트릭스만).

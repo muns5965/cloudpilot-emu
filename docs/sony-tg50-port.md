@@ -13,9 +13,9 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Boot | Works | Needed GPIO13/14 idle levels and the GPIO0 power-key fix (below) |
 | Setup 1–4, pen calibration | Works | Needed the touch-translation patch fix (below) |
 | Launcher, on-screen touch (AD7873) | Works | Calibrated by Palm OS itself |
-| Sony controller keyboard matrix | Modelled; key input not yet tested | `mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
-| Host key mapping | Hard keys 1–4, arrows, jog select, power only | Common `KeyId` has 10 keys; QWERTY letters, Shift, Ctrl, Space, Enter, Backspace are not wired |
-| Host power key → GPIO0 | Not wired | GPIO0 is held released |
+| Sony controller keyboard matrix | Works (typing in Memo Pad) | `mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| Host key mapping | Works: letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/Down, End (jog back), F11 (jog select), F5 (voice), `` ` `` (Graffiti) | New `KeyId` values in `keys.h`; SDL mapping only in TG50 mode. PC digits unmapped. ~40 ms key presses drop some keys (original uARM does not) |
+| Host power key → GPIO0 | Not driven | Driving it (as original uARM does) ends in a Fatal Exception via the sleep path; Esc reaches the matrix only |
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
 | Savestates / sessions | Not implemented for TG50 | `--tg50` rejects session files |
@@ -23,7 +23,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 
 ## Remaining work
 
-1. **QWERTY keyboard:** log what the ROM's keyboard driver reports for a matrix key, extend host key IDs, map letters and modifiers onto `kMatrix`, and drive GPIO0 from the host power key (original uARM wires the power key both to the matrix and to GPIO0).
+1. **Power key and sleep:** driving GPIO0 from the power key ends in a Fatal Exception (log shows `R of 4 bytes to 0x02200000 failed!` around memory-controller writes); compare with original uARM's sleep/resume. Also compare fast-typing drops (the event queue applies one key event per 1/30 s tick).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
 3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
@@ -204,3 +204,10 @@ This bypasses only the **device-type identification decision**; the image must s
 - Verified natively (Linux, SDL2): calibration (3 targets), Setup 3/4 Next and Setup 4/4 Done complete, and the CLIÉ Launcher responds to taps.
 - Note: the TG50 has a hardware QWERTY keyboard and no Graffiti silkscreen. The port still uses the E2 `mode_320x320` display configuration (320x320 plus a 120 px silkscreen area), so the drawn E2 silkscreen does nothing on TG50.
 - Possible follow-up: a TG50-specific translation patch (inverse of `3200 - 10 * x/y`, with the TG50 X/Y cross-wiring verified first) would make touch independent of calibration, like on the E2.
+
+## QWERTY keyboard wired to host keys
+
+- Diagnosis: on original uARM with the same ROM, typing in Memo Pad works, so the ROM's keyboard driver reads the Sony controller matrix directly. In this port the matrix model was present, but host keys never reached it: the SDL handler mapped only F1–F4, arrows, Return (jog select) and Esc, and the common `KeyId` had 10 values.
+- Change: `keys.h` adds keyboard key IDs after `keyIdPower` (existing values unchanged). `SdlEventHandler` maps letters, Space, Return, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, F7 (Blue), F9 (Red), Home, PageUp/PageDown, End (jog back), F11 (jog select), F5 (voice) and `` ` `` (Graffiti) **only in TG50 mode**; other devices keep the old mapping. `sonyTG50HostKey()` translates the IDs to `kMatrix` keys. E2/PV keypads ignore unknown IDs.
+- Verified natively: lower/upper case, Shift, Blue+q/w/e = `123`, Red layer, comma/period, Backspace, Enter, Home back to the launcher.
+- Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped; ~40 ms presses drop some keys in this port but not in original uARM.

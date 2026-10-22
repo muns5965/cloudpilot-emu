@@ -92,7 +92,34 @@ void sonyTG50HostKey(SonyTG50* dev, KeyId key, bool pressed) {
         case keyIdRight: tg50 = K::right; break;
         case keyIdSelect: tg50 = K::jogSelect; break;
         case keyIdPower: tg50 = K::power; break;
-        default: break;
+        case keyIdKbdSpace: tg50 = K::space; break;
+        case keyIdKbdEnter: tg50 = K::enter; break;
+        case keyIdKbdBackspace: tg50 = K::backspace; break;
+        case keyIdKbdShift: tg50 = K::shift; break;
+        case keyIdKbdCtrl: tg50 = K::control; break;
+        case keyIdKbdTab: tg50 = K::tab; break;
+        case keyIdKbdCaps: tg50 = K::caps; break;
+        case keyIdKbdComma: tg50 = K::comma; break;
+        case keyIdKbdPeriod: tg50 = K::period; break;
+        case keyIdKbdUnderscore: tg50 = K::underscore; break;
+        case keyIdKbdBlue: tg50 = K::blue; break;
+        case keyIdKbdRed: tg50 = K::red; break;
+        case keyIdHome: tg50 = K::home; break;
+        case keyIdPageUp: tg50 = K::pageUp; break;
+        case keyIdPageDown: tg50 = K::pageDown; break;
+        case keyIdJogBack: tg50 = K::jogBack; break;
+        case keyIdVoice: tg50 = K::voice; break;
+        case keyIdGraffiti: tg50 = K::graffiti; break;
+        default:
+            if (key >= keyIdKbdA && key <= keyIdKbdZ) {
+                static constexpr K kLetters[26] = {
+                    K::a, K::b, K::c, K::d, K::e, K::f, K::g, K::h, K::i, K::j, K::k, K::l, K::m,
+                    K::n, K::o, K::p, K::q, K::r, K::s, K::t, K::u, K::v, K::w, K::x, K::y, K::z};
+                tg50 = kLetters[key - keyIdKbdA];
+            }
+            break;
     }
+    // Original uARM also drives GPIO0 (active low) from the power key. Doing so here
+    // currently ends in a Fatal Exception (sleep path), so GPIO0 stays released.
     sonyTG50Key(dev, tg50, pressed);
 }
