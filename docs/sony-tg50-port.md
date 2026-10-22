@@ -116,3 +116,8 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Fixed a deterministic initialization failure: `memoryBufferAllocate` and `memoryBufferGetSubBuffer` require sizes and offsets aligned to `MEMORY_BUFFER_GRANULARITY` (32 KiB). The previous TG50 code attempted to reserve a 1 KiB buffer, so memory allocation/subbuffer creation failed.
 - `SocPXA` now reserves a 32 KiB backing buffer for Sony's extra SRAM and maps **only 1 KiB** into the physical address space at `0xAC000000` via `ramInit`. This intentionally retains the real device-visible size.
 - GitHub Actions build result is **still unverified**; this is a source-confirmed defect correction, not a claim that the emulator compiles or boots.
+
+## Keypad initial-state regression fix
+
+- Recalculated TG50 GPIOC keyboard columns on controller initialization and on a controller reset (`0xff` at byte offset `0x210`). Columns with no pressed/driven row idle high in this model; previously they could remain zero until the first host key or GPIO write.
+- This is a source-level correction only, **not a confirmed CI pass**. The GitHub connector available here exposes logs only after a workflow run/job ID is known; it cannot enumerate push-triggered runs for this repository.
