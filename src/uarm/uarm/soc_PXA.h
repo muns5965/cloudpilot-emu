@@ -108,6 +108,7 @@ class SocPXA : public SocGeneric<SocPXA> {
     PxaRtc *rtc{nullptr};
     PxaLcd *lcd{nullptr};
     ArmRam *sram{nullptr};
+    ArmRam *tg50Sram{nullptr};
     ArmRam *ramMirror{nullptr};  // mirror for ram termination
     Device *dev{nullptr};
     Keypad *kp{nullptr};
@@ -117,6 +118,7 @@ class SocPXA : public SocGeneric<SocPXA> {
     MemoryBuffer bufferNand{};
     MemoryBuffer bufferLcd{};
     MemoryBuffer bufferSram{};
+    MemoryBuffer bufferTg50Sram{};
 
     union {
         // 25x/26x
