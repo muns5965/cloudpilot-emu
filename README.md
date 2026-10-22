@@ -122,3 +122,25 @@ A diagnostic-only build may define `TG50_TRACE_GPIO` (PXA GPIO13/14 levels and G
 ## GPIO 인터럽트 진단
 
 진단용 빌드에서는 `TG50_TRACE_GPIO`(PXA GPIO13·14 입력 상태와 GRER0·GFER0·GEDR0 설정) 및 `TG50_TRACE_IRQ`(Sony 컨트롤러 인터럽트 전이)를 함께 사용할 수 있습니다. 동일한 TG50 ROM을 사용하는 원본 uARM과 기록을 비교하는 용도입니다. **진단 빌드 및 ROM 부팅 성공은 아직 검증되지 않았습니다.**
+
+---
+
+## Experimental native TG50 ROM launch
+
+The native emulator now offers an explicit device override for a Palm OS 5 NOR image:
+
+```sh
+./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
+```
+
+This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM, and does not support NAND or resuming existing session files in TG50 override mode. **Native compilation and TG50 boot are not yet confirmed.**
+
+## 실험용 TG50 네이티브 ROM 실행
+
+Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션이 추가됐습니다.
+
+```sh
+./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
+```
+
+이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며, TG50 강제 선택 모드에서는 별도 NAND 및 기존 세션 파일을 지원하지 않습니다. **네이티브 컴파일 성공과 TG50 ROM 부팅은 아직 확인되지 않았습니다.**
