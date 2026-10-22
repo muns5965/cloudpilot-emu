@@ -64,14 +64,32 @@ Path (trimmed copy, offsets in the trimmed image):
 
 The function expected at `0x004C7E30` exists in the ROM: the same link offset maps it to trimmed offset `0x1638C` (`push {r3,r4,r5,lr}` right after a `bx lr`). So the image is linked as if the area before `0x1E55C` were also in RAM below `0xA04D0000`, but the stage-1 copy shown above does not put it there.
 
-### Open question
+### Cause: the small boot ROM is missing from this dump
 
-Who fills RAM `0xA04C0000`–`0xA04CFFFF` on real hardware? Candidates (not verified):
+The ROM contains no other copy routine for `0xA04Cxxxx` (the only `0xA04C....` literals are a page-table mapping argument near trimmed `0x158BC` and a variable at `0xA04C1600`). Comparison with the TG50 NOR image:
 
-- The real flash layout differs from this dump (for example a boot block or copy step outside the dumped 12 MiB, or a different start address), so trimming the first 128 KiB is not equivalent.
-- Another routine (the ROM contains literals `0xA04C0000`/`0xA04C2000` near trimmed `0x15E34`) is supposed to copy that area and is skipped on this path.
+| Location | TG50 | NX70V dump |
+| --- | --- | --- |
+| `0x0` | Small boot ROM (`PalmCard` header, `b 0x328`) | Device data area (not code) |
+| `0x20000` | Main OS ROM header | Main OS ROM header |
+| `0x9600`-byte loader copy to `0xA04D0000` | Two: small ROM (`0xCF8`) and inside the main ROM (`0x3F73C`) | One: inside the main ROM only |
 
-Proposed next diagnostic (local only): find code that writes to `0xA04Cxxxx`, then test the first candidate by checking whether a `0x20000`-shifted mapping explains the link offset.
+The loader copy inside TG50's main ROM also calls below its copied block (`bl 0x004C7D7C`), exactly like NX70V. TG50 boots because it starts from the small ROM at `0x0`. So NX70V needs its own small boot ROM at `0x0`–`0x1FFFF` with the main ROM left at `0x20000`; trimming the first 128 KiB is not equivalent. The dump probably read a different area (the device data) instead of the boot block.
+
+### Local test: TG50 small ROM + NX70V main ROM (not committed)
+
+Composite image, local only: TG50 `0x0`–`0x17FFF` + NX70V `0x18000`– (the original files are unchanged). Purpose: confirm the cause, not a usable image.
+
+- Stage 2 no longer loops; the NX70V main ROM runs its DAL at VA `0x20xxxxxx`. The screen stays blank.
+- It then reboots about 4 times per second. Each cycle:
+  - `W of 1 bytes to 0x1000002c failed` (PC `0x209D9C28`): no device emulated at that address.
+  - The routine at `0x209D61E4` toggles GPIO 15/32, writes `0x8000` to `0x14000008`, polls it, reads `0x14000000`, then increments a counter through a pointer that is still NULL → write to `0x00000004` (PC `0x209D60F8`) → data abort → reboot.
+- So the next blockers are NX70V-specific peripherals: a controller at `0x14000000` (the TG50 port emulates its Memory Stick controller at `0x14001000`) and a device at `0x10000000`.
+
+### Next
+
+1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
+2. Meanwhile, with the local composite: identify the `0x14000000` and `0x10000000` devices from the NX70V DAL code.
 
 ## 한국어
 
@@ -85,3 +103,9 @@ Proposed next diagnostic (local only): find code that writes to `0xA04Cxxxx`, th
 - **반복 원인**: 1단계가 `0x1E55C`부터 `0x9600`바이트만 RAM `0xA04D0000`에 복사하고 MMU를 켬. 2단계가 `bl 0x004C7E30`(주 초기화)을 부르는데, 그 주소(PA `0xA04C7E30`)는 복사 범위 아래라 **0으로 비어 있음**. CPU가 0(아무 일 안 하는 명령)을 `0x8208`바이트 지나 2단계 시작 `0x004D0038`로 미끄러져 들어가고, 마이컴을 다시 리셋하며 무한 반복.
 - 그 함수 자체는 ROM에 있음(로컬 사본 `0x1638C`). 즉 이미지는 `0x1E55C` 앞부분도 RAM에 있다고 가정하고 링크돼 있음.
 - **남은 질문**: 실기에서는 무엇이 `0xA04C0000`~`0xA04CFFFF`를 채우는가? (가) 실제 플래시 배치가 이 덤프와 다름(앞 128KiB를 빼는 것이 실기와 다름), (나) 다른 복사 루틴(`0xA04C0000` 상수 근처)이 이 경로에서 건너뛰어짐. 둘 다 미확인.
+- **원인 확정(가)**: 이 덤프에는 `0x0`의 **작은 부트 ROM이 없음**. TG50은 `0x0`에 작은 ROM(PalmCard 헤더, `b 0x328`)과 `0x20000`에 본 ROM이 있고, 본 ROM 안의 부트 사본은 NX70V와 똑같이 복사 범위 아래(`bl 0x004C7D7C`)를 부름. TG50은 작은 ROM으로 시작해서 정상 부팅. `0xA04C....`를 채우는 다른 복사 루틴(나)은 없음.
+- **로컬 조합 시험(커밋 안 함)**: TG50 `0x0`~`0x17FFF` + NX70V `0x18000`~. 2단계 반복은 사라지고 NX70V 본 ROM의 DAL(`0x20xxxxxx`)까지 실행됨. 화면은 빈 채로 초당 약 4회 재부팅.
+  - `0x1000002c` 1바이트 쓰기 실패(에뮬레이트 장치 없음).
+  - `0x209D61E4` 루틴이 `0x14000000` 장치를 다룬 뒤 아직 NULL인 포인터로 쓰기 → 주소 `0x4` 쓰기 실패 → 데이터 중단 → 재부팅.
+  - 다음 장애물은 NX70V 전용 장치: `0x14000000`(TG50 포트의 메모리스틱은 `0x14001000`)과 `0x10000000`.
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF`를 다시 덤프하는 것이 가장 확실. 그동안 로컬 조합 이미지로 두 장치를 NX70V DAL 코드에서 확인.
