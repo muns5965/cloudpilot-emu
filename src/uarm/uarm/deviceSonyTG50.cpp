@@ -46,6 +46,9 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
         // Do not free the clients or the device here until rollback support exists.
         return nullptr;
     }
+    // Power key is wired to GPIO0, active low (uARM: keypadAddGpioKey(kp, SDLK_ESCAPE, 0, false),
+    // which leaves the line high). Left low, the boot code at 0x20036DBC spins waiting for release.
+    pxaGpioSetState(sp->gpio, 0, true);   // power key released (active low)
     pxaGpioSetState(sp->gpio, 1, true);   // reset switch (active low)
     pxaGpioSetState(sp->gpio, 3, true);   // cradle switch (not pressed)
     pxaGpioSetState(sp->gpio, 7, true);   // Memory Stick absent

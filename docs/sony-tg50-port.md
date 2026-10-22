@@ -167,3 +167,13 @@ The native executable now accepts `--tg50` explicitly:
 ```
 
 This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection and is **not proof that a genuine TG50 image passes the existing parser**. Build and ROM boot remain unverified. ROM images are not included in the repository.
+
+## Boot blocker fixed: power key GPIO0 idle level
+
+- Symptom: with `--tg50`, the ROM is accepted and PACE is patched, but the screen stays blank. A gdb remote probe showed the CPU spinning at `0x20036DBC`–`0x20036DC4`, polling `GPLR0` (`0x40E00000`) bit 0 and debouncing it.
+- Reference: the original uARM TG50 build, run on the same ROM, reaches the same function, reads `GPLR0 = 0x0800E68B` (bit 0 = 1) and leaves the loop within 0.2 s; this port read `0x0800E68A` (bit 0 = 0), the only differing bit.
+- Cause: original `deviceSetup()` calls `keypadAddGpioKey(kp, SDLK_ESCAPE, 0, false)`, registering the power key on GPIO0 as active low and thereby driving the line high (released). The port omitted it, so GPIO0 stayed low and the firmware waited for the power key to be released.
+- Fix: `sonyTG50Initialize()` sets GPIO0 high (released).
+- Verified natively (Linux, SDL2): the TG50 ROM now boots to the **Setup 1 of 4** screen, and controller keypad accesses continue as in the original.
+- Still open: host power key handling should also drive GPIO0 low while pressed (the original wires the same key both to the controller matrix and to GPIO0).
+
