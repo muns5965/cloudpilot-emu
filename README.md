@@ -12,11 +12,16 @@
 [**TG50 상세 이식 계획(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
 
----
 
 ## Goal
 
 Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). First bring up a **native TG50 ROM boot**, then verify LCD, stylus and physical keyboard input, and only then add browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
+
+## 개발 목표
+
+CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 먼저 **네이티브 환경에서 TG50 ROM 부팅**을 성공시킨 뒤 LCD 화면, 펜 입력, 물리 키보드를 확인하고, 이후 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
+
+---
 
 ## Current progress
 
@@ -34,28 +39,6 @@ Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardwa
 
 **Important:** These commits stage the Sony controller but do not activate it in an emulated device. The current fork must **not** be presented as able to run a TG50 ROM.
 
-## Development order
-
-1. **Validate the controller port compiles** in the existing CloudpilotEmu build, without changing E2 or other supported devices. Address build errors and write a small MMIO/keyboard regression test.
-2. **Port the remaining TG50 hardware** required for startup: touch (AD7873), power (AN32502A), audio initialization (AK4534), and Memory Stick register behavior.
-3. **Register TG50 for native execution**: device type, ROM and RAM mapping, GPIO initialization, PXA25x revision and host keyboard mapping. Keep it out of the browser device list at this stage.
-4. **Prove a real TG50 ROM boot** in the native emulator and test display, touch and QWERTY keyboard.
-5. **Add browser/WASM support** after native boot, then handle savestates and optional peripherals.
-
-Detailed file-level checklist: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
-
-## Branch and upstream
-
-Active development branch: `feature/sony-tg50`; `master` is the original fork baseline. This is an independent experimental fork, **not an official CloudpilotEmu release**.
-
-The original project's emulator overview, device compatibility, existing build instructions and licensing information have been preserved in [doc/README-upstream.md](doc/README-upstream.md). Refer to that document for the underlying CloudpilotEmu project. Existing functionality and licensing obligations remain applicable to this fork.
-
----
-
-## 개발 목표
-
-CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 먼저 **네이티브 환경에서 TG50 ROM 부팅**을 성공시킨 뒤 LCD 화면, 펜 입력, 물리 키보드를 확인하고, 이후 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
-
 ## 현재 진행 상태
 
 | 구성 요소 | 상태 | 코드 / 다음 작업 |
@@ -72,6 +55,18 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 
 **주의:** 현재 Sony 컨트롤러 코드는 별도로 추가됐지만 실제 에뮬레이터 기기에 연결되지 않았습니다. 따라서 **아직 TG50 ROM을 실행할 수 있는 상태가 아닙니다.**
 
+---
+
+## Development order
+
+1. **Validate the controller port compiles** in the existing CloudpilotEmu build, without changing E2 or other supported devices. Address build errors and write a small MMIO/keyboard regression test.
+2. **Port the remaining TG50 hardware** required for startup: touch (AD7873), power (AN32502A), audio initialization (AK4534), and Memory Stick register behavior.
+3. **Register TG50 for native execution**: device type, ROM and RAM mapping, GPIO initialization, PXA25x revision and host keyboard mapping. Keep it out of the browser device list at this stage.
+4. **Prove a real TG50 ROM boot** in the native emulator and test display, touch and QWERTY keyboard.
+5. **Add browser/WASM support** after native boot, then handle savestates and optional peripherals.
+
+Detailed file-level checklist: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
+
 ## 개발 순서
 
 1. **컨트롤러 코드 컴파일 확인:** 기존 E2 등 지원 기종을 변경하지 않고 빌드 오류를 점검하며, MMIO·키보드 회귀 시험을 추가합니다.
@@ -81,6 +76,14 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 5. **브라우저/WASM 지원:** 네이티브 부팅 성공 후 웹 기기 선택과 입력을 추가하고, 저장 상태 및 선택적 주변장치는 후속으로 구현합니다.
 
 파일별 상세 점검표: [TG50 포팅 기술 문서](docs/sony-tg50-port.md).
+
+---
+
+## Branch and upstream
+
+Active development branch: `feature/sony-tg50`; `master` is the original fork baseline. This is an independent experimental fork, **not an official CloudpilotEmu release**.
+
+The original project's emulator overview, device compatibility, existing build instructions and licensing information have been preserved in [doc/README-upstream.md](doc/README-upstream.md). Refer to that document for the underlying CloudpilotEmu project. Existing functionality and licensing obligations remain applicable to this fork.
 
 ## 개발 브랜치와 원본 프로젝트
 
