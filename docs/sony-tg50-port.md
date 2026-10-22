@@ -35,3 +35,9 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 ## Scope / safety
 
 No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 as supported until ROM boot is observed. Hardware constants in the new header are not integrated yet; they should not change existing emulator behavior.
+
+## Latest controller validation work
+
+- Fixed a keyboard matrix scan error: previously every row could overwrite the selected column's state; the implementation now calculates each column after checking all driven rows (commit `d53cd7f`).
+- Added `.github/workflows/tg50-controller.yml` to perform C++ syntax checks on the controller and hardware header (`f3f9a09`). The presence of this workflow is **not** evidence of a passing run.
+- TG50 device registration, runtime MMIO tests, complete build and ROM boot remain **unverified**.
