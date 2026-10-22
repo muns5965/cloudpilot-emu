@@ -8,13 +8,13 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 - CloudpilotEmu: `src/uarm/uarm/devicePalmTungstenE2.cpp`, `src/common/device_type5.h`, `src/uarm/uarm/device_configuration.cpp`, `src/uarm/Makefile`.
 - Original uARM ships a TG50 device model, though its standard Makefile has the TG50 configuration **commented out** and enables T3 by default. Upstream's support listing alone does not prove that current source/ROM boots in the Cloudpilot fork.
 - The original TG50 code uses PXA25x, a Sony controller mapped at `0x08000000` (size `0x220`), AD7873 touch, AN32502A power, AK4534 audio, a Memory Stick controller, and an 8x8 keyboard matrix on the Sony controller's GPIO port C.
-- Initial addresses and keyboard matrix are staged in `src/uarm/uarm/sony_tg50_hardware.h`. Key symbols are semantic; **SDL key constants must not be copied into the web emulator**.
+- Initial addresses and keyboard matrix are staged in `src/uarm/uarm/sony_tg50_hardware.h`. An initial C++ port of the Sony controller is now present in `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` and listed in `src/uarm/Makefile`, but **compilation and hardware behavior have not been verified**. Key symbols are semantic; **SDL key constants must not be copied into the web emulator**.
 
 ## Remaining dependencies and blockers
 
 | Area | Original uARM | CloudpilotEmu work required |
 | --- | --- | --- |
-| Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Port MMIO and row/column keyboard scan; map host keys to semantic key IDs |
+| Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Initial MMIO and row/column keyboard scan port added; verify build, IRQ and matrix correctness, then map host key IDs |
 | Touch | `sspdev_AD7873.c/.h` | Port SSP device, stylus coordinates and GPIO 9 IRQ |
 | Power management | `i2cdev_AN32502A.c/.h` | Port I2C responses needed by ROM boot |
 | Audio | `i2sdev_AK4534.c/.h` | Port or establish which initialization accesses need stubs |
