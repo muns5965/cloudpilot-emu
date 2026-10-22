@@ -144,3 +144,9 @@ Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving 
 - Compile with `-DTG50_TRACE_GPIO -DTG50_TRACE_IRQ` to combine the PXA-level observations with controller assert/release logs.
 - Compare both lines' idle states, GRER0/GFER0 settings, and pressed/released key transitions against upstream uARM using the same TG50 ROM.
 - **No ROM run or passing build is claimed.** This patch instruments the existing implementation; it does not assert that GPIO13 and GPIO14 have interchangeable roles.
+
+## IRQ diagnostic compile coverage
+
+- Updated `.github/workflows/tg50-controller.yml` to check `pxa_GPIO.cpp` in both standard and `TG50_TRACE_GPIO` builds, and `mmiodev_TG50uc.cpp` with `TG50_TRACE_IRQ`.
+- Added `pxa_GPIO.cpp` to the workflow's push path filters, so changes to the diagnostic implementation request a syntax-check run.
+- This is a CI configuration change only; successful GitHub Actions execution and TG50 ROM boot are **not yet verified**.
