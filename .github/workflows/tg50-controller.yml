@@ -18,6 +18,7 @@ on:
       - 'src/uarm/uarm/sony_tg50_hardware.h'
       - 'src/uarm/uarm/pxa_GPIO.h'
       - 'src/uarm/uarm/pxa_GPIO.cpp'
+      - 'src/uarm/uarm/mmiodev_MemoryStickController.cpp'
       - 'src/uarm/uarm/mem.h'
       - '.github/workflows/tg50-controller.yml'
   workflow_dispatch:
@@ -53,3 +54,16 @@ jobs:
             -DTG50_TRACE_GPIO -DTG50_TRACE_IRQ \
             -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
             src/uarm/uarm/pxa_GPIO.cpp src/uarm/uarm/mmiodev_TG50uc.cpp
+
+      - name: Compile TG50 Memory Stick default and diagnostic variants
+        run: |
+          for mode in default alias zero; do
+            case "$mode" in
+              alias) flags="-DTG50_MS_EXT_ALIAS -DTG50_MS_TRACE" ;;
+              zero) flags="-DTG50_MS_EXT_ZERO -DTG50_MS_TRACE" ;;
+              *) flags="" ;;
+            esac
+            g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+              $flags -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+              src/uarm/uarm/mmiodev_MemoryStickController.cpp
+          done
