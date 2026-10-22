@@ -68,3 +68,11 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Default system register `0x4455`, 16-bit register accesses, write-one-to-clear status flags, and two 32-bit reply registers are represented.
 - Registered in `src/uarm/Makefile` and the TG50 C++ syntax-check workflow.
 - **Limitations:** no card insertion, storage protocol or media transfer; no actual compilation success, TG50 device attachment or ROM boot has been verified.
+
+## Device peripheral assembly (staged, not active)
+
+- Added `src/uarm/uarm/deviceSonyTG50.cpp/.h`. The module initializes all five staged peripheral devices, sets GPIO reset/card/interrupt defaults and battery voltage, and provides stylus and generic host hardware key forwarding into the Sony keyboard matrix.
+- Added to `src/uarm/Makefile` and the TG50 syntax-check workflow. There is **no evidence yet of a passing compile or runtime test**.
+- **Not integrated:** the current `deviceSetup` factory remains E2-specific; TG50 is not registered in `DeviceType5` or ROM/RAM configuration, and no TG50 ROM boot is possible.
+- **Important design issue:** callbacks/MMIO registration is not reversible. A partial initialization failure currently returns null while registered clients may remain; robust cleanup/rollback must be addressed before selecting TG50 at runtime.
+- **Additional integration work:** Sony's extra 1 KiB SRAM at `0xac000000`, RAM mirror boundaries, savestates, keyboard host input including QWERTY, and the actual device type/factory dispatch all remain outstanding.
