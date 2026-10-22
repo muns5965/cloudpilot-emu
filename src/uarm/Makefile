@@ -109,6 +109,7 @@ SOURCE_CXX =		 					\
 	uarm/sspdev_AD7873.cpp			\
 	uarm/i2cdev_AN32502A.cpp			\
 	uarm/i2sdev_AK4534.cpp			\
+	uarm/mmiodev_MemoryStickController.cpp	\
 	uarm/uartdev_bcm2035.cpp			\
 	uarm/vSD.cpp						\
 	uarm/devicePalmTungstenE2.cpp 		\
