@@ -47,7 +47,7 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     pxaGpioSetState(sp->gpio, 3, true);   // cradle switch (not pressed)
     pxaGpioSetState(sp->gpio, 7, true);   // Memory Stick absent
     pxaGpioSetState(sp->gpio, 10, true);  // Memory Stick interrupt inactive
-    pxaGpioSetState(sp->gpio, 13, true);  // Sony controller interrupt inactive
+    pxaGpioSetState(sp->gpio, sony_tg50::kUcIrqGpio, true);  // controller IRQ inactive
     ad7873SetVbatt(dev->touch, 4200);
     ad7873Periodic(dev->touch);
     sp->dbgUart = sp->uarts[2]; // Mirrors original uARM TG50 setup.
