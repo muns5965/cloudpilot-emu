@@ -436,7 +436,7 @@ void SocPXA::OnSave(T &savestate) {
 void SocPXA::AllocateBuffers() {
     size_t memoryBufferSize = ramSize + 2 * MEMORY_BUFFER_GRANULARITY;
     if (socRev == 2) memoryBufferSize += SRAM_SIZE;
-    if (tg50Mode) memoryBufferSize += sony_tg50::kUnknownSramSize;
+    if (tg50Mode) memoryBufferSize += MEMORY_BUFFER_GRANULARITY;
 
     bool success = memoryBufferAllocate(&bufferMemory, memoryBufferSize);
 
@@ -456,7 +456,7 @@ void SocPXA::AllocateBuffers() {
     }
     if (tg50Mode)
         success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferTg50Sram, offset,
-                                                       sony_tg50::kUnknownSramSize);
+                                                       MEMORY_BUFFER_GRANULARITY);
 
     if (!success) ERR("failed to allocate memory buffers");
 }
