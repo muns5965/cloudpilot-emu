@@ -110,6 +110,7 @@ SOURCE_CXX =		 					\
 	uarm/i2cdev_AN32502A.cpp			\
 	uarm/i2sdev_AK4534.cpp			\
 	uarm/mmiodev_MemoryStickController.cpp	\
+	uarm/deviceSonyTG50.cpp			\
 	uarm/uartdev_bcm2035.cpp			\
 	uarm/vSD.cpp						\
 	uarm/devicePalmTungstenE2.cpp 		\
