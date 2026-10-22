@@ -13,9 +13,10 @@ constexpr uint32_t kUcSize = 0x0220ul;
 constexpr uint32_t kMemoryStickBase = 0x14000000ul;
 constexpr uint32_t kUnknownSramBase = 0xac000000ul;
 constexpr uint32_t kUnknownSramSize = 1024ul;
-// TG50 firmware maps the uC dispatcher interrupt to GPIO13 (IRQ28).
-// GPIO14 (IRQ29) is separately documented as hard-key related.
-constexpr unsigned kUcIrqGpio = 13;
+// uARM deviceSonyTG50.c keeps GPIO13 high (inactive) and drives GPIO14
+// through the Sony microcontroller. The GPIO13 dispatcher note is tentative.
+constexpr unsigned kKeyRelatedIdleGpio = 13;
+constexpr unsigned kUcIrqGpio = 14;
 constexpr unsigned kTouchIrqGpio = 9;
 constexpr unsigned kKeyboardRows = 8;
 constexpr unsigned kKeyboardColumns = 8;
