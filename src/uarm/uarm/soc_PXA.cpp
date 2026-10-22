@@ -42,6 +42,7 @@
 #include "pxa_UART.h"
 #include "reschedule.h"
 #include "rom_info5.h"
+#include "sony_tg50_hardware.h"
 #include "syscall_dispatch.h"
 
 #define SAVESTATE_VERSION 2
@@ -70,8 +71,9 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct GetEmuTime getEmuTime = {.getTimeF = GetTimeCB, .userdata = this};
 
     this->socRev = socRev;
+    tg50Mode = deviceType == deviceTypeSonyTG50;
 
-    if (ramSize == 0) ramSize = 16 << 20;
+    if (ramSize == 0) ramSize = tg50Mode ? sony_tg50::kRamSize : 16ul << 20;
     if (!deviceConfigurationSupportsRamSize(deviceType, ramSize))
         ERR("unsupported RAM size %u\n", ramSize);
 
@@ -131,6 +133,10 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
         kpc = pxaKpcInit(mem, ic);
         sram = ramInit(mem, this, SRAM_BASE, SRAM_SIZE, &bufferSram, false);
     }
+
+    if (tg50Mode)
+        tg50Sram = ramInit(mem, this, sony_tg50::kUnknownSramBase,
+                          sony_tg50::kUnknownSramSize, &bufferTg50Sram, false);
 
     gpio = pxaGpioInit(mem, ic, socRev);
     tmr = pxaTimrInit(mem, ic);
@@ -430,6 +436,7 @@ void SocPXA::OnSave(T &savestate) {
 void SocPXA::AllocateBuffers() {
     size_t memoryBufferSize = ramSize + 2 * MEMORY_BUFFER_GRANULARITY;
     if (socRev == 2) memoryBufferSize += SRAM_SIZE;
+    if (tg50Mode) memoryBufferSize += sony_tg50::kUnknownSramSize;
 
     bool success = memoryBufferAllocate(&bufferMemory, memoryBufferSize);
 
@@ -443,9 +450,13 @@ void SocPXA::AllocateBuffers() {
                                                   MEMORY_BUFFER_GRANULARITY);
     offset += MEMORY_BUFFER_GRANULARITY;
 
-    if (socRev == 2)
-        success =
-            success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSram, offset, SRAM_SIZE);
+    if (socRev == 2) {
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSram, offset, SRAM_SIZE);
+        offset += SRAM_SIZE;
+    }
+    if (tg50Mode)
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferTg50Sram, offset,
+                                                       sony_tg50::kUnknownSramSize);
 
     if (!success) ERR("failed to allocate memory buffers");
 }
