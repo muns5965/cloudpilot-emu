@@ -106,6 +106,7 @@ SOURCE_CXX =		 					\
 	uarm/nand.cpp 						\
 	uarm/mmiodev_DirectNAND.cpp			\
 	uarm/mmiodev_TG50uc.cpp			\
+	uarm/sspdev_AD7873.cpp			\
 	uarm/uartdev_bcm2035.cpp			\
 	uarm/vSD.cpp						\
 	uarm/devicePalmTungstenE2.cpp 		\
