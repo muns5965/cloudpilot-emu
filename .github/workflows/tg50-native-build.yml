@@ -1,0 +1,38 @@
+name: TG50 native build
+
+on:
+  push:
+    branches:
+      - feature/sony-tg50
+    paths:
+      - 'src/uarm/**'
+      - 'src/common/**'
+      - '.github/workflows/tg50-native-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libsdl2-dev libsdl2-image-dev \
+            libreadline-dev libcurl4-openssl-dev
+      - name: Build common native library
+        run: make -C src/common bin -j2
+      - name: Build ARM emulator and link executable
+        run: make -C src/uarm bin -j2
+      - name: Verify executable was produced
+        run: test -s src/uarm/cp-uarm
+      - name: Upload native emulator
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tg50-experimental-cp-uarm-linux
+          path: src/uarm/cp-uarm
+          if-no-files-found: error
