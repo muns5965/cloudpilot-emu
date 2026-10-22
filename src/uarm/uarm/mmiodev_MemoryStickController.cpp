@@ -40,7 +40,7 @@ static bool access(void* ctx, uint32_t address, uint_fast8_t size, bool write, v
         // Diagnostic compatibility experiment, not an emulation of the actual registers.
         if (!write) std::memset(buf, 0, size);
 #ifdef TG50_MS_TRACE
-        std::fprintf(stderr, "[TG50 MS zero] %c%u @ %08x\\n",
+        std::fprintf(stderr, "[TG50 MS zero] %c%u @ %08x\n",
                      write ? 'W' : 'R', static_cast<unsigned>(size * 8), address);
 #endif
         return true;
