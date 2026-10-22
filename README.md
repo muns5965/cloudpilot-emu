@@ -107,8 +107,8 @@ The original project's emulator overview, device compatibility, existing build i
 
 ---
 
-## Interrupt mapping note
-The original uARM TG50 code passes GPIO14 for the Sony controller, but its interrupt table identifies GPIO13 (IRQ28) for the controller dispatcher and GPIO14 (IRQ29) for hard keys. This fork currently uses GPIO13 consistently; ROM tracing is needed to resolve the original discrepancy.
+## TG50 GPIO13 / GPIO14 (upstream-compatible)
+The original uARM initializes GPIO13 high (inactive) and connects the Sony microcontroller's IRQ output to GPIO14. These are **two separate lines**. Its annotation about GPIO13 being the overall uC IRQ is tentative; it does not supersede the implemented GPIO14 connection. This fork reproduces the original line separation and initializes both pins inactive before the controller begins driving GPIO14. A real ROM trace should still verify interrupt edge masks and key handling.
 
-## 인터럽트 연결 확인 사항
-원본 uARM의 TG50 초기화 코드는 Sony 컨트롤러에 GPIO14를 전달하지만, 같은 파일의 인터럽트 설명은 컨트롤러에 GPIO13(IRQ28), 하드키에 GPIO14(IRQ29)를 명시합니다. 현재 포팅에서는 GPIO13으로 통일했으며, 어느 연결이 실제 하드웨어에 부합하는지는 ROM 인터럽트 추적으로 검증해야 합니다.
+## TG50 GPIO13 / GPIO14 (원본 동작 재현)
+원본 uARM은 GPIO13을 비활성(High)으로 초기화하고 Sony 컨트롤러의 IRQ 출력을 GPIO14에 연결합니다. 두 선은 **서로 다른 신호선**입니다. GPIO13이 uC 전체 IRQ일 수 있다는 주석은 추정이며, 실제 초기화 코드의 GPIO14 연결과 모순된다고 볼 근거는 아닙니다. 현재 포크도 두 선을 분리하고 컨트롤러가 GPIO14를 구동하기 전에 두 핀을 비활성 상태로 초기화합니다. 향후 ROM 추적으로 엣지 설정과 키 입력 처리를 검증해야 합니다.
