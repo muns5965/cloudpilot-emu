@@ -211,3 +211,15 @@ This bypasses only the **device-type identification decision**; the image must s
 - Change: `keys.h` adds keyboard key IDs after `keyIdPower` (existing values unchanged). `SdlEventHandler` maps letters, Space, Return, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, F7 (Blue), F9 (Red), Home, PageUp/PageDown, End (jog back), F11 (jog select), F5 (voice) and `` ` `` (Graffiti) **only in TG50 mode**; other devices keep the old mapping. `sonyTG50HostKey()` translates the IDs to `kMatrix` keys. E2/PV keypads ignore unknown IDs.
 - Verified natively: lower/upper case, Shift, Blue+q/w/e = `123`, Red layer, comma/period, Backspace, Enter, Home back to the launcher.
 - Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped; ~40 ms presses drop some keys in this port but not in original uARM.
+
+## Memory Stick extended-register diagnostic comparison (KOSPI)
+
+A reported KOSPI 2.3.0 TG50 test accessed the additional MMIO offsets `0x10c0` (16-bit read), `0x10d0` (16-bit read/write), `0x10e0` (16-bit write), and `0x10f0`/`0x10f8` (32-bit reads). These are **reported observations**, not hardware documentation. The original controller maps only `0x400` bytes.
+
+The controller now reserves `0x1400` bytes, while **the default build rejects all accesses outside the original `0x400` region**. Two mutually exclusive compile-time experiments admit only the five observed extended addresses and access widths:
+
+- `-DTG50_MS_EXT_ALIAS`: translate observed extra offsets by `-0xe00` and use existing register state.
+- `-DTG50_MS_EXT_ZERO`: return zero for observed reads and ignore observed writes.
+- Optional `-DTG50_MS_TRACE` prints zero-mode accesses; diagnostics are off by default.
+
+Build each variant separately; compare clean boot, KOSPI installation and reset, memo text persistence, and boot without KOSPI. If both modes boot, this alone does **not** prove that the hardware uses aliases. The observed null-address writes under KOSPI require a separate PC-level investigation. No actual A/B boot run is claimed in this commit.
