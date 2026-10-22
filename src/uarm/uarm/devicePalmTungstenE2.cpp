@@ -130,6 +130,10 @@ struct Device *deviceSetup(enum DeviceType5 type, struct SocPeriphs *sp,
                            struct Reschedule reschedule, struct GetEmuTime getTime,
                            struct Keypad *kp, struct VSD *vsd, uint8_t *nandContent,
                            size_t nandSize, const struct MemoryBuffer *pageBuffer) {
+    // TG50 has different peripherals and ROM storage. Do not silently start it as E2.
+    if (type == DeviceType5::deviceTypeSonyTG50)
+        ERR("TG50 device factory is not connected yet; refusing E2 initialization");
+
     static const struct NandSpecs nandSpecs = {
         .bytesPerPage = 528,
         .blocksPerDevice = 2048,
