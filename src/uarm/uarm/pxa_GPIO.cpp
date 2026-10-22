@@ -54,7 +54,7 @@ struct PxaGpio {
 static void pxaGpioTraceKeyLines(struct PxaGpio* gpio, const char* event) {
     const uint32_t mask = (1u << 13) | (1u << 14);
     fprintf(stderr,
-            "[TG50 PXA GPIO] %s level13=%u level14=%u dir=%08x GRER=%08x GFER=%08x GEDR=%08x\\n",
+            "[TG50 PXA GPIO] %s level13=%u level14=%u dir=%08x GRER=%08x GFER=%08x GEDR=%08x\n",
             event,
             !!(gpio->levels[0] & (1u << 13)),
             !!(gpio->levels[0] & (1u << 14)),
@@ -239,7 +239,7 @@ static bool pxaGpioPrvMemAccessF(void *userData, uint32_t pa, uint_fast8_t size,
 
 #ifdef TG50_TRACE_GPIO
         // GRER0/GFER0 writes reach this path without calling recalc.
-        if ((pa == 12 || pa == 15) && (val & ((1u << 13) | (1u << 14))))
+        if (pa == 12 || pa == 15)
             pxaGpioTraceKeyLines(gpio, "edge-mask-write");
 #endif
         goto done;
