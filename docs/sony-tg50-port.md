@@ -18,7 +18,7 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 | Touch | `sspdev_AD7873.c/.h` | Initial C++ SSP port added (`sspdev_AD7873.cpp/.h`); compile, 12-bit pipelined command response, stylus coordinates and GPIO 9 IRQ remain unverified |
 | Power management | `i2cdev_AN32502A.c/.h` | Initial C++ I²C model staged in `i2cdev_AN32502A.cpp/.h`; build and startup behavior unverified |
 | Audio | `i2sdev_AK4534.c/.h` | I²C register model port staged in `i2sdev_AK4534.cpp/.h`; no PCM output; compile and startup behavior unverified |
-| Memory Stick | `mmiodev_MemoryStickController.c/.h` | Port required register behavior; removable media can follow later |
+| Memory Stick | `mmiodev_MemoryStickController.c/.h` | Register-only C++ model staged; card data transfer not supported; build and startup unverified |
 | Device boot / GPIO | `deviceSonyTG50.c` | Integrate with modern `deviceSetup(DeviceType5, ...)` and per-device state |
 | ROM and memory | `deviceGetRomMemType`, `deviceGetRamSize` | Check actual TG50 ROM layout, NOR handling, RAM mirror and startup mapping |
 | Web/native integration | N/A | Add device type/config, native selection, frame and input bridge; WASM later |
@@ -61,3 +61,10 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Added `src/uarm/uarm/i2sdev_AK4534.cpp` and `.h`, adapted to CloudpilotEmu's `PxaI2c` API. The original uARM model registers an I²C client but does not attach a real I²S audio stream; this port likewise emulates register access only.
 - I²C address `0x10`, default register values and register read/write state handling were preserved; the model is included in `src/uarm/Makefile` and the TG50 syntax-check workflow.
 - **Not verified:** passing native build or CI checks, live I²C register access, sound output, and TG50 ROM boot. This peripheral has not been attached to a TG50 device instance.
+
+## Memory Stick controller (staged)
+
+- Ported the original uARM 0x400-byte MMIO register-only model to `src/uarm/uarm/mmiodev_MemoryStickController.cpp` and `.h`.
+- Default system register `0x4455`, 16-bit register accesses, write-one-to-clear status flags, and two 32-bit reply registers are represented.
+- Registered in `src/uarm/Makefile` and the TG50 C++ syntax-check workflow.
+- **Limitations:** no card insertion, storage protocol or media transfer; no actual compilation success, TG50 device attachment or ROM boot has been verified.
