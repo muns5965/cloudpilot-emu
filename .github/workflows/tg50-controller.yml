@@ -1,0 +1,28 @@
+name: TG50 controller compile check
+
+on:
+  push:
+    branches:
+      - feature/sony-tg50
+    paths:
+      - 'src/uarm/uarm/mmiodev_TG50uc.*'
+      - 'src/uarm/uarm/sony_tg50_hardware.h'
+      - 'src/uarm/uarm/pxa_GPIO.h'
+      - 'src/uarm/uarm/mem.h'
+      - '.github/workflows/tg50-controller.yml'
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile TG50 controller (syntax only)
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -Isrc/uarm/uarm -Isrc/common \
+            src/uarm/uarm/mmiodev_TG50uc.cpp
+      - name: Check TG50 matrix header
+        run: |
+          printf '#include "sony_tg50_hardware.h"\nstatic_assert(sony_tg50::kKeyboardRows == 8);\nstatic_assert(sony_tg50::kKeyboardColumns == 8);\nint main() { return 0; }\n' \
+            | g++ -x c++ -std=c++17 -fsyntax-only -Isrc/uarm/uarm -
