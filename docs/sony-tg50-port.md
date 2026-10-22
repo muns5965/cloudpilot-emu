@@ -76,3 +76,10 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - **Not integrated:** the current `deviceSetup` factory remains E2-specific; TG50 is not registered in `DeviceType5` or ROM/RAM configuration, and no TG50 ROM boot is possible.
 - **Important design issue:** callbacks/MMIO registration is not reversible. A partial initialization failure currently returns null while registered clients may remain; robust cleanup/rollback must be addressed before selecting TG50 at runtime.
 - **Additional integration work:** Sony's extra 1 KiB SRAM at `0xac000000`, RAM mirror boundaries, savestates, keyboard host input including QWERTY, and the actual device type/factory dispatch all remain outstanding.
+
+## Device type registration (staged)
+
+- Reserved `deviceTypeSonyTG50 = 3` in `src/common/device_type5.h` (existing E2/E3/PV numeric IDs unchanged).
+- Added 17 MiB RAM-size acceptance and a preliminary 320×320 display capability to `src/uarm/uarm/device_configuration.cpp`. Display geometry requires validation: current generic 320×320 mode also carries a Graffiti area size that may not suit TG50.
+- Added an explicit guard in `devicePalmTungstenE2.cpp`: selecting TG50 fails instead of incorrectly attaching E2 NAND/AC97 hardware. This is a **temporary safety guard**, not the TG50 device factory.
+- **Still blocked:** separate TG50 `deviceSetup` dispatch and `Device` lifecycle, ROM mapping, 1 KiB extra SRAM, ROM boot and save-state handling. Neither native build nor CI success has been independently verified.
