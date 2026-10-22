@@ -32,7 +32,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | Sony controller MMIO, GPIO and keyboard matrix | Initial C++ port; matrix bug fixed, **runtime unverified** | `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` |
 | Controller added to native/WASM build source list | Added; syntax-check CI configured, **build result not verified** | `src/uarm/Makefile` |
 | AD7873 touch controller | Initial C++ SSP port, **unverified** | `src/uarm/uarm/sspdev_AD7873.cpp` and `.h` |
-| AN32502A power / AK4534 audio | Not ported | Port initialization-relevant peripherals |
+| AN32502A power (I²C) | Initial C++ port, **unverified** | `src/uarm/uarm/i2cdev_AN32502A.cpp` and `.h` |
+| AK4534 audio | Not ported | Port initialization-relevant peripheral |
 | Memory Stick controller | Not ported | Determine minimum boot-time register behavior |
 | TG50 device factory, ROM/RAM mapping | Not implemented | Add TG50 device class and configuration |
 | Native compile / ROM boot | **Not verified / not attempted** | First validation milestone |
@@ -49,7 +50,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | Sony 컨트롤러 MMIO·GPIO·키 매트릭스 | C++ 1차 이식·키 매트릭스 오류 수정, **실행 미검증** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `.h` |
 | 네이티브/WASM 빌드 소스 목록 등록 | 추가됨·문법 검사 CI 구성, **빌드 결과 미검증** | `src/uarm/Makefile` |
 | AD7873 터치 컨트롤러 | C++ SSP 1차 이식, **미검증** | `src/uarm/uarm/sspdev_AD7873.cpp`, `.h` |
-| AN32502A 전원·AK4534 오디오 | 미이식 | 부팅에 필요한 초기화 동작 이식 |
+| AN32502A 전원 관리(I²C) | C++ 1차 이식, **미검증** | `src/uarm/uarm/i2cdev_AN32502A.cpp`, `.h` |
+| AK4534 오디오 | 미이식 | 부팅에 필요한 초기화 동작 이식 |
 | Memory Stick 컨트롤러 | 미이식 | 부팅 시 필요한 레지스터 동작 확인 |
 | TG50 기기 생성·ROM/RAM 매핑 | 미구현 | 기기 클래스·설정 연결 |
 | 네이티브 컴파일·ROM 부팅 | **미검증·미시도** | 첫 번째 실행 검증 목표 |
@@ -62,7 +64,7 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 ## Development order
 
 1. **Validate the controller port compiles** in the existing CloudpilotEmu build, without changing E2 or other supported devices. Address build errors and write a small MMIO/keyboard regression test.
-2. **Validate the staged AD7873 touch port** and port remaining TG50 hardware: power (AN32502A), audio initialization (AK4534), and Memory Stick register behavior.
+2. **Validate the staged AD7873 touch port** and port remaining TG50 hardware: the staged AN32502A power model, audio initialization (AK4534), and Memory Stick register behavior.
 3. **Register TG50 for native execution**: device type, ROM and RAM mapping, GPIO initialization, PXA25x revision and host keyboard mapping. Keep it out of the browser device list at this stage.
 4. **Prove a real TG50 ROM boot** in the native emulator and test display, touch and QWERTY keyboard.
 5. **Add browser/WASM support** after native boot, then handle savestates and optional peripherals.
@@ -72,7 +74,7 @@ Detailed file-level checklist: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
 ## 개발 순서
 
 1. **컨트롤러 코드 컴파일 확인:** 기존 E2 등 지원 기종을 변경하지 않고 빌드 오류를 점검하며, MMIO·키보드 회귀 시험을 추가합니다.
-2. **TG50 주변장치 이식:** AD7873 터치 이식본을 검증하고 전원(AN32502A), 오디오 초기화(AK4534), Memory Stick 관련 레지스터 동작을 구현합니다.
+2. **TG50 주변장치 이식:** AD7873 터치 이식본을 검증하고 AN32502A 전원 모델을 검증하고 오디오 초기화(AK4534), Memory Stick 관련 레지스터 동작을 구현합니다.
 3. **네이티브용 TG50 기기 등록:** 기기 유형, ROM·RAM 매핑, GPIO, PXA25x 리비전, 호스트 키보드 매핑을 연결합니다. 이 단계까지는 브라우저 기종 목록에 추가하지 않습니다.
 4. **실제 TG50 ROM 부팅 검증:** 네이티브 에뮬레이터에서 부팅한 뒤 화면, 터치, QWERTY 키보드를 시험합니다.
 5. **브라우저/WASM 지원:** 네이티브 부팅 성공 후 웹 기기 선택과 입력을 추가하고, 저장 상태 및 선택적 주변장치는 후속으로 구현합니다.
