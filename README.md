@@ -104,3 +104,11 @@ The original project's emulator overview, device compatibility, existing build i
 개발 브랜치는 `feature/sony-tg50`이며, `master`는 원본 포크 기준 상태로 유지합니다. 본 프로젝트는 **공식 CloudpilotEmu 배포판이 아닌 독립적인 실험용 포크**입니다.
 
 기존 CloudpilotEmu의 소개, 지원 기종, 빌드 안내 및 라이선스 설명은 [원본 README 보존 문서](doc/README-upstream.md)에 유지했습니다. 기존 기능과 라이선스 의무는 이 포크에도 적용됩니다.
+
+---
+
+## Interrupt mapping note
+The original uARM TG50 code passes GPIO14 for the Sony controller, but its interrupt table identifies GPIO13 (IRQ28) for the controller dispatcher and GPIO14 (IRQ29) for hard keys. This fork currently uses GPIO13 consistently; ROM tracing is needed to resolve the original discrepancy.
+
+## 인터럽트 연결 확인 사항
+원본 uARM의 TG50 초기화 코드는 Sony 컨트롤러에 GPIO14를 전달하지만, 같은 파일의 인터럽트 설명은 컨트롤러에 GPIO13(IRQ28), 하드키에 GPIO14(IRQ29)를 명시합니다. 현재 포팅에서는 GPIO13으로 통일했으며, 어느 연결이 실제 하드웨어에 부합하는지는 ROM 인터럽트 추적으로 검증해야 합니다.
