@@ -29,8 +29,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | --- | --- | --- |
 | Upstream uARM TG50 implementation reviewed | Done (source review) | `deviceSonyTG50.c`, `mmiodev_TG50uc.c` |
 | TG50 hardware constants / 8×8 keyboard matrix | Added, not active | `src/uarm/uarm/sony_tg50_hardware.h` |
-| Sony controller MMIO, GPIO and keyboard matrix | Initial C++ port, **unverified** | `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` |
-| Controller added to native/WASM build source list | Added; **build not verified** | `src/uarm/Makefile` |
+| Sony controller MMIO, GPIO and keyboard matrix | Initial C++ port; matrix bug fixed, **runtime unverified** | `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` |
+| Controller added to native/WASM build source list | Added; syntax-check CI configured, **build result not verified** | `src/uarm/Makefile` |
 | AD7873 touch / AN32502A power / AK4534 audio | Not ported | Port initialization-relevant peripherals |
 | Memory Stick controller | Not ported | Determine minimum boot-time register behavior |
 | TG50 device factory, ROM/RAM mapping | Not implemented | Add TG50 device class and configuration |
@@ -45,8 +45,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | --- | --- | --- |
 | 원본 uARM의 TG50 구현 검토 | 완료(소스 검토) | `deviceSonyTG50.c`, `mmiodev_TG50uc.c` |
 | TG50 하드웨어 상수·8×8 키 매트릭스 | 추가됨, 미연결 | `src/uarm/uarm/sony_tg50_hardware.h` |
-| Sony 컨트롤러 MMIO·GPIO·키 매트릭스 | C++ 1차 이식, **미검증** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `.h` |
-| 네이티브/WASM 빌드 소스 목록 등록 | 추가됨, **빌드 미검증** | `src/uarm/Makefile` |
+| Sony 컨트롤러 MMIO·GPIO·키 매트릭스 | C++ 1차 이식·키 매트릭스 오류 수정, **실행 미검증** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `.h` |
+| 네이티브/WASM 빌드 소스 목록 등록 | 추가됨·문법 검사 CI 구성, **빌드 결과 미검증** | `src/uarm/Makefile` |
 | AD7873 터치·AN32502A 전원·AK4534 오디오 | 미이식 | 부팅에 필요한 초기화 동작 이식 |
 | Memory Stick 컨트롤러 | 미이식 | 부팅 시 필요한 레지스터 동작 확인 |
 | TG50 기기 생성·ROM/RAM 매핑 | 미구현 | 기기 클래스·설정 연결 |
