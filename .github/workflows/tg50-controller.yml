@@ -17,6 +17,7 @@ on:
       - 'src/common/device_type5.h'
       - 'src/uarm/uarm/sony_tg50_hardware.h'
       - 'src/uarm/uarm/pxa_GPIO.h'
+      - 'src/uarm/uarm/pxa_GPIO.cpp'
       - 'src/uarm/uarm/mem.h'
       - '.github/workflows/tg50-controller.yml'
   workflow_dispatch:
@@ -42,3 +43,13 @@ jobs:
             -Isrc/uarm/uarm -Isrc/uarm -Isrc/common -Isrc/common/zip -Isrc/argparse \
             src/uarm/uarm/soc_PXA.cpp src/uarm/uarm/devicePalmTungstenE2.cpp \
             src/uarm/uarm/device_configuration.cpp
+
+      - name: Compile PXA GPIO and TG50 IRQ tracing variants
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+            src/uarm/uarm/pxa_GPIO.cpp
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -DTG50_TRACE_GPIO -DTG50_TRACE_IRQ \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+            src/uarm/uarm/pxa_GPIO.cpp src/uarm/uarm/mmiodev_TG50uc.cpp
