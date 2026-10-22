@@ -130,3 +130,10 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 ## Correction: TG50 UC interrupt pin (2026-10-22)
 
 **Supersedes the earlier GPIO14 wiring note above.** The original `uARM-Palm/uARM/deviceSonyTG50.c` passes GPIO14 to `tg50ucInit`, but its reverse-engineered interrupt table identifies **GPIO13 / Palm IRQ28** as the UC dispatcher interrupt and **GPIO14 / Palm IRQ29** as the hard-key-related interrupt. The earlier assistant change from GPIO13 to GPIO14 mistakenly treated the original initializer argument as established correctness. We have now defined `sony_tg50::kUcIrqGpio = 13` and use it in both initial idle state and `tg50ucInit` (commit `6531cd9`). This chooses the documented dispatcher mapping over the contradictory original init call and **must be validated against a ROM interrupt trace**. Do not treat either pin assignment as conclusively hardware verified.
+
+## Optional interrupt transition tracing
+
+- TG50 UC GPIO IRQ recalculation now tracks the last asserted state to avoid writing an unchanged line repeatedly.
+- Compile `mmiodev_TG50uc.cpp` with `-DTG50_TRACE_IRQ` to emit assert/release messages and per-port pending/mask registers to stderr.
+- This supports future ROM testing of the disputed GPIO13/GPIO14 routing. It does **not** establish which pin the real TG50 uses.
+- Full native build and ROM boot remain unverified.
