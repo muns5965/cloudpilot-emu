@@ -109,10 +109,10 @@ static void tg50ucPrvRecalcGpioIrqs(struct TG50uc *uc)
         return;
 
 #ifdef TG50_TRACE_IRQ
-    fprintf(stderr, "[TG50 IRQ] GPIO %d: %s\\n", (int)uc->gpioChangeIrqNo,
+    fprintf(stderr, "[TG50 IRQ] GPIO %d: %s\n", (int)uc->gpioChangeIrqNo,
             irq ? "assert" : "release");
     for (unsigned i = 0; i < 4; ++i)
-        fprintf(stderr, "[TG50 IRQ] port%u pending=%04x mask=%04x\\n", i,
+        fprintf(stderr, "[TG50 IRQ] port%u pending=%04x mask=%04x\n", i,
                 uc->port[i].edgesDetected, uc->port[i].edgesCausingIrq);
 #endif
     uc->irqAsserted = irq;
