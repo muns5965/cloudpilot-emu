@@ -60,6 +60,7 @@ struct TG50uc {
 	
 	struct PxaGpio *gpio;
 	int8_t gpioChangeIrqNo;
+    bool irqAsserted; // diagnostic edge tracking; also avoids redundant GPIO writes
 	
 	struct TG50ucGpioPort port[4];			//gpio[3] has revision straps on low 4 bits
 
@@ -103,8 +104,19 @@ static void tg50ucPrvRecalcGpioIrqs(struct TG50uc *uc)
     bool irq = false;
     for (unsigned i = 0; i < sizeof(uc->port) / sizeof(uc->port[0]); ++i)
         irq = irq || (uc->port[i].edgesDetected & uc->port[i].edgesCausingIrq) != 0;
-    if (uc->gpioChangeIrqNo >= 0)
-        pxaGpioSetState(uc->gpio, uc->gpioChangeIrqNo, !irq);
+
+    if (uc->gpioChangeIrqNo < 0 || irq == uc->irqAsserted)
+        return;
+
+#ifdef TG50_TRACE_IRQ
+    fprintf(stderr, "[TG50 IRQ] GPIO %d: %s\\n", (int)uc->gpioChangeIrqNo,
+            irq ? "assert" : "release");
+    for (unsigned i = 0; i < 4; ++i)
+        fprintf(stderr, "[TG50 IRQ] port%u pending=%04x mask=%04x\\n", i,
+                uc->port[i].edgesDetected, uc->port[i].edgesCausingIrq);
+#endif
+    uc->irqAsserted = irq;
+    pxaGpioSetState(uc->gpio, (uint_fast8_t)uc->gpioChangeIrqNo, !irq);
 }
 
 static void tg50ucPrvRecalcGpioVals(struct TG50uc *uc, struct TG50ucGpioPort *port)
