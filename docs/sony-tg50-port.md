@@ -15,7 +15,7 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 | Area | Original uARM | CloudpilotEmu work required |
 | --- | --- | --- |
 | Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Initial MMIO and row/column keyboard scan port added; verify build, IRQ and matrix correctness, then map host key IDs |
-| Touch | `sspdev_AD7873.c/.h` | Port SSP device, stylus coordinates and GPIO 9 IRQ |
+| Touch | `sspdev_AD7873.c/.h` | Initial C++ SSP port added (`sspdev_AD7873.cpp/.h`); compile, 12-bit pipelined command response, stylus coordinates and GPIO 9 IRQ remain unverified |
 | Power management | `i2cdev_AN32502A.c/.h` | Port I2C responses needed by ROM boot |
 | Audio | `i2sdev_AK4534.c/.h` | Port or establish which initialization accesses need stubs |
 | Memory Stick | `mmiodev_MemoryStickController.c/.h` | Port required register behavior; removable media can follow later |
@@ -41,3 +41,10 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Fixed a keyboard matrix scan error: previously every row could overwrite the selected column's state; the implementation now calculates each column after checking all driven rows (commit `d53cd7f`).
 - Added `.github/workflows/tg50-controller.yml` to perform C++ syntax checks on the controller and hardware header (`f3f9a09`). The presence of this workflow is **not** evidence of a passing run.
 - TG50 device registration, runtime MMIO tests, complete build and ROM boot remain **unverified**.
+
+## AD7873 touchscreen port (staged)
+
+- Added `src/uarm/uarm/sspdev_AD7873.cpp` and `.h` from original uARM's AD7873 implementation, adapted to `PxaSsp` / `PxaGpio`.
+- Preserved the 12-bit pipelined SSP conversion responses (X/Y, battery, auxiliary, Z1), TG50's reversed X/Y wiring, and GPIO 9 pen-interrupt update.
+- Added source to `src/uarm/Makefile` and `.github/workflows/tg50-controller.yml` syntax checks.
+- **No actual compile success, ROM startup, or touch input is yet verified.** The port is not connected to `deviceSetup` because TG50 device registration and other hardware dependencies remain incomplete.
