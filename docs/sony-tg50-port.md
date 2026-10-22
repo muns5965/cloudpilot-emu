@@ -105,3 +105,8 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Added `.github/workflows/tg50-native-build.yml` for pushes to the TG50 development branch and manual dispatch. It recursively checks out git submodules, installs SDL2/SDL2-image, readline and curl development dependencies, builds `src/common/libcommon.a`, then builds/links `src/uarm/cp-uarm`.
 - On success the workflow uploads an **experimental Linux binary**, which does not imply a working TG50 ROM boot.
 - **CI run status and build result have not been independently confirmed.** Check [TG50 native build Actions](https://github.com/muns5965/cloudpilot-emu/actions/workflows/tg50-native-build.yml) for errors before proceeding with additional emulation claims.
+
+## Controller code review: GPIO direction write fix
+
+- Fixed `mmiodev_TG50uc.cpp`: on writes to GPIO direction registers `0x20–0x2c`, immediately recalculate output/input state and rising/falling edge flags. Port C (`0x28`) also recalculates the scanned keyboard matrix. Previously recalculation incorrectly happened on **reads**, which could postpone keyboard transitions and their interrupt detection.
+- This patch is grounded in source review but **does not establish that the native CI build succeeds**. The connected GitHub workflow interface does not currently provide a list of push-triggered runs; check the GitHub Actions page for the authoritative result.
