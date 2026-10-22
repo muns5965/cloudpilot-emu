@@ -157,3 +157,13 @@ Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving 
 - `src/common/rom_info5.cpp` currently recognizes only PV, Tungsten E2, and FrankenE2 identifiers, **not Sony PEG-TG50**. Merely adding TG50 to the enum and `SocPXA` dispatch does not make ROM boot accessible.
 - Do **not** guess a Sony company/HAL identifier or accept every unrecognized ROM as TG50. Obtain the TG50 ROM's actual header IDs or the original uARM ROM detection behavior, then implement a narrow TG50 mapping and recommended 17 MiB RAM.
 - This is a source-confirmed **startup integration gap**, not a native compilation failure. The CI result remains unverified.
+
+## Native TG50 ROM launch entrypoint (experimental)
+
+The native executable now accepts `--tg50` explicitly:
+
+```sh
+./src/uarm/cp-uarm --tg50 /path/to/your/TG50-ROM.bin
+```
+
+This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection and is **not proof that a genuine TG50 image passes the existing parser**. Build and ROM boot remain unverified. ROM images are not included in the repository.
