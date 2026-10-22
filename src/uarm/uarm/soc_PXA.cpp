@@ -330,7 +330,7 @@ void SocPXA::OnEngageKey(KeyId key, bool down) {
 
 void SocPXA::OnReset() {
     pxaLcdResetPaletteBuffer(lcd);
-    nandResetPageBuffer(nand);
+    if (nand) nandResetPageBuffer(nand);
 }
 
 void SocPXA::OnLoad(SavestateLoader<ChunkType> &loader) {
