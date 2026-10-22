@@ -122,18 +122,18 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Recalculated TG50 GPIOC keyboard columns on controller initialization and on a controller reset (`0xff` at byte offset `0x210`). Columns with no pressed/driven row idle high in this model; previously they could remain zero until the first host key or GPIO write.
 - This is a source-level correction only, **not a confirmed CI pass**. The GitHub connector available here exposes logs only after a workflow run/job ID is known; it cannot enumerate push-triggered runs for this repository.
 
-## TG50 controller IRQ wiring correction
+## GPIO13 / GPIO14 wiring: upstream implementation is authoritative
 
-- Corrected the initial idle GPIO assignment in `deviceSonyTG50.cpp`: the Sony microcontroller interrupt is wired to **GPIO 14**, as defined by `sony_tg50::kUcIrqGpio` and passed to `tg50ucInit`. The previous code initialized GPIO 13 instead, leaving the intended interrupt pin without the expected idle-high setup.
-- No compiled native build or ROM boot has been verified. Direct cloning from the available execution environment failed because `github.com` DNS resolution was unavailable; the change was made using the connected GitHub integration.
+The original `uARM-Palm/uARM/deviceSonyTG50.c` **uses both signal lines**:
 
-## Correction: TG50 UC interrupt pin (2026-10-22)
+- **GPIO13**: `socGpioSetState(sp->gpio, 13, true)` holds a separate key-related line inactive. The upstream comment describing an overall UC IRQ on GPIO13 says *seems*, not established behavior.
+- **GPIO14**: `tg50ucInit(sp->mem, sp->gpio, 14, keyMap)` connects the controller-driven active-low interrupt to GPIO14. This is the original implemented behavior associated with the hard-key interrupt.
 
-**Supersedes the earlier GPIO14 wiring note above.** The original `uARM-Palm/uARM/deviceSonyTG50.c` passes GPIO14 to `tg50ucInit`, but its reverse-engineered interrupt table identifies **GPIO13 / Palm IRQ28** as the UC dispatcher interrupt and **GPIO14 / Palm IRQ29** as the hard-key-related interrupt. The earlier assistant change from GPIO13 to GPIO14 mistakenly treated the original initializer argument as established correctness. We have now defined `sony_tg50::kUcIrqGpio = 13` and use it in both initial idle state and `tg50ucInit` (commit `6531cd9`). This chooses the documented dispatcher mapping over the contradictory original init call and **must be validated against a ROM interrupt trace**. Do not treat either pin assignment as conclusively hardware verified.
+Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving the UC IRQ onto GPIO13) each erroneously combined two distinct roles and are superseded. The fork now uses `kKeyRelatedIdleGpio = 13` and `kUcIrqGpio = 14`, initializes **both** high, and allows the UC to drive only GPIO14. The correct physical edge handling still needs ROM comparison and PXA GRER/GFER tracing; no boot verification is claimed.
 
 ## Optional interrupt transition tracing
 
 - TG50 UC GPIO IRQ recalculation now tracks the last asserted state to avoid writing an unchanged line repeatedly.
 - Compile `mmiodev_TG50uc.cpp` with `-DTG50_TRACE_IRQ` to emit assert/release messages and per-port pending/mask registers to stderr.
-- This supports future ROM testing of the disputed GPIO13/GPIO14 routing. It does **not** establish which pin the real TG50 uses.
+- This supports future ROM testing of the separate GPIO13 idle line and GPIO14 controller-driven IRQ. It does **not** independently validate the real hardware.
 - Full native build and ROM boot remain unverified.
