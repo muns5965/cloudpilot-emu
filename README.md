@@ -35,11 +35,12 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | AN32502A power (I²C) | Initial C++ port, **unverified** | `src/uarm/uarm/i2cdev_AN32502A.cpp` and `.h` |
 | AK4534 audio codec (I²C) | Initial register model port, **unverified** | `src/uarm/uarm/i2sdev_AK4534.cpp` and `.h`; no PCM output |
 | Memory Stick controller | Register-only C++ port, **unverified** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` and `.h`; no media emulation |
-| TG50 device factory, ROM/RAM mapping | Not implemented | Add TG50 device class and configuration |
+| TG50 peripheral assembly | Initial C++ module, **not active / unverified** | `src/uarm/uarm/deviceSonyTG50.cpp` and `.h` |
+| TG50 device factory, ROM/RAM mapping | Not implemented | Add separate factory dispatch and ROM/RAM configuration |
 | Native compile / ROM boot | **Not verified / not attempted** | First validation milestone |
 | Browser/WASM TG50 UI and input | Not implemented | After successful native boot |
 
-**Important:** These commits stage the Sony controller but do not activate it in an emulated device. The current fork must **not** be presented as able to run a TG50 ROM.
+**Important:** These commits stage the Sony controllers and a peripheral assembly module but do not register or activate TG50 in the emulator. The current fork must **not** be presented as able to run a TG50 ROM.
 
 ## 현재 진행 상태
 
@@ -53,11 +54,12 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | AN32502A 전원 관리(I²C) | C++ 1차 이식, **미검증** | `src/uarm/uarm/i2cdev_AN32502A.cpp`, `.h` |
 | AK4534 오디오 코덱(I²C) | 레지스터 모델 1차 이식, **미검증** | `src/uarm/uarm/i2sdev_AK4534.cpp`, `.h`; PCM 출력 미구현 |
 | Memory Stick 컨트롤러 | 레지스터 모델 C++ 1차 이식, **미검증** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp`, `.h`; 카드 미지원 |
-| TG50 기기 생성·ROM/RAM 매핑 | 미구현 | 기기 클래스·설정 연결 |
+| TG50 주변장치 통합 모듈 | C++ 1차 작성, **미연결·미검증** | `src/uarm/uarm/deviceSonyTG50.cpp`, `.h` |
+| TG50 기기 생성·ROM/RAM 매핑 | 미구현 | 기기별 팩토리 분기·ROM/RAM 구성 연결 |
 | 네이티브 컴파일·ROM 부팅 | **미검증·미시도** | 첫 번째 실행 검증 목표 |
 | 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 부팅 성공 후 진행 |
 
-**주의:** 현재 Sony 컨트롤러 코드는 별도로 추가됐지만 실제 에뮬레이터 기기에 연결되지 않았습니다. 따라서 **아직 TG50 ROM을 실행할 수 있는 상태가 아닙니다.**
+**주의:** 현재 Sony 컨트롤러와 주변장치 통합 모듈은 작성됐지만 실제 기기 선택·실행 경로에 연결되지 않았습니다. 따라서 **아직 TG50 ROM을 실행할 수 있는 상태가 아닙니다.**
 
 ---
 
