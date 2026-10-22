@@ -38,11 +38,12 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | TG50 peripheral assembly | Initial C++ module, **not active / unverified** | `src/uarm/uarm/deviceSonyTG50.cpp` and `.h` |
 | TG50 device type / preliminary config | Staged; **not bootable** | `src/common/device_type5.h`, `device_configuration.cpp`; 17 MiB / 320×320 |
 | TG50 runtime dispatch | Initial dispatch implemented, **unverified** | E2 NAND/AC97 bypassed; touch and hardware keys forwarded |
-| TG50 ROM/SRAM mapping & savestates | Incomplete | Real ROM boot, extra SRAM and TG50 serialization remain outstanding |
+| TG50 RAM / extra SRAM map | Staged, **unverified** | 17 MiB default RAM, 1 KiB at `0xAC000000` |
+| TG50 ROM boot & savestates | Incomplete | ROM format, startup, device serialization remain outstanding |
 | Native compile / ROM boot | **Not verified / not attempted** | First validation milestone |
 | Browser/WASM TG50 UI and input | Not implemented | After successful native boot |
 
-**Important:** These commits stage the Sony controllers and a peripheral assembly module and have an initial native device dispatch; boot, ROM layout, SRAM, and savestates are not verified or complete. The current fork must **not** be presented as able to run a TG50 ROM.
+**Important:** These commits stage the Sony controllers and a peripheral assembly module an initial native device dispatch, and staged RAM/SRAM maps; ROM boot and savestates remain unverified or incomplete. The current fork must **not** be presented as able to run a TG50 ROM.
 
 ## 현재 진행 상태
 
@@ -59,11 +60,12 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | TG50 주변장치 통합 모듈 | C++ 1차 작성, **미연결·미검증** | `src/uarm/uarm/deviceSonyTG50.cpp`, `.h` |
 | TG50 기종 유형·기본 설정 | 추가됨, **부팅 불가** | `src/common/device_type5.h`, `device_configuration.cpp`; 17MiB·320×320 |
 | TG50 실행 초기화 분기 | 1차 연결, **미검증** | E2 NAND·AC97 대신 TG50 장치 초기화, 터치·키 입력 전달 |
-| TG50 ROM/SRAM 매핑·상태 저장 | 미완성 | ROM 부팅·별도 SRAM·TG50 상태 직렬화 필요 |
+| TG50 RAM·별도 SRAM 매핑 | 1차 연결, **미검증** | 기본 RAM 17MiB, `0xAC000000`에 1KiB SRAM |
+| TG50 ROM 부팅·상태 저장 | 미완성 | ROM 형식·시작 과정·장치 상태 직렬화 필요 |
 | 네이티브 컴파일·ROM 부팅 | **미검증·미시도** | 첫 번째 실행 검증 목표 |
 | 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 부팅 성공 후 진행 |
 
-**주의:** 현재 Sony 컨트롤러와 주변장치 통합 모듈은 작성됐지만 기기별 초기화 분기까지는 연결됐지만 ROM·SRAM·상태 저장이 미완성이고 실제 부팅은 검증되지 않았습니다. 따라서 **아직 TG50 ROM을 실행할 수 있는 상태가 아닙니다.**
+**주의:** 현재 Sony 컨트롤러와 주변장치 통합 모듈은 작성됐지만 기기별 초기화 분기까지는 연결됐지만 RAM·SRAM 초기 매핑이 추가됐지만 ROM 부팅과 상태 저장은 여전히 미완성이며 실제 부팅은 검증되지 않았습니다. 따라서 **아직 TG50 ROM을 실행할 수 있는 상태가 아닙니다.**
 
 ---
 
