@@ -91,3 +91,11 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - **Not boot validated:** ROM format/mapping, 1 KiB SRAM mapping, full QWERTY host input and LCD geometry remain outstanding. A source-only GitHub update is not proof of a successful build.
 - **Savestates incomplete:** the Sony-specific controller state is not serialized. The temporary factory branch skips Sony peripheral save/load and should not be considered safe for persistent sessions. Do not distribute as working TG50 support.
 - Generic keypad events still pass through the common keypad interface; review duplicate or unintended input when TG50 host mapping is brought online.
+
+## TG50 RAM and extra SRAM mapping (staged, not boot-verified)
+
+- `SocPXA` now defaults TG50 to 17 MiB RAM when the caller requests size zero. Existing E2 and other defaults are unchanged.
+- `SocPXA::AllocateBuffers` reserves a separate 1 KiB `MemoryBuffer` for the original TG50's otherwise-unknown RAM region; `ramInit` maps that buffer at `0xAC000000`.
+- The existing `RamTerminationMirror` path remains in use and has not been validated with a real ROM's address probes. The model is not ready for use with TG50 firmware.
+- Expanded TG50 syntax-check CI to include the SoC and E2/TG50 dispatch sources. This is **not** proof the workflow passed, nor does a syntax check cover linker errors or runtime.
+- **Remaining:** TG50 ROM format/startup checks, physical keyboard host input, savestate serialization, proper card/no-card behavior, a full native build, and a real ROM boot test.
