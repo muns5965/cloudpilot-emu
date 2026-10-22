@@ -9,6 +9,7 @@ on:
       - 'src/uarm/uarm/sspdev_AD7873.*'
       - 'src/uarm/uarm/i2cdev_AN32502A.*'
       - 'src/uarm/uarm/i2sdev_AK4534.*'
+      - 'src/uarm/uarm/mmiodev_MemoryStickController.*'
       - 'src/uarm/uarm/sony_tg50_hardware.h'
       - 'src/uarm/uarm/pxa_GPIO.h'
       - 'src/uarm/uarm/mem.h'
@@ -24,7 +25,7 @@ jobs:
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
             -Isrc/uarm/uarm -Isrc/common \
-            src/uarm/uarm/mmiodev_TG50uc.cpp src/uarm/uarm/sspdev_AD7873.cpp src/uarm/uarm/i2cdev_AN32502A.cpp src/uarm/uarm/i2sdev_AK4534.cpp
+            src/uarm/uarm/mmiodev_TG50uc.cpp src/uarm/uarm/sspdev_AD7873.cpp src/uarm/uarm/i2cdev_AN32502A.cpp src/uarm/uarm/i2sdev_AK4534.cpp src/uarm/uarm/mmiodev_MemoryStickController.cpp
       - name: Check TG50 matrix header
         run: |
           printf '#include "sony_tg50_hardware.h"\nstatic_assert(sony_tg50::kKeyboardRows == 8);\nstatic_assert(sony_tg50::kKeyboardColumns == 8);\nint main() { return 0; }\n' \
