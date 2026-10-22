@@ -121,3 +121,8 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 
 - Recalculated TG50 GPIOC keyboard columns on controller initialization and on a controller reset (`0xff` at byte offset `0x210`). Columns with no pressed/driven row idle high in this model; previously they could remain zero until the first host key or GPIO write.
 - This is a source-level correction only, **not a confirmed CI pass**. The GitHub connector available here exposes logs only after a workflow run/job ID is known; it cannot enumerate push-triggered runs for this repository.
+
+## TG50 controller IRQ wiring correction
+
+- Corrected the initial idle GPIO assignment in `deviceSonyTG50.cpp`: the Sony microcontroller interrupt is wired to **GPIO 14**, as defined by `sony_tg50::kUcIrqGpio` and passed to `tg50ucInit`. The previous code initialized GPIO 13 instead, leaving the intended interrupt pin without the expected idle-high setup.
+- No compiled native build or ROM boot has been verified. Direct cloning from the available execution environment failed because `github.com` DNS resolution was unavailable; the change was made using the connected GitHub integration.
