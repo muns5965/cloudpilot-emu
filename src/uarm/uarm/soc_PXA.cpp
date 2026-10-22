@@ -90,7 +90,11 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     patchDispatchSetCpu(patchDispatch, cpu);
 
     syscallDispatch = initSyscallDispatch(this);
-    patchContext = registerPatches(patchDispatch, syscallDispatch, cpu, systemState);
+    // The touch-translation patch hardcodes the Tungsten E2 digitizer (WM9712L) mapping.
+    // The TG50 AD7873 reports different raw values, so let PalmOS use its own calibration.
+    patchContext = registerPatches(
+        patchDispatch, syscallDispatch, cpu, systemState,
+        tg50Mode ? (PATCH_FEATURE_ALL & ~PATCH_FEATURE_TOUCH_TRANSLATION) : PATCH_FEATURE_ALL);
 
     ram = ramInit(mem, this, RAM_BASE, ramSize, &bufferMemory, true);
     rom = romInit(mem, ROM_BASE, romData, romSize);

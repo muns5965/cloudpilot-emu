@@ -177,3 +177,13 @@ This bypasses only the **device-type identification decision**; the image must s
 - Verified natively (Linux, SDL2): the TG50 ROM now boots to the **Setup 1 of 4** screen, and controller keypad accesses continue as in the original.
 - Still open: host power key handling should also drive GPIO0 low while pressed (the original wires the same key both to the controller matrix and to GPIO0).
 
+
+## Setup blocker fixed: pen calibration (E2 touch translation patch)
+
+- Symptom: in Setup's pen calibration, tapping the second (bottom-right) target always restarted calibration at the first target.
+- Comparison: the original uARM TG50 build, on the same ROM and with identical AD7873 ADC values (`3200 - 10 * x/y`), passes calibration.
+- Cause: `registerPatches()` installs `PATCH_FEATURE_TOUCH_TRANSLATION` for every PXA device. Its `PenRawToScreen`/`PenScreenToRaw` head patches replace the HAL calls with the fixed Tungsten E2 (WM9712L) mapping `280 + 10x`, `210 + 7y`, which does not match the TG50 digitizer.
+- Fix: `SocPXA` registers the patches without `PATCH_FEATURE_TOUCH_TRANSLATION` in TG50 mode, so Palm OS uses its own calibration. E2 behavior is unchanged.
+- Verified natively (Linux, SDL2): calibration (3 targets), Setup 3/4 Next and Setup 4/4 Done complete, and the CLIÉ Launcher responds to taps.
+- Note: the TG50 has a hardware QWERTY keyboard and no Graffiti silkscreen. The port still uses the E2 `mode_320x320` display configuration (320x320 plus a 120 px silkscreen area), so the drawn E2 silkscreen does nothing on TG50.
+- Possible follow-up: a TG50-specific translation patch (inverse of `3200 - 10 * x/y`, with the TG50 X/Y cross-wiring verified first) would make touch independent of calibration, like on the E2.
