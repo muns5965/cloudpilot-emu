@@ -137,3 +137,10 @@ Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving 
 - Compile `mmiodev_TG50uc.cpp` with `-DTG50_TRACE_IRQ` to emit assert/release messages and per-port pending/mask registers to stderr.
 - This supports future ROM testing of the separate GPIO13 idle line and GPIO14 controller-driven IRQ. It does **not** independently validate the real hardware.
 - Full native build and ROM boot remain unverified.
+
+## PXA GPIO13/GPIO14 IRQ diagnostics
+
+- Added optional `TG50_TRACE_GPIO` tracing to `src/uarm/uarm/pxa_GPIO.cpp`. It logs changes to GPIO13/14 input levels and firmware writes to PXA GPIO bank 0 rising/falling edge configuration (GRER0/GFER0), together with current edge-detected flags (GEDR0). The trace is **disabled by default**.
+- Compile with `-DTG50_TRACE_GPIO -DTG50_TRACE_IRQ` to combine the PXA-level observations with controller assert/release logs.
+- Compare both lines' idle states, GRER0/GFER0 settings, and pressed/released key transitions against upstream uARM using the same TG50 ROM.
+- **No ROM run or passing build is claimed.** This patch instruments the existing implementation; it does not assert that GPIO13 and GPIO14 have interchangeable roles.
