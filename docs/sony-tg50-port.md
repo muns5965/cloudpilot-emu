@@ -1,40 +1,55 @@
 # Sony CLIÉ PEG-TG50 port (work in progress)
 
-This branch is an **early hardware-port staging area**, not a bootable TG50 emulator. No device has been registered in `DeviceType5`, and no TG50 ROM is currently supported.
+This branch runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu's **native** build. As of 2026-10-23 the TG50 ROM boots, completes Setup including pen calibration, and reaches the CLIÉ Launcher, which responds to taps. Browser/WASM support does not exist yet. No ROM files are included.
 
-## Verified upstream foundations
+## Current status (2026-10-23)
 
-- Original uARM: [deviceSonyTG50.c](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c), [mmiodev_TG50uc.c](https://github.com/uARM-Palm/uARM/blob/master/mmiodev_TG50uc.c), [Makefile](https://github.com/uARM-Palm/uARM/blob/master/Makefile).
-- CloudpilotEmu: `src/uarm/uarm/devicePalmTungstenE2.cpp`, `src/common/device_type5.h`, `src/uarm/uarm/device_configuration.cpp`, `src/uarm/Makefile`.
-- Original uARM ships a TG50 device model, though its standard Makefile has the TG50 configuration **commented out** and enables T3 by default. Upstream's support listing alone does not prove that current source/ROM boots in the Cloudpilot fork.
-- The original TG50 code uses PXA25x, a Sony controller mapped at `0x08000000` (size `0x220`), AD7873 touch, AN32502A power, AK4534 audio, a Memory Stick controller, and an 8x8 keyboard matrix on the Sony controller's GPIO port C.
-- Initial addresses and keyboard matrix are staged in `src/uarm/uarm/sony_tg50_hardware.h`. An initial C++ port of the Sony controller is now present in `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` and listed in `src/uarm/Makefile`, but **compilation and hardware behavior have not been verified**. Key symbols are semantic; **SDL key constants must not be copied into the web emulator**.
+Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM whose SHA-256 matches the uARM README reference (`c6d5985cf183bae970e711430e51ae491088a5c173df555b9177e69ac860b94f`). Launch: `./src/uarm/cp-uarm --tg50 <rom>`.
 
-## Remaining dependencies and blockers
-
-| Area | Original uARM | CloudpilotEmu work required |
+| Area | Status | Notes |
 | --- | --- | --- |
-| Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Initial MMIO and row/column keyboard scan port added; verify build, IRQ and matrix correctness, then map host key IDs |
-| Touch | `sspdev_AD7873.c/.h` | Initial C++ SSP port added (`sspdev_AD7873.cpp/.h`); compile, 12-bit pipelined command response, stylus coordinates and GPIO 9 IRQ remain unverified |
-| Power management | `i2cdev_AN32502A.c/.h` | Initial C++ I²C model staged in `i2cdev_AN32502A.cpp/.h`; build and startup behavior unverified |
-| Audio | `i2sdev_AK4534.c/.h` | I²C register model port staged in `i2sdev_AK4534.cpp/.h`; no PCM output; compile and startup behavior unverified |
-| Memory Stick | `mmiodev_MemoryStickController.c/.h` | Register-only C++ model staged; card data transfer not supported; build and startup unverified |
-| Device boot / GPIO | `deviceSonyTG50.c` | Integrate with modern `deviceSetup(DeviceType5, ...)` and per-device state |
-| ROM and memory | `deviceGetRomMemType`, `deviceGetRamSize` | Check actual TG50 ROM layout, NOR handling, RAM mirror and startup mapping |
-| Web/native integration | N/A | Add device type/config, native selection, frame and input bridge; WASM later |
-| Savestates | N/A | Add TG50 chunks **after** first native boot; existing E2 chunks are not interchangeable |
+| Native build (`libcommon.a` + `cp-uarm`) | Builds locally, no warnings | GitHub Actions result not checked |
+| ROM selection | `--tg50` override | No automatic TG50 ROM identification |
+| Boot | Works | Needed GPIO13/14 idle levels and the GPIO0 power-key fix (below) |
+| Setup 1–4, pen calibration | Works | Needed the touch-translation patch fix (below) |
+| Launcher, on-screen touch (AD7873) | Works | Calibrated by Palm OS itself |
+| Sony controller keyboard matrix | Modelled; key input not yet tested | `mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| Host key mapping | Hard keys 1–4, arrows, jog select, power only | Common `KeyId` has 10 keys; QWERTY letters, Shift, Ctrl, Space, Enter, Backspace are not wired |
+| Host power key → GPIO0 | Not wired | GPIO0 is held released |
+| Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
+| AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
+| Savestates / sessions | Not implemented for TG50 | `--tg50` rejects session files |
+| Browser/WASM | Not implemented | — |
 
-## Implementation checkpoints
+## Remaining work
 
-1. **Upstream baseline:** independently build and boot upstream TG50 using a legitimately obtained TG50 ROM. Log whether the original code really boots and accepts touch/keys.
-2. **Native device:** port dependencies to C++, add TG50 device type and correct PXA initialization; only then enable TG50 in the device factory. Existing E2 and PV selection must remain unchanged.
-3. **Boot checkpoint:** verify ROM execution, LCD frame output, stylus, keyboard, power/reset, and minimal launcher use. Failures must be attributed to MMIO/ROM/CPU before modifying web UI.
-4. **Browser checkpoint:** add TG50 to the web device selector and input adapter after native boot succeeds.
-5. **Regression:** build existing E2/FrankenE2/PV targets and compare their startup behavior; implement serialization and extended peripherals separately.
+1. **QWERTY keyboard:** log what the ROM's keyboard driver reports for a matrix key, extend host key IDs, map letters and modifiers onto `kMatrix`, and drive GPIO0 from the host power key (original uARM wires the power key both to the matrix and to GPIO0).
+2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
+3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
+4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
+5. **Browser/WASM:** device selection, frame output and input bridge; then audio and Memory Stick media.
 
 ## Scope / safety
 
-No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 as supported until ROM boot is observed. Hardware constants in the new header are not integrated yet; they should not change existing emulator behavior.
+No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 as a supported browser device until the remaining work above is done. Existing E2, FrankenE2 and PV behavior must stay unchanged; TG50-specific behavior is gated by `deviceTypeSonyTG50` / `tg50Mode`.
+
+## Debugging method
+
+All boot and Setup blockers so far were found by running the same ROM in original uARM (TG50 build) side by side: comparing register reads via the gdb stub, and logging AD7873 SSP commands and results in both emulators. The gdb stub in `cp-uarm` needs `-DGDB_STUB_ENABLED` (at the time of writing it also needed a local fix of a mistyped `<unicstd>` include); keep such diagnostic changes out of commits.
+
+---
+
+# Development history
+
+The sections below are kept in chronological order. Status lines in older sections reflect the time they were written; the current status is above.
+
+## Original source survey
+
+- Original uARM: [deviceSonyTG50.c](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c), [mmiodev_TG50uc.c](https://github.com/uARM-Palm/uARM/blob/master/mmiodev_TG50uc.c), [Makefile](https://github.com/uARM-Palm/uARM/blob/master/Makefile).
+- CloudpilotEmu: `src/uarm/uarm/devicePalmTungstenE2.cpp`, `src/common/device_type5.h`, `src/uarm/uarm/device_configuration.cpp`, `src/uarm/Makefile`.
+- Original uARM ships a TG50 device model (its standard Makefile has the TG50 configuration commented out and enables T3 by default).
+- The original TG50 code uses PXA25x, a Sony controller mapped at `0x08000000` (size `0x220`), AD7873 touch, AN32502A power, AK4534 audio, a Memory Stick controller, and an 8x8 keyboard matrix on the Sony controller's GPIO port C.
+- Key symbols in `sony_tg50_hardware.h` are semantic; **SDL key constants must not be copied into the web emulator**.
 
 ## Latest controller validation work
 
@@ -157,6 +172,7 @@ Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving 
 - `src/common/rom_info5.cpp` currently recognizes only PV, Tungsten E2, and FrankenE2 identifiers, **not Sony PEG-TG50**. Merely adding TG50 to the enum and `SocPXA` dispatch does not make ROM boot accessible.
 - Do **not** guess a Sony company/HAL identifier or accept every unrecognized ROM as TG50. Obtain the TG50 ROM's actual header IDs or the original uARM ROM detection behavior, then implement a narrow TG50 mapping and recommended 17 MiB RAM.
 - This is a source-confirmed **startup integration gap**, not a native compilation failure. The CI result remains unverified.
+- *Resolved for native use by the explicit `--tg50` option (next section). Automatic identification is still not implemented.*
 
 ## Native TG50 ROM launch entrypoint (experimental)
 
@@ -166,7 +182,8 @@ The native executable now accepts `--tg50` explicitly:
 ./src/uarm/cp-uarm --tg50 /path/to/your/TG50-ROM.bin
 ```
 
-This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection and is **not proof that a genuine TG50 image passes the existing parser**. Build and ROM boot remain unverified. ROM images are not included in the repository.
+This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection. ROM images are not included in the repository.
+- *Later verified: the reference TG50 ROM passes the parser and boots (see the following sections).*
 
 ## Boot blocker fixed: power key GPIO0 idle level
 
