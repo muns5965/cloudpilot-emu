@@ -1,13 +1,13 @@
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 port
 
-> **Work in progress · initial native ROM boot reported.** This is a development fork of [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu), focused on running the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu. The existing emulator's Palm OS 1–4 and E2 implementations remain the upstream baseline; **TG50 is not yet a finished/supported browser device**.
+> **Work in progress · native ROM boots through Setup to the CLIÉ Launcher.** This is a development fork of [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu), focused on running the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu. The existing emulator's Palm OS 1–4 and E2 implementations remain the upstream baseline; **TG50 runs only in the experimental native build and is not yet a browser device**.
 
 [**TG50 port plan and technical notes**](docs/sony-tg50-port.md) · [**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**Original uARM TG50 code**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
 
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 포팅
 
-> **개발 진행 중 · 네이티브 ROM 초기 부팅 성공 기록 있음.** 이 저장소는 [CloudpilotEmu 원본](https://github.com/cloudpilot-emu/cloudpilot-emu)을 포크하여 **Sony CLIÉ PEG-TG50(Palm OS 5)** 실행을 목표로 개발하는 프로젝트입니다. 기존 Palm OS 1~4 및 Tungsten E2 에뮬레이션은 원본 프로젝트를 기반으로 하며, **TG50은 네이티브 실험용으로 연결됐으며 브라우저 정식 지원은 아직 아닙니다.**
+> **개발 진행 중 · 네이티브 ROM이 Setup을 거쳐 CLIÉ 런처까지 부팅됨.** 이 저장소는 [CloudpilotEmu 원본](https://github.com/cloudpilot-emu/cloudpilot-emu)을 포크하여 **Sony CLIÉ PEG-TG50(Palm OS 5)** 실행을 목표로 개발하는 프로젝트입니다. 기존 Palm OS 1~4 및 Tungsten E2 에뮬레이션은 원본 프로젝트를 기반으로 하며, **TG50은 실험용 네이티브 빌드에서만 실행되고 브라우저 기종으로는 아직 지원하지 않습니다.**
 
 [**TG50 상세 이식 계획(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
@@ -15,81 +15,81 @@
 
 ## Goal
 
-Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). An initial **native TG50 ROM boot to Setup 1 of 4** is documented; next verify LCD, stylus and physical keyboard input, and only then add browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
+Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). The native TG50 build now completes **Setup (including pen calibration) and reaches the CLIÉ Launcher**. Next: wire the TG50's built-in QWERTY keyboard to host keys, then savestates, and only then browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
 
 ## 개발 목표
 
-CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. **네이티브 ROM의 Setup 1 of 4 진입**까지 시험 기록이 있으며, 이후 LCD 화면, 펜 입력, 물리 키보드를 확인하고, 이후 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
+CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 현재 네이티브 TG50 빌드는 **펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 진입**합니다. 다음 단계는 TG50 내장 QWERTY 키보드를 PC 키에 연결하는 것이며, 이어서 상태 저장, 그다음 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
 
 ---
 
 ## Current progress
 
-| Component | Status | Code / next step |
-| --- | --- | --- |
-| Upstream uARM TG50 implementation reviewed | Done (source review) | `deviceSonyTG50.c`, `mmiodev_TG50uc.c` |
-| TG50 hardware constants / 8×8 keyboard matrix | Integrated; host QWERTY incomplete | `src/uarm/uarm/sony_tg50_hardware.h` |
-| Sony controller MMIO, GPIO and keyboard matrix | Initial C++ port; matrix bug fixed, **runtime unverified** | `src/uarm/uarm/mmiodev_TG50uc.cpp` and `.h` |
-| Controller added to native/WASM build source list | Added; syntax-check CI configured, **build result not verified** | `src/uarm/Makefile` |
-| AD7873 touch controller | Initial C++ SSP port, **unverified** | `src/uarm/uarm/sspdev_AD7873.cpp` and `.h` |
-| AN32502A power (I²C) | Initial C++ port, **unverified** | `src/uarm/uarm/i2cdev_AN32502A.cpp` and `.h` |
-| AK4534 audio codec (I²C) | Initial register model port, **unverified** | `src/uarm/uarm/i2sdev_AK4534.cpp` and `.h`; no PCM output |
-| Memory Stick controller | Register-only C++ port, **unverified** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` and `.h`; no media emulation |
-| TG50 peripheral assembly | Connected to native device dispatch; peripheral tests incomplete | `src/uarm/uarm/deviceSonyTG50.cpp` and `.h` |
-| TG50 device type / preliminary config | Wired into experimental native TG50 mode | `src/common/device_type5.h`, `device_configuration.cpp`; 17 MiB / 320×320 |
-| TG50 runtime dispatch | Initial dispatch implemented, **unverified** | E2 NAND/AC97 bypassed; touch and hardware keys forwarded |
-| TG50 RAM / extra SRAM map | Staged, **unverified** | 17 MiB default RAM, 1 KiB at `0xAC000000` |
-| TG50 ROM boot & savestates | Initial boot reported; savestates incomplete | ROM loads and Setup 1 of 4 reached in recorded Linux SDL2 test; serialization outstanding |
-| Native build CI (common + cp-uarm) | Workflow added; **result unverified** | `.github/workflows/tg50-native-build.yml` |
-| Native ROM boot | **Setup 1 of 4 reached (documented test)** | Linux SDL2 test recorded in technical notes; full operation not validated |
-| Browser/WASM TG50 UI and input | Not implemented | After successful native boot |
+Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c…860b94f`).
 
-**Important:** The technical notes record a native Linux SDL2 test in which a TG50 ROM loaded and reached **Setup 1 of 4** after fixing the active-low GPIO0 power-key idle state. This was not rerun during this README update. Further setup, keyboard/touch/audio/media functionality, savestates, and browser support are incomplete or unverified.
+| Component | Status | Code / notes |
+| --- | --- | --- |
+| Native build (common + cp-uarm) | **Builds locally** (Linux, no warnings); CI result not checked | `src/uarm/Makefile`, `.github/workflows/tg50-native-build.yml` |
+| Native launch (`--tg50`) | **Works** | `src/uarm/native/main.cpp`; 17 MiB RAM, 320×320 |
+| Boot: GPIO13/14 controller IRQ lines | **Works** | `src/uarm/uarm/deviceSonyTG50.cpp` |
+| Boot: power key GPIO0 idle level | **Fixed**, boots past the debounce loop | `sonyTG50Initialize()` |
+| Setup 1–4 incl. pen calibration | **Works** | E2 touch-translation patch disabled for TG50 (`soc_PXA.cpp`) |
+| CLIÉ Launcher | **Reached; responds to taps** | — |
+| AD7873 touch controller | **Works** on the 320×320 screen | `src/uarm/uarm/sspdev_AD7873.cpp` |
+| Sony controller MMIO / 8×8 keyboard matrix | Ported; matrix modelled, **key input not yet tested** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| Host keys → TG50 keys | **Incomplete**: only hard keys 1–4, arrows, jog select and power are mapped; **letter keys not wired** | `sonyTG50HostKey()`; common `KeyId` has only these 10 keys |
+| Host power key → GPIO0 | Not wired (GPIO0 stays released) | Original uARM also drives GPIO0 low while pressed |
+| Native window skin | Shows the E2 Graffiti silkscreen, which has no function on TG50 | TG50 has a QWERTY keyboard and no silkscreen; shares the E2 `mode_320x320` display configuration |
+| AN32502A power (I²C) | Ported, not individually tested | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
+| AK4534 audio codec (I²C) | Register model only, no PCM output | `src/uarm/uarm/i2sdev_AK4534.cpp` |
+| Memory Stick controller | Register model only, no media | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
+| Savestates / session files | **Incomplete**: TG50 device state is not serialized | `--tg50` rejects session files |
+| Browser/WASM TG50 UI and input | Not implemented | After native input is complete |
 
 ## 현재 진행 상태
 
-| 구성 요소 | 상태 | 코드 / 다음 작업 |
-| --- | --- | --- |
-| 원본 uARM의 TG50 구현 검토 | 완료(소스 검토) | `deviceSonyTG50.c`, `mmiodev_TG50uc.c` |
-| TG50 하드웨어 상수·8×8 키 매트릭스 | 기기 초기화 연결, 호스트 QWERTY 미완성 | `src/uarm/uarm/sony_tg50_hardware.h` |
-| Sony 컨트롤러 MMIO·GPIO·키 매트릭스 | C++ 1차 이식·키 매트릭스 오류 수정, **실행 미검증** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `.h` |
-| 네이티브/WASM 빌드 소스 목록 등록 | 추가됨·문법 검사 CI 구성, **빌드 결과 미검증** | `src/uarm/Makefile` |
-| AD7873 터치 컨트롤러 | C++ SSP 1차 이식, **미검증** | `src/uarm/uarm/sspdev_AD7873.cpp`, `.h` |
-| AN32502A 전원 관리(I²C) | C++ 1차 이식, **미검증** | `src/uarm/uarm/i2cdev_AN32502A.cpp`, `.h` |
-| AK4534 오디오 코덱(I²C) | 레지스터 모델 1차 이식, **미검증** | `src/uarm/uarm/i2sdev_AK4534.cpp`, `.h`; PCM 출력 미구현 |
-| Memory Stick 컨트롤러 | 레지스터 모델 C++ 1차 이식, **미검증** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp`, `.h`; 카드 미지원 |
-| TG50 주변장치 통합 모듈 | 네이티브 초기화 분기 연결, 세부 기능 미검증 | `src/uarm/uarm/deviceSonyTG50.cpp`, `.h` |
-| TG50 기종 유형·기본 설정 | 실험용 네이티브 실행 경로 연결 | `src/common/device_type5.h`, `device_configuration.cpp`; 17MiB·320×320 |
-| TG50 실행 초기화 분기 | 1차 연결, **미검증** | E2 NAND·AC97 대신 TG50 장치 초기화, 터치·키 입력 전달 |
-| TG50 RAM·별도 SRAM 매핑 | 1차 연결, **미검증** | 기본 RAM 17MiB, `0xAC000000`에 1KiB SRAM |
-| TG50 ROM 부팅·상태 저장 | 초기 부팅 성공 기록, 상태 저장 미완성 | Linux SDL2 시험에서 Setup 1 of 4 도달, 직렬화 미완성 |
-| 네이티브 전체 빌드 CI | 워크플로 추가, **결과 미확인** | `.github/workflows/tg50-native-build.yml` |
-| 네이티브 ROM 부팅 | **Setup 1 of 4 도달 기록** | 기술 문서에 Linux SDL2 시험 결과 기록, 전체 동작 미검증 |
-| 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 부팅 성공 후 진행 |
+2026-10-23, 이 브랜치의 Linux SDL2 네이티브 빌드와 uARM 기준 해시(`c6d5985c…860b94f`)가 같은 TG50 NOR ROM으로 확인한 결과입니다.
 
-**주의:** 기술 문서에는 Linux SDL2 네이티브 환경에서 TG50 ROM을 로딩하여 **Setup 1 of 4** 화면까지 도달한 시험 결과가 기록돼 있습니다. 이번 README 수정 과정에서 시험을 재실행한 것은 아닙니다. 설치 완료, QWERTY·터치·오디오·저장장치·상태 저장 및 브라우저 지원은 여전히 개발·검증이 필요합니다.
+| 구성 요소 | 상태 | 코드 / 비고 |
+| --- | --- | --- |
+| 네이티브 빌드(common + cp-uarm) | **로컬 빌드 성공**(Linux, 경고 없음), CI 결과는 미확인 | `src/uarm/Makefile`, `.github/workflows/tg50-native-build.yml` |
+| 네이티브 실행(`--tg50`) | **동작** | `src/uarm/native/main.cpp`, RAM 17MiB, 320×320 |
+| 부팅: GPIO13/14 컨트롤러 IRQ 신호선 | **동작** | `src/uarm/uarm/deviceSonyTG50.cpp` |
+| 부팅: 전원 키 GPIO0 대기 상태 | **수정 완료**, 키 해제 대기 루프 통과 | `sonyTG50Initialize()` |
+| Setup 1~4(펜 보정 포함) | **동작** | TG50에서 E2용 펜 좌표 변환 패치 해제(`soc_PXA.cpp`) |
+| CLIÉ 런처 | **진입, 터치 반응 확인** | — |
+| AD7873 터치 컨트롤러 | 320×320 화면에서 **동작** | `src/uarm/uarm/sspdev_AD7873.cpp` |
+| Sony 컨트롤러 MMIO·8×8 키 매트릭스 | 이식 완료, 매트릭스 모델 있음, **키 입력 미시험** | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
+| PC 키 → TG50 키 연결 | **미완성**: 하드웨어 버튼 1~4·방향키·조그 선택·전원만 연결, **글자 키 미연결** | `sonyTG50HostKey()`, 공통 `KeyId`에 이 10개만 있음 |
+| PC 전원 키 → GPIO0 | 미연결(GPIO0은 항상 해제 상태) | 원본 uARM은 누르는 동안 GPIO0을 Low로 내림 |
+| 네이티브 창 스킨 | E2 그래피티 실크스크린이 그려지며 TG50에서는 기능 없음 | TG50은 QWERTY 키보드가 있고 실크스크린이 없음. E2와 같은 `mode_320x320` 화면 설정을 공유 |
+| AN32502A 전원 관리(I²C) | 이식 완료, 개별 시험 안 함 | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
+| AK4534 오디오 코덱(I²C) | 레지스터 모델만, PCM 출력 없음 | `src/uarm/uarm/i2sdev_AK4534.cpp` |
+| Memory Stick 컨트롤러 | 레지스터 모델만, 카드 미지원 | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
+| 상태 저장·세션 파일 | **미완성**: TG50 장치 상태 직렬화 없음 | `--tg50`은 세션 파일을 거부 |
+| 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 입력 완성 후 진행 |
 
 ---
 
 ## Development order
 
-1. **Validate the controller port compiles** in the existing CloudpilotEmu build, without changing E2 or other supported devices. Address build errors and write a small MMIO/keyboard regression test.
-2. **Validate the staged AD7873 touch port** and port remaining TG50 hardware: the staged AN32502A power model, the staged AK4534 audio codec, and the staged Memory Stick register model.
-3. **Register TG50 for native execution**: device type, ROM and RAM mapping, GPIO initialization, PXA25x revision and host keyboard mapping. Keep it out of the browser device list at this stage.
-4. **Extend the documented initial ROM boot** beyond Setup 1 of 4 and test LCD, touch and QWERTY keyboard.
-5. **Add browser/WASM support** after native boot, then handle savestates and optional peripherals.
+1. **QWERTY keyboard input**: log what the ROM's keyboard driver reports for one matrix key, then map host letter, Shift, Ctrl, Space, Enter and Backspace keys onto the TG50 matrix, and drive GPIO0 from the host power key.
+2. **TG50 display configuration**: drop the E2 silkscreen (or replace it with a keyboard image) without changing the E2's shared configuration.
+3. **Savestates**: serialize TG50 device state so session files can be saved and resumed.
+4. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
+5. **Browser/WASM support**, then audio and Memory Stick.
 
-Detailed file-level checklist: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
+Detailed file-level checklist and fix history: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
 
 ## 개발 순서
 
-1. **컨트롤러 코드 컴파일 확인:** 기존 E2 등 지원 기종을 변경하지 않고 빌드 오류를 점검하며, MMIO·키보드 회귀 시험을 추가합니다.
-2. **TG50 주변장치 이식:** AD7873 터치 이식본을 검증하고 AN32502A 전원 모델을 검증하고 AK4534 오디오 코덱 이식본을 검증하고 Memory Stick 레지스터 모델을 검증합니다.
-3. **네이티브용 TG50 기기 등록:** 기기 유형, ROM·RAM 매핑, GPIO, PXA25x 리비전, 호스트 키보드 매핑을 연결합니다. 이 단계까지는 브라우저 기종 목록에 추가하지 않습니다.
-4. **TG50 초기 부팅 이후 검증:** Setup 1 of 4 이후 단계 진행 및 화면·터치·QWERTY 키보드 기능을 시험합니다.
-5. **브라우저/WASM 지원:** 네이티브 부팅 성공 후 웹 기기 선택과 입력을 추가하고, 저장 상태 및 선택적 주변장치는 후속으로 구현합니다.
+1. **QWERTY 키보드 입력:** 매트릭스 키 하나를 눌렀을 때 ROM 키보드 드라이버가 내는 값을 기록한 뒤, PC의 글자·Shift·Ctrl·Space·Enter·Backspace 키를 TG50 매트릭스에 연결하고, PC 전원 키로 GPIO0을 구동합니다.
+2. **TG50 화면 설정:** E2와 공유하는 설정은 건드리지 않고 E2 실크스크린을 없애거나 키보드 그림으로 바꿉니다.
+3. **상태 저장:** TG50 장치 상태를 직렬화해 세션 파일 저장·재개를 지원합니다.
+4. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.
+5. **브라우저/WASM 지원**, 그다음 오디오와 Memory Stick.
 
-파일별 상세 점검표: [TG50 포팅 기술 문서](docs/sony-tg50-port.md).
+파일별 상세 점검표와 수정 이력: [TG50 포팅 기술 문서](docs/sony-tg50-port.md).
 
 ---
 
@@ -107,40 +107,70 @@ The original project's emulator overview, device compatibility, existing build i
 
 ---
 
-## TG50 GPIO13 / GPIO14 (upstream-compatible)
-The original uARM initializes GPIO13 high (inactive) and connects the Sony microcontroller's IRQ output to GPIO14. These are **two separate lines**. Its annotation about GPIO13 being the overall uC IRQ is tentative; it does not supersede the implemented GPIO14 connection. This fork reproduces the original line separation and initializes both pins inactive before the controller begins driving GPIO14. A real ROM trace should still verify interrupt edge masks and key handling.
+## Fixes that made the ROM boot
 
-## TG50 GPIO13 / GPIO14 (원본 동작 재현)
-원본 uARM은 GPIO13을 비활성(High)으로 초기화하고 Sony 컨트롤러의 IRQ 출력을 GPIO14에 연결합니다. 두 선은 **서로 다른 신호선**입니다. GPIO13이 uC 전체 IRQ일 수 있다는 주석은 추정이며, 실제 초기화 코드의 GPIO14 연결과 모순된다고 볼 근거는 아닙니다. 현재 포크도 두 선을 분리하고 컨트롤러가 GPIO14를 구동하기 전에 두 핀을 비활성 상태로 초기화합니다. 향후 ROM 추적으로 엣지 설정과 키 입력 처리를 검증해야 합니다.
+| Stage | Symptom | Cause | Fix |
+| --- | --- | --- | --- |
+| Early boot | Wait on the controller IRQ lines | GPIO13/GPIO14 idle levels | GPIO13 idle high, controller IRQ on GPIO14 (as in original uARM) |
+| Mid boot | Blank screen, CPU spinning at `0x20036DBC` | Power key on GPIO0 (active low) left low, so the ROM waited for release | Set GPIO0 high (released) at init |
+| Setup | Calibration restarts at the second target | E2 touch-translation patch (`280 + 10x`, `210 + 7y`) applied to the TG50 AD7873 (`3200 − 10·x/y`) | Register patches without `PATCH_FEATURE_TOUCH_TRANSLATION` in TG50 mode; Palm OS uses its own calibration |
+
+Each case was found by comparing against original uARM running the same ROM. Details: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
+
+## ROM 부팅까지 고친 문제
+
+| 단계 | 증상 | 원인 | 해결 |
+| --- | --- | --- | --- |
+| 부팅 초반 | 컨트롤러 IRQ 신호선에서 대기 | GPIO13/GPIO14 기본 상태 | GPIO13은 High로 대기, 컨트롤러 IRQ는 GPIO14(원본 uARM과 같음) |
+| 부팅 중반 | 화면 안 뜸, CPU가 `0x20036DBC`에서 무한 대기 | 전원 키 GPIO0(Low가 눌림)이 Low로 남아 ROM이 키 해제를 기다림 | 초기화 때 GPIO0을 High(해제)로 설정 |
+| Setup | 펜 보정이 두 번째 점에서 처음으로 돌아감 | E2용 펜 좌표 변환 패치(`280 + 10x`, `210 + 7y`)가 TG50 AD7873(`3200 − 10·x/y`)에 적용됨 | TG50에서는 `PATCH_FEATURE_TOUCH_TRANSLATION`을 빼고 패치 등록, Palm OS 자체 보정 사용 |
+
+모두 같은 ROM을 원본 uARM에서 실행해 비교하는 방법으로 찾았습니다. 상세: [TG50 포팅 기술 문서](docs/sony-tg50-port.md).
 
 ---
 
 ## GPIO interrupt diagnostics
 
-A diagnostic-only build may define `TG50_TRACE_GPIO` (PXA GPIO13/14 levels and GRER0/GFER0/GEDR0 state) together with `TG50_TRACE_IRQ` (Sony controller IRQ transitions). Compare the results with original uARM using the same ROM. **IRQ diagnostic logs have not been independently validated in this README update; the initial native boot is documented.**
+A diagnostic-only build may define `TG50_TRACE_GPIO` (PXA GPIO13/14 levels and GRER0/GFER0/GEDR0 state) together with `TG50_TRACE_IRQ` (Sony controller IRQ transitions). Compare the results with original uARM using the same ROM. These traces are not needed for normal builds.
 
 ## GPIO 인터럽트 진단
 
-진단용 빌드에서는 `TG50_TRACE_GPIO`(PXA GPIO13·14 입력 상태와 GRER0·GFER0·GEDR0 설정) 및 `TG50_TRACE_IRQ`(Sony 컨트롤러 인터럽트 전이)를 함께 사용할 수 있습니다. 동일한 TG50 ROM을 사용하는 원본 uARM과 기록을 비교하는 용도입니다. **IRQ 진단 로그는 이번 문서 수정에서 재검증하지 않았으며, 네이티브 초기 부팅 시험 결과는 기술 문서에 기록돼 있습니다.**
+진단용 빌드에서는 `TG50_TRACE_GPIO`(PXA GPIO13·14 입력 상태와 GRER0·GFER0·GEDR0 설정) 및 `TG50_TRACE_IRQ`(Sony 컨트롤러 인터럽트 전이)를 함께 사용할 수 있습니다. 동일한 TG50 ROM을 사용하는 원본 uARM과 기록을 비교하는 용도이며, 일반 빌드에는 필요하지 않습니다.
 
 ---
 
 ## Experimental native TG50 ROM launch
 
-The native emulator now offers an explicit device override for a Palm OS 5 NOR image:
+The native emulator offers an explicit device override for a Palm OS 5 NOR image:
 
 ```sh
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM, and does not support NAND or resuming existing session files in TG50 override mode. **The technical notes record successful Linux SDL2 native loading and boot to Setup 1 of 4; full functionality is not yet verified.**
+This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM, and does not support NAND or resuming session files in TG50 mode.
+
+What to expect on first launch:
+
+1. Setup 1–2: tap anywhere to continue.
+2. Pen calibration: tap the center of each of the three targets accurately (top-left, bottom-right, center).
+3. Setup 3: tap **Next**; Setup 4: tap **Done**. The CLIÉ Launcher appears.
+
+The E2 silkscreen drawn below the screen does nothing on TG50, and letter keys on the host keyboard are not yet connected.
 
 ## 실험용 TG50 네이티브 ROM 실행
 
-Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션이 추가됐습니다.
+Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션입니다.
 
 ```sh
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며, TG50 강제 선택 모드에서는 별도 NAND 및 기존 세션 파일을 지원하지 않습니다. **기술 문서에는 Linux SDL2 네이티브 환경에서 ROM 로딩과 Setup 1 of 4 진입 성공이 기록돼 있으며, 전체 기능은 아직 검증되지 않았습니다.**
+이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며, TG50 모드에서는 별도 NAND 및 세션 파일 재개를 지원하지 않습니다.
+
+첫 실행 순서:
+
+1. Setup 1~2: 화면 아무 곳이나 눌러 넘깁니다.
+2. 펜 보정: 표적 3개(왼쪽 위, 오른쪽 아래, 가운데)의 중심을 정확히 누릅니다.
+3. Setup 3에서 **Next**, Setup 4에서 **Done**을 누르면 CLIÉ 런처가 나타납니다.
+
+화면 아래에 그려지는 E2 실크스크린은 TG50에서 동작하지 않으며, PC 키보드의 글자 키는 아직 연결되지 않았습니다.
