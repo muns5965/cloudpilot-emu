@@ -99,3 +99,9 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - The existing `RamTerminationMirror` path remains in use and has not been validated with a real ROM's address probes. The model is not ready for use with TG50 firmware.
 - Expanded TG50 syntax-check CI to include the SoC and E2/TG50 dispatch sources. This is **not** proof the workflow passed, nor does a syntax check cover linker errors or runtime.
 - **Remaining:** TG50 ROM format/startup checks, physical keyboard host input, savestate serialization, proper card/no-card behavior, a full native build, and a real ROM boot test.
+
+## Native build CI added (verification pending)
+
+- Added `.github/workflows/tg50-native-build.yml` for pushes to the TG50 development branch and manual dispatch. It recursively checks out git submodules, installs SDL2/SDL2-image, readline and curl development dependencies, builds `src/common/libcommon.a`, then builds/links `src/uarm/cp-uarm`.
+- On success the workflow uploads an **experimental Linux binary**, which does not imply a working TG50 ROM boot.
+- **CI run status and build result have not been independently confirmed.** Check [TG50 native build Actions](https://github.com/muns5965/cloudpilot-emu/actions/workflows/tg50-native-build.yml) for errors before proceeding with additional emulation claims.
