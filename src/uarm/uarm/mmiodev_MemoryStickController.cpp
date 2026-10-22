@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
+#if defined(TG50_MS_EXT_ALIAS) && defined(TG50_MS_EXT_ZERO)
+#error "Select exactly one TG50 Memory Stick experiment"
+#endif
 struct MemoryStickController {
     uint16_t systemReg;
     uint16_t reg0, reg40, reg50, reg2c0, reg2d0, reg2e0, reg2f0;
@@ -23,14 +26,18 @@ static bool access(void* ctx, uint32_t address, uint_fast8_t size, bool write, v
                           offset == 0x10e0 || offset == 0x10f0 || offset == 0x10f8;
     if (offset >= 0x400 && !extended) return false;
     if (extended) {
+        // Limit each extra register to the access type seen in the diagnostic trace.
+        const bool read16 = !write && size == 2 &&
+                            (offset == 0x10c0 || offset == 0x10d0);
+        const bool write16 = write && size == 2 &&
+                             (offset == 0x10d0 || offset == 0x10e0);
+        const bool read32 = !write && size == 4 &&
+                            (offset == 0x10f0 || offset == 0x10f8);
+        if (!(read16 || write16 || read32)) return false;
 #if defined(TG50_MS_EXT_ALIAS)
         offset -= 0xe00;  // diagnostic hypothesis: mirrored command registers
 #elif defined(TG50_MS_EXT_ZERO)
         // Diagnostic compatibility experiment, not an emulation of the actual registers.
-        if ((size != 2 && size != 4) ||
-            (size == 4 && (write || (offset != 0x10f0 && offset != 0x10f8))) ||
-            (size == 2 && (offset == 0x10f0 || offset == 0x10f8)))
-            return false;
         if (!write) std::memset(buf, 0, size);
 #ifdef TG50_MS_TRACE
         std::fprintf(stderr, "[TG50 MS zero] %c%u @ %08x\\n",
