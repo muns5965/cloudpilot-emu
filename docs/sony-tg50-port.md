@@ -17,7 +17,7 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 | Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Initial MMIO and row/column keyboard scan port added; verify build, IRQ and matrix correctness, then map host key IDs |
 | Touch | `sspdev_AD7873.c/.h` | Initial C++ SSP port added (`sspdev_AD7873.cpp/.h`); compile, 12-bit pipelined command response, stylus coordinates and GPIO 9 IRQ remain unverified |
 | Power management | `i2cdev_AN32502A.c/.h` | Initial C++ I²C model staged in `i2cdev_AN32502A.cpp/.h`; build and startup behavior unverified |
-| Audio | `i2sdev_AK4534.c/.h` | Port or establish which initialization accesses need stubs |
+| Audio | `i2sdev_AK4534.c/.h` | I²C register model port staged in `i2sdev_AK4534.cpp/.h`; no PCM output; compile and startup behavior unverified |
 | Memory Stick | `mmiodev_MemoryStickController.c/.h` | Port required register behavior; removable media can follow later |
 | Device boot / GPIO | `deviceSonyTG50.c` | Integrate with modern `deviceSetup(DeviceType5, ...)` and per-device state |
 | ROM and memory | `deviceGetRomMemType`, `deviceGetRamSize` | Check actual TG50 ROM layout, NOR handling, RAM mirror and startup mapping |
@@ -55,3 +55,9 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Original uARM behavior preserved: 7-bit address `0x73`, ACK for register-pointer writes and writes to registers 0–2, zero-valued register reads, start/restart/stop state handling.
 - Registered the source in `src/uarm/Makefile` and the syntax-check workflow.
 - **Unverified:** a native compile success, I²C transaction test, TG50 device attachment, and ROM boot. The model is not yet instantiated in a device.
+
+## AK4534 codec (staged)
+
+- Added `src/uarm/uarm/i2sdev_AK4534.cpp` and `.h`, adapted to CloudpilotEmu's `PxaI2c` API. The original uARM model registers an I²C client but does not attach a real I²S audio stream; this port likewise emulates register access only.
+- I²C address `0x10`, default register values and register read/write state handling were preserved; the model is included in `src/uarm/Makefile` and the TG50 syntax-check workflow.
+- **Not verified:** passing native build or CI checks, live I²C register access, sound output, and TG50 ROM boot. This peripheral has not been attached to a TG50 device instance.
