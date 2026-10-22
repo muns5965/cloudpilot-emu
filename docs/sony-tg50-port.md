@@ -83,3 +83,11 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Added 17 MiB RAM-size acceptance and a preliminary 320×320 display capability to `src/uarm/uarm/device_configuration.cpp`. Display geometry requires validation: current generic 320×320 mode also carries a Graffiti area size that may not suit TG50.
 - Added an explicit guard in `devicePalmTungstenE2.cpp`: selecting TG50 fails instead of incorrectly attaching E2 NAND/AC97 hardware. This is a **temporary safety guard**, not the TG50 device factory.
 - **Still blocked:** separate TG50 `deviceSetup` dispatch and `Device` lifecycle, ROM mapping, 1 KiB extra SRAM, ROM boot and save-state handling. Neither native build nor CI success has been independently verified.
+
+## First native factory dispatch (experimental, unverified)
+
+- `devicePalmTungstenE2.cpp` now recognizes `deviceTypeSonyTG50`, allocates a TG50-flavored Device wrapper and calls `sonyTG50Initialize` instead of E2 NAND/AC97/WM9712L setup.
+- Device periodic/touch/hardware-key operations dispatch to the Sony model, and `SocPXA::OnReset` skips the absent NAND page buffer.
+- **Not boot validated:** ROM format/mapping, 1 KiB SRAM mapping, full QWERTY host input and LCD geometry remain outstanding. A source-only GitHub update is not proof of a successful build.
+- **Savestates incomplete:** the Sony-specific controller state is not serialized. The temporary factory branch skips Sony peripheral save/load and should not be considered safe for persistent sessions. Do not distribute as working TG50 support.
+- Generic keypad events still pass through the common keypad interface; review duplicate or unintended input when TG50 host mapping is brought online.
