@@ -123,8 +123,11 @@ static void tg50ucPrvRecalcKeypadMatrix(struct TG50uc *uc)
 
 static void tg50ucPrvRecalcGpioIrqs(struct TG50uc *uc)
 {
-	if (uc->gpioChangeIrqNo >= 0)
-		pxaGpioSetState(uc->gpio, uc->gpioChangeIrqNo, !irq);
+    bool irq = false;
+    for (unsigned i = 0; i < sizeof(uc->port) / sizeof(uc->port[0]); ++i)
+        irq = irq || (uc->port[i].edgesDetected & uc->port[i].edgesCausingIrq) != 0;
+    if (uc->gpioChangeIrqNo >= 0)
+        pxaGpioSetState(uc->gpio, uc->gpioChangeIrqNo, !irq);
 }
 
 static void tg50ucPrvRecalcGpioVals(struct TG50uc *uc, struct TG50ucGpioPort *port)
