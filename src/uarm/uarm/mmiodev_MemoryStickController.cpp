@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 struct MemoryStickController {
     uint16_t systemReg;
     uint16_t reg0, reg40, reg50, reg2c0, reg2d0, reg2e0, reg2f0;
@@ -13,7 +14,33 @@ struct MemoryStickController {
 };
 static bool access(void* ctx, uint32_t address, uint_fast8_t size, bool write, void* buf) {
     auto* m = static_cast<MemoryStickController*>(ctx);
-    uint32_t offset = address & 0x3ffu;
+    // The original 0x400-byte block remains unchanged. Only five offsets
+    // observed in TG50/KOSPI testing are admitted in the additional window.
+    constexpr uint32_t base = 0x14000000u;
+    if (address < base) return false;
+    uint32_t offset = address - base;
+    const bool extended = offset == 0x10c0 || offset == 0x10d0 ||
+                          offset == 0x10e0 || offset == 0x10f0 || offset == 0x10f8;
+    if (offset >= 0x400 && !extended) return false;
+    if (extended) {
+#if defined(TG50_MS_EXT_ALIAS)
+        offset -= 0xe00;  // diagnostic hypothesis: mirrored command registers
+#elif defined(TG50_MS_EXT_ZERO)
+        // Diagnostic compatibility experiment, not an emulation of the actual registers.
+        if ((size != 2 && size != 4) ||
+            (size == 4 && (write || (offset != 0x10f0 && offset != 0x10f8))) ||
+            (size == 2 && (offset == 0x10f0 || offset == 0x10f8)))
+            return false;
+        if (!write) std::memset(buf, 0, size);
+#ifdef TG50_MS_TRACE
+        std::fprintf(stderr, "[TG50 MS zero] %c%u @ %08x\\n",
+                     write ? 'W' : 'R', static_cast<unsigned>(size * 8), address);
+#endif
+        return true;
+#else
+        return false;  // standard build preserves strict legacy semantics
+#endif
+    }
     if (!write && size == 4 && (offset == 0x2f0 || offset == 0x2f8)) {
         const uint32_t val = offset == 0x2f0 ? m->replyLo2f0 : m->replyHi2f8;
         std::memcpy(buf, &val, sizeof(val));
@@ -43,7 +70,7 @@ MemoryStickController* msCtrlrInit(ArmMem* mem, uint32_t base) {
     auto* m = static_cast<MemoryStickController*>(std::calloc(1, sizeof(MemoryStickController)));
     if (!m) return nullptr;
     m->systemReg = 0x4455;
-    if (!memRegionAdd(mem, base, 0x400, access, m)) {
+    if (!memRegionAdd(mem, base, 0x1400, access, m)) {
         std::free(m);
         return nullptr;
     }
