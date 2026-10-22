@@ -16,7 +16,7 @@ This branch is an **early hardware-port staging area**, not a bootable TG50 emul
 | --- | --- | --- |
 | Sony controller / physical keys | `mmiodev_TG50uc.c/.h` | Initial MMIO and row/column keyboard scan port added; verify build, IRQ and matrix correctness, then map host key IDs |
 | Touch | `sspdev_AD7873.c/.h` | Initial C++ SSP port added (`sspdev_AD7873.cpp/.h`); compile, 12-bit pipelined command response, stylus coordinates and GPIO 9 IRQ remain unverified |
-| Power management | `i2cdev_AN32502A.c/.h` | Port I2C responses needed by ROM boot |
+| Power management | `i2cdev_AN32502A.c/.h` | Initial C++ I²C model staged in `i2cdev_AN32502A.cpp/.h`; build and startup behavior unverified |
 | Audio | `i2sdev_AK4534.c/.h` | Port or establish which initialization accesses need stubs |
 | Memory Stick | `mmiodev_MemoryStickController.c/.h` | Port required register behavior; removable media can follow later |
 | Device boot / GPIO | `deviceSonyTG50.c` | Integrate with modern `deviceSetup(DeviceType5, ...)` and per-device state |
@@ -48,3 +48,10 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 - Preserved the 12-bit pipelined SSP conversion responses (X/Y, battery, auxiliary, Z1), TG50's reversed X/Y wiring, and GPIO 9 pen-interrupt update.
 - Added source to `src/uarm/Makefile` and `.github/workflows/tg50-controller.yml` syntax checks.
 - **No actual compile success, ROM startup, or touch input is yet verified.** The port is not connected to `deviceSetup` because TG50 device registration and other hardware dependencies remain incomplete.
+
+## AN32502A I²C controller (staged)
+
+- Added `src/uarm/uarm/i2cdev_AN32502A.cpp` and `.h` using CloudpilotEmu's `PxaI2c` interface.
+- Original uARM behavior preserved: 7-bit address `0x73`, ACK for register-pointer writes and writes to registers 0–2, zero-valued register reads, start/restart/stop state handling.
+- Registered the source in `src/uarm/Makefile` and the syntax-check workflow.
+- **Unverified:** a native compile success, I²C transaction test, TG50 device attachment, and ROM boot. The model is not yet instantiated in a device.
