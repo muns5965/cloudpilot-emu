@@ -36,7 +36,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | AK4534 audio codec (I²C) | Initial register model port, **unverified** | `src/uarm/uarm/i2sdev_AK4534.cpp` and `.h`; no PCM output |
 | Memory Stick controller | Register-only C++ port, **unverified** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` and `.h`; no media emulation |
 | TG50 peripheral assembly | Initial C++ module, **not active / unverified** | `src/uarm/uarm/deviceSonyTG50.cpp` and `.h` |
-| TG50 device factory, ROM/RAM mapping | Not implemented | Add separate factory dispatch and ROM/RAM configuration |
+| TG50 device type / preliminary config | Staged; **not bootable** | `src/common/device_type5.h`, `device_configuration.cpp`; 17 MiB / 320×320 |
+| TG50 runtime factory / ROM mapping | Not implemented | TG50 explicitly blocked from E2 factory; proper dispatch still needed |
 | Native compile / ROM boot | **Not verified / not attempted** | First validation milestone |
 | Browser/WASM TG50 UI and input | Not implemented | After successful native boot |
 
@@ -55,7 +56,8 @@ CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용
 | AK4534 오디오 코덱(I²C) | 레지스터 모델 1차 이식, **미검증** | `src/uarm/uarm/i2sdev_AK4534.cpp`, `.h`; PCM 출력 미구현 |
 | Memory Stick 컨트롤러 | 레지스터 모델 C++ 1차 이식, **미검증** | `src/uarm/uarm/mmiodev_MemoryStickController.cpp`, `.h`; 카드 미지원 |
 | TG50 주변장치 통합 모듈 | C++ 1차 작성, **미연결·미검증** | `src/uarm/uarm/deviceSonyTG50.cpp`, `.h` |
-| TG50 기기 생성·ROM/RAM 매핑 | 미구현 | 기기별 팩토리 분기·ROM/RAM 구성 연결 |
+| TG50 기종 유형·기본 설정 | 추가됨, **부팅 불가** | `src/common/device_type5.h`, `device_configuration.cpp`; 17MiB·320×320 |
+| TG50 실행 팩토리·ROM 매핑 | 미구현 | E2 초기화 오진입 방지 적용, 별도 실행 분기 필요 |
 | 네이티브 컴파일·ROM 부팅 | **미검증·미시도** | 첫 번째 실행 검증 목표 |
 | 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 부팅 성공 후 진행 |
 
