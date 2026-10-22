@@ -150,3 +150,10 @@ Our previous changes `a8c63f3` (initializing only GPIO14) and `6531cd9` (moving 
 - Updated `.github/workflows/tg50-controller.yml` to check `pxa_GPIO.cpp` in both standard and `TG50_TRACE_GPIO` builds, and `mmiodev_TG50uc.cpp` with `TG50_TRACE_IRQ`.
 - Added `pxa_GPIO.cpp` to the workflow's push path filters, so changes to the diagnostic implementation request a syntax-check run.
 - This is a CI configuration change only; successful GitHub Actions execution and TG50 ROM boot are **not yet verified**.
+
+## Confirmed native startup blocker: ROM identification
+
+- Native `src/uarm/native/main.cpp` calls `RomInfo5::GetDeviceType()`, rejects `deviceTypeInvalid`, and chooses the SoC from the returned type.
+- `src/common/rom_info5.cpp` currently recognizes only PV, Tungsten E2, and FrankenE2 identifiers, **not Sony PEG-TG50**. Merely adding TG50 to the enum and `SocPXA` dispatch does not make ROM boot accessible.
+- Do **not** guess a Sony company/HAL identifier or accept every unrecognized ROM as TG50. Obtain the TG50 ROM's actual header IDs or the original uARM ROM detection behavior, then implement a narrow TG50 mapping and recommended 17 MiB RAM.
+- This is a source-confirmed **startup integration gap**, not a native compilation failure. The CI result remains unverified.
