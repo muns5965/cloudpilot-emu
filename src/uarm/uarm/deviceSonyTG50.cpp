@@ -36,6 +36,9 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     dev->touch = ad7873Init(sp->ssp, sp->gpio, sony_tg50::kTouchIrqGpio);
     dev->codec = ak4534Init(sp->i2c, sp->i2s, sp->gpio);
     dev->power = an32502aInit(sp->i2c);
+    // Preserve separate idle-high GPIO13 and controller-driven GPIO14.
+    pxaGpioSetState(sp->gpio, sony_tg50::kKeyRelatedIdleGpio, true);
+    pxaGpioSetState(sp->gpio, sony_tg50::kUcIrqGpio, true);
     dev->controller = tg50ucInit(sp->mem, sp->gpio, sony_tg50::kUcIrqGpio, keyMap);
     dev->stick = msCtrlrInit(sp->mem, sony_tg50::kMemoryStickBase);
     if (!dev->touch || !dev->codec || !dev->power || !dev->controller || !dev->stick) {
@@ -47,7 +50,8 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     pxaGpioSetState(sp->gpio, 3, true);   // cradle switch (not pressed)
     pxaGpioSetState(sp->gpio, 7, true);   // Memory Stick absent
     pxaGpioSetState(sp->gpio, 10, true);  // Memory Stick interrupt inactive
-    pxaGpioSetState(sp->gpio, sony_tg50::kUcIrqGpio, true);  // controller IRQ inactive
+    pxaGpioSetState(sp->gpio, sony_tg50::kKeyRelatedIdleGpio, true); // GPIO13 stays inactive
+    // GPIO14 is owned by TG50uc after initialization; do not override it here.
     ad7873SetVbatt(dev->touch, 4200);
     ad7873Periodic(dev->touch);
     sp->dbgUart = sp->uarts[2]; // Mirrors original uARM TG50 setup.
