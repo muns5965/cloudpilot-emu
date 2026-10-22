@@ -112,3 +112,13 @@ The original uARM initializes GPIO13 high (inactive) and connects the Sony micro
 
 ## TG50 GPIO13 / GPIO14 (원본 동작 재현)
 원본 uARM은 GPIO13을 비활성(High)으로 초기화하고 Sony 컨트롤러의 IRQ 출력을 GPIO14에 연결합니다. 두 선은 **서로 다른 신호선**입니다. GPIO13이 uC 전체 IRQ일 수 있다는 주석은 추정이며, 실제 초기화 코드의 GPIO14 연결과 모순된다고 볼 근거는 아닙니다. 현재 포크도 두 선을 분리하고 컨트롤러가 GPIO14를 구동하기 전에 두 핀을 비활성 상태로 초기화합니다. 향후 ROM 추적으로 엣지 설정과 키 입력 처리를 검증해야 합니다.
+
+---
+
+## GPIO interrupt diagnostics
+
+A diagnostic-only build may define `TG50_TRACE_GPIO` (PXA GPIO13/14 levels and GRER0/GFER0/GEDR0 state) together with `TG50_TRACE_IRQ` (Sony controller IRQ transitions). Compare the results with original uARM using the same ROM. **The diagnostic build and ROM boot remain unverified.**
+
+## GPIO 인터럽트 진단
+
+진단용 빌드에서는 `TG50_TRACE_GPIO`(PXA GPIO13·14 입력 상태와 GRER0·GFER0·GEDR0 설정) 및 `TG50_TRACE_IRQ`(Sony 컨트롤러 인터럽트 전이)를 함께 사용할 수 있습니다. 동일한 TG50 ROM을 사용하는 원본 uARM과 기록을 비교하는 용도입니다. **진단 빌드 및 ROM 부팅 성공은 아직 검증되지 않았습니다.**
