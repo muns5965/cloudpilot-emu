@@ -1,0 +1,7 @@
+// Sony TG50 AN32502A I2C power controller, adapted from uARM-Palm/uARM.
+#ifndef _I2CDEV_AN32502A_H_
+#define _I2CDEV_AN32502A_H_
+#include "pxa_I2C.h"
+struct An32502A;
+An32502A* an32502aInit(PxaI2c* i2c);
+#endif
