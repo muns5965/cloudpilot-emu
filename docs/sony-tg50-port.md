@@ -110,3 +110,9 @@ No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 a
 
 - Fixed `mmiodev_TG50uc.cpp`: on writes to GPIO direction registers `0x20–0x2c`, immediately recalculate output/input state and rising/falling edge flags. Port C (`0x28`) also recalculates the scanned keyboard matrix. Previously recalculation incorrectly happened on **reads**, which could postpone keyboard transitions and their interrupt detection.
 - This patch is grounded in source review but **does not establish that the native CI build succeeds**. The connected GitHub workflow interface does not currently provide a list of push-triggered runs; check the GitHub Actions page for the authoritative result.
+
+## Critical SRAM backing-buffer fix
+
+- Fixed a deterministic initialization failure: `memoryBufferAllocate` and `memoryBufferGetSubBuffer` require sizes and offsets aligned to `MEMORY_BUFFER_GRANULARITY` (32 KiB). The previous TG50 code attempted to reserve a 1 KiB buffer, so memory allocation/subbuffer creation failed.
+- `SocPXA` now reserves a 32 KiB backing buffer for Sony's extra SRAM and maps **only 1 KiB** into the physical address space at `0xAC000000` via `ramInit`. This intentionally retains the real device-visible size.
+- GitHub Actions build result is **still unverified**; this is a source-confirmed defect correction, not a claim that the emulator compiles or boots.
