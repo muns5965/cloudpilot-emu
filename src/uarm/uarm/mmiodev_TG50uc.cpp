@@ -73,52 +73,29 @@ static void tg50ucPrvRecalcGpioVals(struct TG50uc *uc, struct TG50ucGpioPort *po
 
 static void tg50ucPrvRecalcKeypadMatrix(struct TG50uc *uc)
 {
-	unsigned row, col;
-	
-	for (col = 0; col < 8; col++) {
-		
-		bool hi = true, sure = false;
-		
-		for (row = 0; row < 8; row++) {
-			
-			//nothing to do if row is not energized or key is not pressed
-			if ((uc->port[2].direction & (1 << row)) && uc->keys[row][col]) {
-				
-				if (uc->port[2].latches & (1 << row)) {
-					
-					if (!sure) {
-						
-						sure = true;
-						hi = true;
-					}
-					else if (!hi) {
-						
-						fprintf(stderr, "KEYPAD COL %u conflicting values, acting as is hi\n", col);
-						hi = true;
-					}
-				}
-				else {
-					
-					if (!sure) {
-						
-						sure = true;
-						hi = false;
-					}
-					else if (hi) {
-						
-						fprintf(stderr, "KEYPAD COL %u conflicting values, acting as is hi\n", col);
-						hi = true;
-					}
-				}
-			}
-			if (hi)
-				uc->port[2].inputs |= (1 << (col + 8));
-			else
-				uc->port[2].inputs &=~ (1 << (col + 8));
-		}
-	}
-	fprintf(stderr, " UC kp 0x%04x\n", (uc->port[2].inputs & 0xff00) | (uc->port[2].latches & 0x00ff));
-	tg50ucPrvRecalcGpioVals(uc, &uc->port[2]);
+    for (unsigned col = 0; col < 8; ++col) {
+        bool anyDriven = false;
+        bool hasLow = false;
+        bool hasHigh = false;
+
+        for (unsigned row = 0; row < 8; ++row) {
+            if (!(uc->port[2].direction & (1u << row)) || !uc->keys[row][col])
+                continue;
+            anyDriven = true;
+            if (uc->port[2].latches & (1u << row))
+                hasHigh = true;
+            else
+                hasLow = true;
+        }
+
+        // Preserve upstream's high-wins convention for conflicting driven rows.
+        const bool high = !anyDriven || hasHigh || !hasLow;
+        if (high)
+            uc->port[2].inputs |= (uint16_t)(1u << (col + 8));
+        else
+            uc->port[2].inputs &= (uint16_t)~(1u << (col + 8));
+    }
+    tg50ucPrvRecalcGpioVals(uc, &uc->port[2]);
 }
 
 static void tg50ucPrvRecalcGpioIrqs(struct TG50uc *uc)
