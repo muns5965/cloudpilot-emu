@@ -11,6 +11,12 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* peripherals);
 void sonyTG50Periodic(SonyTG50* device);
 void sonyTG50Touch(SonyTG50* device, int x, int y);
 void sonyTG50SleepWakeup(SonyTG50* device);
+
+// Savestate: all TG50 peripheral models in one chunk.
+template <typename T>
+void sonyTG50Save(SonyTG50* device, T& savestate);
+template <typename T>
+void sonyTG50Load(SonyTG50* device, T& loader);
 void sonyTG50Key(SonyTG50* device, sony_tg50::Key key, bool pressed);
 // Maps the host's existing generic hardware key identifiers into TG50 matrix keys.
 void sonyTG50HostKey(SonyTG50* device, KeyId key, bool pressed);

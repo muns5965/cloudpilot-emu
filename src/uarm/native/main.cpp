@@ -121,7 +121,7 @@ namespace {
 
     bool readSession(const Options& options, Buffer& nor, Buffer& nand, Buffer& ram,
                      Buffer& savestate, uint32_t& ramSize, RomInfo5& romInfo,
-                     optional<DisplayMode>& displayMode) {
+                     optional<DisplayMode>& displayMode, optional<DeviceType5>& sessionDeviceType) {
         SessionFile5 sessionFile;
 
         size_t norOrSessionLen{0};
@@ -130,14 +130,14 @@ namespace {
 
         if (SessionFile5::IsSessionFile(norOrSessionLen, norOrSessionData.get()) &&
             sessionFile.Deserialize(norOrSessionLen, norOrSessionData.get())) {
-            if (options.forceTg50) {
-                cerr << "--tg50 accepts a raw NOR ROM, not a saved session" << endl;
-                return false;
-            }
+            if (options.forceTg50)
+                cerr << "--tg50 ignored: the session file records its device type" << endl;
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
             }
+
+            sessionDeviceType = static_cast<DeviceType5>(sessionFile.GetDeviceType());
 
             ramSize = sessionFile.GetRamSize();
             if (ramSize == 0) ramSize = ramSizeFromMemorySize(sessionFile.GetMemorySize());
@@ -191,15 +191,20 @@ namespace {
         Buffer nor, nand, memory, savestate;
         RomInfo5 romInfo;
         optional<DisplayMode> displayMode = nullopt;
+        optional<DeviceType5> sessionDeviceType = nullopt;
         uint32_t ramSize{0};
 
-        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode))
+        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode,
+                         sessionDeviceType))
             return false;
         cerr << romInfo;
 
         if (!romInfo.IsValid()) return false;
+        // A session records its device type (TG50 ROMs are not identified from their header).
         const DeviceType5 deviceType =
-            options.forceTg50 ? DeviceType5::deviceTypeSonyTG50 : romInfo.GetDeviceType();
+            sessionDeviceType ? *sessionDeviceType
+            : options.forceTg50 ? DeviceType5::deviceTypeSonyTG50
+                                : romInfo.GetDeviceType();
         if (deviceType == DeviceType5::deviceTypeInvalid) return false;
         if (options.forceTg50 && options.nand) {
             cerr << "TG50 has no E2-style NAND; omit --nand" << endl;

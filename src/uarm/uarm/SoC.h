@@ -54,6 +54,7 @@ class SoC {
     void EnterDeepSleep();
     void ExitDeepSleep();
     bool IsInDeepSleep() const { return deepSleep; }
+    void SetDeepSleepFlag(bool on) { deepSleep = on; }  // savestate restore only
 
     void SetAudioQueue(struct AudioQueue *audioQueue);
     void SetPcmOutputEnabled(bool pcmOutputEnabled);

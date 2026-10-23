@@ -270,7 +270,7 @@ enum DeviceType5 deviceGetType(struct Device *dev) { return dev->type; }
 
 template <typename T>
 void deviceSave(struct Device *dev, T &savestate) {
-    if (dev->tg50) return; // TODO: TG50 device state serialization
+    if (dev->tg50) return sonyTG50Save(dev->tg50, savestate);
     wm9712Lsave(dev->wm9712L, savestate);
     directNandSave(dev->nand, savestate);
     bcm2035Save(dev->bcm2035, savestate);
@@ -278,7 +278,7 @@ void deviceSave(struct Device *dev, T &savestate) {
 
 template <typename T>
 void deviceLoad(struct Device *dev, T &loader) {
-    if (dev->tg50) return; // TODO: TG50 state load (currently unsupported)
+    if (dev->tg50) return sonyTG50Load(dev->tg50, loader);
     wm9712Load(dev->wm9712L, loader);
     directNandLoad(dev->nand, loader);
     bcm2035Load(dev->bcm2035, loader);

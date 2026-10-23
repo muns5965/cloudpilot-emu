@@ -442,3 +442,32 @@ bool pxaPwrClkCheckWake(struct PxaPwrClk *pc, uint32_t gpioLevels) {
 
     return true;
 }
+
+template <typename T>
+void pxaPwrClkSaveDeepSleep(struct PxaPwrClk *pc, T &savestate) {
+    auto chunk = savestate.GetChunk(ChunkType::pxaDeepSleep, 1);
+    if (!chunk) ERR("unable to allocate chunk");
+
+    SaveChunkHelper helper(*chunk);
+    helper.DoBool(pc->deepSleep).DoBool(pc->sleepLevelsValid)
+        .Do32(pc->sleepGpioLevels);
+}
+
+template <typename T>
+void pxaPwrClkLoadDeepSleep(struct PxaPwrClk *pc, T &loader) {
+    auto chunk = loader.GetChunkOrFail(ChunkType::pxaDeepSleep, 1, "pxa deep sleep");
+    if (!chunk) return;
+
+    LoadChunkHelper helper(*chunk);
+    helper.DoBool(pc->deepSleep).DoBool(pc->sleepLevelsValid)
+        .Do32(pc->sleepGpioLevels);
+
+    pc->soc->SetDeepSleepFlag(pc->deepSleep);
+}
+
+template void pxaPwrClkSaveDeepSleep<Savestate<ChunkType>>(PxaPwrClk *pc,
+                                                           Savestate<ChunkType> &savestate);
+template void pxaPwrClkSaveDeepSleep<SavestateProbe<ChunkType>>(PxaPwrClk *pc,
+                                                                SavestateProbe<ChunkType> &savestate);
+template void pxaPwrClkLoadDeepSleep<SavestateLoader<ChunkType>>(PxaPwrClk *pc,
+                                                                 SavestateLoader<ChunkType> &loader);
