@@ -4,6 +4,20 @@ import { KeyId } from '@native-uarm/index';
  * Maps a host key (KeyboardEvent.code) to a device key for devices with a hardware
  * keyboard (Sony TG50). Mirrors the native SDL mapping in src/uarm/native/SdlEventHandler.cpp.
  */
+export function hardwareKeysFromCode(code: string): Array<KeyId> | undefined {
+    // Digits are Blue (NX70V: Fn) + Q..P on the device; send that chord.
+    const digit = /^(?:Digit|Numpad)([0-9])$/.exec(code);
+    if (digit) {
+        const letter = 'PQWERTYUIO'.charCodeAt(Number(digit[1])) - 'A'.charCodeAt(0);
+
+        return [KeyId.keyIdKbdBlue, KeyId.keyIdKbdA + letter];
+    }
+
+    const key = hardwareKeyFromCode(code);
+
+    return key === undefined ? undefined : [key];
+}
+
 export function hardwareKeyFromCode(code: string): KeyId | undefined {
     const letter = /^Key([A-Z])$/.exec(code);
     if (letter) return KeyId.keyIdKbdA + (letter[1].charCodeAt(0) - 'A'.charCodeAt(0));
