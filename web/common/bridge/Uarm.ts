@@ -184,6 +184,16 @@ export class Uarm {
     }
 
     @guard()
+    keyUp(key: KeyId): void {
+        this.uarm.KeyUp(key);
+    }
+
+    @guard()
+    keyDown(key: KeyId): void {
+        this.uarm.KeyDown(key);
+    }
+
+    @guard()
     penDown(x: number, y: number): void {
         this.uarm.PenDown(x, y);
     }
