@@ -18,6 +18,8 @@ export interface OnScreenKey {
     bar?: string;
     // Label color
     color?: string;
+    // Shows / hides the on-screen keyboard instead of sending a key
+    toggle?: boolean;
     x: number;
     y: number;
     width: number;
@@ -146,6 +148,10 @@ const EXTRA_KEYS: Array<{ key: KeyId; label: string }> = [
     { key: KeyId.keyIdJogBack, label: 'Back' },
 ];
 
+const TOGGLE_LABEL_HIDE = 'Hide ⌨';
+const TOGGLE_LABEL_SHOW = '⌨ Show keyboard';
+const COLLAPSED_HEIGHT = 22;
+
 const DEVICE_WIDTH = 320;
 const MARGIN = 4;
 const EXTRA_ROW_HEIGHT = 22;
@@ -191,9 +197,10 @@ function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
     });
 
     const extraTop = mainHeight(spec, width) + LABEL_SPACE;
-    const extraWidth = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / EXTRA_KEYS.length;
+    const extraKeys = [...EXTRA_KEYS, { key: KeyId.keyInvalid, label: TOGGLE_LABEL_HIDE, toggle: true }];
+    const extraWidth = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / extraKeys.length;
 
-    EXTRA_KEYS.forEach((key, i) =>
+    extraKeys.forEach((key, i) =>
         keys.push({
             ...key,
             x: EXTRA_ROW_LEFT_GAP + i * extraWidth,
@@ -206,16 +213,34 @@ function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
     return keys;
 }
 
-export function onScreenKeyboardHeight(deviceId: DeviceId): number {
-    const spec = layoutSpec(deviceId);
-
-    return spec ? Math.ceil(mainHeight(spec, DEVICE_WIDTH) + LABEL_SPACE + EXTRA_ROW_HEIGHT) : 0;
+// Collapsed: a single strip that shows the keyboard again. It starts after the gap on the left,
+// where the PWA places its floating menu button.
+function buildCollapsedLayout(width: number): Array<OnScreenKey> {
+    return [
+        {
+            key: KeyId.keyInvalid,
+            label: TOGGLE_LABEL_SHOW,
+            toggle: true,
+            x: EXTRA_ROW_LEFT_GAP,
+            y: MARGIN / 2,
+            width: width - EXTRA_ROW_LEFT_GAP - MARGIN,
+            height: COLLAPSED_HEIGHT - MARGIN,
+        },
+    ];
 }
 
-export function onScreenKeyboardLayout(deviceId: DeviceId, width: number): Array<OnScreenKey> {
+export function onScreenKeyboardHeight(deviceId: DeviceId, collapsed = false): number {
     const spec = layoutSpec(deviceId);
+    if (!spec) return 0;
 
-    return spec ? buildLayout(spec, width) : [];
+    return collapsed ? COLLAPSED_HEIGHT : Math.ceil(mainHeight(spec, DEVICE_WIDTH) + LABEL_SPACE + EXTRA_ROW_HEIGHT);
+}
+
+export function onScreenKeyboardLayout(deviceId: DeviceId, width: number, collapsed = false): Array<OnScreenKey> {
+    const spec = layoutSpec(deviceId);
+    if (!spec) return [];
+
+    return collapsed ? buildCollapsedLayout(width) : buildLayout(spec, width);
 }
 
 // Key under the point; a touch between keys snaps to the nearest key within a few pixels.
