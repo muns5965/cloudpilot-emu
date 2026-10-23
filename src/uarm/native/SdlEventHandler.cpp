@@ -161,6 +161,7 @@ void SdlEventHandler::HandleEvents() {
                     hardwareKeyboard ? mapDigitKey(event.key.keysym.sym) : keyInvalid;
                 if (digit) {
                     if (!event.key.repeat) {
+                        digitChordsHeld++;
                         soc->KeyDown(keyIdKbdBlue);
                         soc->KeyDown(digit);
                     }
@@ -168,6 +169,7 @@ void SdlEventHandler::HandleEvents() {
                 }
 
                 enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
+                if (key == keyIdKbdBlue) blueKeyHeld = true;
                 if (key) soc->KeyDown(key);
                 break;
             }
@@ -177,11 +179,16 @@ void SdlEventHandler::HandleEvents() {
                     hardwareKeyboard ? mapDigitKey(event.key.keysym.sym) : keyInvalid;
                 if (digit) {
                     soc->KeyUp(digit);
-                    soc->KeyUp(keyIdKbdBlue);
+                    if (digitChordsHeld > 0) digitChordsHeld--;
+                    if (!blueKeyHeld && digitChordsHeld == 0) soc->KeyUp(keyIdKbdBlue);
                     break;
                 }
 
                 enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
+                if (key == keyIdKbdBlue) {
+                    blueKeyHeld = false;
+                    if (digitChordsHeld > 0) break;
+                }
                 if (key) soc->KeyUp(key);
                 break;
             }
