@@ -3,6 +3,7 @@ interface Uarm {
 
     [Ref] Uarm SetRamSize(long size);
     [Ref] Uarm SetDisplayMode(long displayMode);
+    [Ref] Uarm SetDeviceType(long deviceType);
     [Ref] Uarm SetNand(long size, VoidPtr data);
     [Ref] Uarm SetMemory(long size, VoidPtr data);
     [Ref] Uarm SetSavestate(long size, VoidPtr data);

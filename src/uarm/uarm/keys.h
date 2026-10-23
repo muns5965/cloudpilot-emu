@@ -20,7 +20,30 @@ enum KeyId {
     keyIdLeft = 7,
     keyIdRight = 8,
     keyIdSelect = 9,
-    keyIdPower = 10
+    keyIdPower = 10,
+
+    // Hardware keyboard and extra device keys (currently used by the Sony TG50 only).
+    // Devices without these keys ignore them.
+    keyIdKbdA = 11,  // keyIdKbdA..keyIdKbdZ are consecutive
+    keyIdKbdZ = keyIdKbdA + 25,
+    keyIdKbdSpace,
+    keyIdKbdEnter,
+    keyIdKbdBackspace,
+    keyIdKbdShift,
+    keyIdKbdCtrl,
+    keyIdKbdTab,
+    keyIdKbdCaps,
+    keyIdKbdComma,
+    keyIdKbdPeriod,
+    keyIdKbdUnderscore,
+    keyIdKbdBlue,
+    keyIdKbdRed,
+    keyIdHome,
+    keyIdPageUp,
+    keyIdPageDown,
+    keyIdJogBack,
+    keyIdVoice,
+    keyIdGraffiti
 };
 
 struct Keypad *keypadInit(struct PxaGpio *gpio, bool matrixHasPullUps);

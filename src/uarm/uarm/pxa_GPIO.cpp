@@ -47,6 +47,22 @@ struct PxaGpio {
     }
 };
 
+
+// Optional TG50 IRQ trace: GPIO13/14 levels, direction and PXA edge masks.
+// Enable with -DTG50_TRACE_GPIO. No behavior changes when disabled.
+#ifdef TG50_TRACE_GPIO
+static void pxaGpioTraceKeyLines(struct PxaGpio* gpio, const char* event) {
+    const uint32_t mask = (1u << 13) | (1u << 14);
+    fprintf(stderr,
+            "[TG50 PXA GPIO] %s level13=%u level14=%u dir=%08x GRER=%08x GFER=%08x GEDR=%08x\n",
+            event,
+            !!(gpio->levels[0] & (1u << 13)),
+            !!(gpio->levels[0] & (1u << 14)),
+            gpio->dirs[0] & mask, gpio->riseDet[0] & mask,
+            gpio->fallDet[0] & mask, gpio->detStatus[0] & mask);
+}
+#endif
+
 static void pxaGpioPrvRecalcValues(struct PxaGpio *gpio, uint_fast8_t which) {
     uint32_t val, newVal, oldVal = gpio->levels[which], t;
 
@@ -98,6 +114,10 @@ static void pxaGpioPrvRecalcValues(struct PxaGpio *gpio, uint_fast8_t which) {
     */
 
     gpio->levels[which] = newVal;
+#ifdef TG50_TRACE_GPIO
+    if (which == 0 && ((newVal ^ oldVal) & ((1u << 13) | (1u << 14))))
+        pxaGpioTraceKeyLines(gpio, "level-transition");
+#endif
 
     if (newVal != oldVal) {
         uint32_t wentHi = newVal & ~oldVal;
@@ -217,6 +237,11 @@ static bool pxaGpioPrvMemAccessF(void *userData, uint32_t pa, uint_fast8_t size,
                 goto recalc;
         }
 
+#ifdef TG50_TRACE_GPIO
+        // GRER0/GFER0 writes reach this path without calling recalc.
+        if (pa == 12 || pa == 15)
+            pxaGpioTraceKeyLines(gpio, "edge-mask-write");
+#endif
         goto done;
 
     recalc:
@@ -224,6 +249,10 @@ static bool pxaGpioPrvMemAccessF(void *userData, uint32_t pa, uint_fast8_t size,
         if (dirsChanged && gpio->dirNotifF) gpio->dirNotifF(gpio->dirNotifD);
 
     trigger_intrs:
+#ifdef TG50_TRACE_GPIO
+        if (pa == 0)
+            pxaGpioTraceKeyLines(gpio, "register-write");
+#endif
         pxaGpioPrvRecalcIntrs(gpio);
     } else {
         switch (pa) {
@@ -354,6 +383,8 @@ void pxaGpioSetState(struct PxaGpio *gpio, uint_fast8_t gpioNum, bool on) {
     pxaGpioPrvRecalcValues(gpio, set);
     pxaGpioPrvRecalcIntrs(gpio);
 }
+
+uint32_t pxaGpioGetLevels0(struct PxaGpio *gpio) { return gpio->levels[0]; }
 
 enum PxaGpioState pxaGpioGetState(struct PxaGpio *gpio, uint_fast8_t gpioNum) {
     uint32_t sSet = gpioNum >> 5;

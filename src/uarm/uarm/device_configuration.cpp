@@ -10,6 +10,11 @@ bool deviceConfigurationSupportsRamSize(enum DeviceType5 deviceType, uint32_t ra
         case DeviceType5::deviceTypeFrankenE2:
             return ramSize == (16ul << 20) || ramSize == (32ul << 20);
 
+        case DeviceType5::deviceTypeSonyTG50:
+        case DeviceType5::deviceTypeSonyNX70V:
+            // Original uARM uses 17 MiB to cover the TG50 RAM mirror probe.
+            return ramSize == (17ul << 20);
+
         case DeviceType5::deviceTypePV:
             return (1ul << __builtin_ctz(ramSize)) == ramSize && ramSize >= 8 << 20;
 
@@ -32,9 +37,11 @@ uint32_t deviceConfigurationGetNandSize(enum DeviceType5 deviceType) {
 bool deviceConfigurationDeviceSupportsDisplayMode(DeviceType5 deviceType, DisplayMode displayMode) {
     switch (deviceType) {
         case DeviceType5::deviceTypeE2:
+        case DeviceType5::deviceTypeSonyTG50:
             return displayMode == DisplayMode::mode_320x320;
 
         case DeviceType5::deviceTypeFrankenE2:
+        case DeviceType5::deviceTypeSonyNX70V:  // the NX70V ROM programs the LCD for 320x480
             return displayMode == DisplayMode::mode_320x480;
 
         case DeviceType5::deviceTypePV:
@@ -49,6 +56,7 @@ DisplayMode deviceConfigurationDefaultDisplayMode(DeviceType5 deviceType) {
     switch (deviceType) {
         case DeviceType5::deviceTypeFrankenE2:
         case DeviceType5::deviceTypePV:
+        case DeviceType5::deviceTypeSonyNX70V:
             return DisplayMode::mode_320x480;
 
         default:

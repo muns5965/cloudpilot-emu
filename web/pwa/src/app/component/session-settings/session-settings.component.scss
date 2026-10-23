@@ -49,3 +49,27 @@ ion-toggle {
         flex: 1;
     }
 }
+.boot-rom-container {
+    width: 100%;
+}
+
+.boot-rom-hint {
+    font-size: 0.8em;
+    color: var(--ion-color-medium);
+    padding-bottom: 0.5em;
+}
+
+.boot-rom-missing {
+    --background: rgba(var(--ion-color-danger-rgb), 0.08);
+
+    ion-input {
+        --placeholder-color: var(--ion-color-danger);
+        --placeholder-opacity: 1;
+    }
+
+    ion-input::part(label),
+    ion-input ::ng-deep .label-text {
+        color: var(--ion-color-danger);
+        font-weight: bold;
+    }
+}

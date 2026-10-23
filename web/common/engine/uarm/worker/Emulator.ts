@@ -53,6 +53,7 @@ export class Emulator {
 
     openSession(
         rom: Uint8Array,
+        device: DeviceId,
         screenSize: ScreenSize,
         ramSize: number,
         nand?: Uint8Array,
@@ -60,6 +61,7 @@ export class Emulator {
         state?: Uint8Array,
         card?: [Uint8Array, string],
     ): boolean {
+        this.uarm.setDevice(device);
         this.uarm.setScreenSize(screenSize);
         if (ramSize !== undefined) this.uarm.setRamSize(ramSize);
         if (nand) this.uarm.setNand(nand);
@@ -122,6 +124,14 @@ export class Emulator {
 
     buttonDown(button: PalmButton): void {
         this.uarm.buttonDown(button);
+    }
+
+    keyUp(key: number): void {
+        this.uarm.keyUp(key);
+    }
+
+    keyDown(key: number): void {
+        this.uarm.keyDown(key);
     }
 
     penDown(x: number, y: number): void {

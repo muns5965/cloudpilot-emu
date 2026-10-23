@@ -72,6 +72,8 @@ void deviceKey(struct Device *dev, uint32_t key, bool down);
 void devicePeriodic(struct Device *dev, uint32_t tier);
 void devicePcmPeriodic(struct Device *dev);
 void deviceTouch(struct Device *dev, int x, int y);
+// Called after the SoC woke from deep sleep (sleep reset).
+void deviceSleepWakeup(struct Device *dev);
 
 bool deviceTaskRequired(struct Device *dev, uint32_t tier);
 

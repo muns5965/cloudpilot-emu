@@ -40,4 +40,6 @@ export enum DeviceId {
     te2 = 'Tungsten-E2',
     frankene2 = 'Franken-E2',
     repalmPV = 'rePalm paravirtualized',
+    pegTG50 = 'PEG-TG50',
+    pegNX70V = 'PEG-NX70V',
 }

@@ -154,6 +154,14 @@ export class EngineUarmImpl implements EngineUarm {
 
     keyStroke(key: number, ctrl?: boolean): void {}
 
+    keyDown(key: number): void {
+        this.dispatchMessage({ type: HostMessageType.keyDown, key });
+    }
+
+    keyUp(key: number): void {
+        this.dispatchMessage({ type: HostMessageType.keyUp, key });
+    }
+
     reset(): Promise<void> {
         return this.rpcHost.call('reset', ResetType.normal);
     }
@@ -221,7 +229,7 @@ export class EngineUarmImpl implements EngineUarm {
         if (
             !(await this.rpcHost.call(
                 'openSession',
-                { rom, screenSize: this.dimensions.screenSize, ramSize, nand, memory, state, card },
+                { rom, device, screenSize: this.dimensions.screenSize, ramSize, nand, memory, state, card },
                 [
                     rom.buffer,
                     nand?.buffer,

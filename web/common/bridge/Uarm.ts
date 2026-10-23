@@ -5,6 +5,7 @@
 /// <reference path="../../node_modules/@types/emscripten/index.d.ts"/>
 import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
+import { DeviceType5 } from '@native-common/index';
 import {
     BackupState,
     BackupType,
@@ -19,7 +20,7 @@ import {
 import { DbInstallResult, PalmButton } from '@native/cloudpilot_web';
 import { Event } from 'microevent.ts';
 
-import { deviceTypeUarmToDeviceId, screenSizeToDisplayMode } from './mapping';
+import { deviceTypeUarmFromDeviceId, deviceTypeUarmToDeviceId, screenSizeToDisplayMode } from './mapping';
 
 export { BackupState } from '@native-uarm/index';
 
@@ -162,6 +163,12 @@ export class Uarm {
     }
 
     @guard()
+    setDevice(device: DeviceId): void {
+        const deviceType = deviceTypeUarmFromDeviceId(device);
+        if (deviceType !== DeviceType5.deviceTypeInvalid) this.uarm.SetDeviceType(deviceType);
+    }
+
+    @guard()
     setScreenSize(screenSize: ScreenSize): void {
         this.uarm.SetDisplayMode(screenSizeToDisplayMode(screenSize));
     }
@@ -181,6 +188,16 @@ export class Uarm {
     buttonDown(button: PalmButton): void {
         const key = mapButton(button);
         if (key >= 0) this.uarm.KeyDown(key);
+    }
+
+    @guard()
+    keyUp(key: KeyId): void {
+        this.uarm.KeyUp(key);
+    }
+
+    @guard()
+    keyDown(key: KeyId): void {
+        this.uarm.KeyDown(key);
     }
 
     @guard()

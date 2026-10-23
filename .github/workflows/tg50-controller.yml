@@ -1,0 +1,69 @@
+name: TG50 controller compile check
+
+on:
+  push:
+    branches:
+      - feature/sony-tg50
+    paths:
+      - 'src/uarm/uarm/mmiodev_TG50uc.*'
+      - 'src/uarm/uarm/sspdev_AD7873.*'
+      - 'src/uarm/uarm/i2cdev_AN32502A.*'
+      - 'src/uarm/uarm/i2sdev_AK4534.*'
+      - 'src/uarm/uarm/mmiodev_MemoryStickController.*'
+      - 'src/uarm/uarm/deviceSonyTG50.*'
+      - 'src/uarm/uarm/soc_PXA.*'
+      - 'src/uarm/uarm/devicePalmTungstenE2.cpp'
+      - 'src/uarm/uarm/device_configuration.cpp'
+      - 'src/common/device_type5.h'
+      - 'src/uarm/uarm/sony_tg50_hardware.h'
+      - 'src/uarm/uarm/pxa_GPIO.h'
+      - 'src/uarm/uarm/pxa_GPIO.cpp'
+      - 'src/uarm/uarm/mmiodev_MemoryStickController.cpp'
+      - 'src/uarm/uarm/mem.h'
+      - '.github/workflows/tg50-controller.yml'
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile TG50 controller (syntax only)
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+            src/uarm/uarm/mmiodev_TG50uc.cpp src/uarm/uarm/sspdev_AD7873.cpp src/uarm/uarm/i2cdev_AN32502A.cpp src/uarm/uarm/i2sdev_AK4534.cpp src/uarm/uarm/mmiodev_MemoryStickController.cpp src/uarm/uarm/deviceSonyTG50.cpp
+      - name: Check TG50 matrix header
+        run: |
+          printf '#include "sony_tg50_hardware.h"\nstatic_assert(sony_tg50::kKeyboardRows == 8);\nstatic_assert(sony_tg50::kKeyboardColumns == 8);\nint main() { return 0; }\n' \
+            | g++ -x c++ -std=c++17 -fsyntax-only -Isrc/uarm/uarm -
+
+      - name: Compile modified SoC and device dispatch (syntax only)
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common -Isrc/common/zip -Isrc/argparse \
+            src/uarm/uarm/soc_PXA.cpp src/uarm/uarm/devicePalmTungstenE2.cpp \
+            src/uarm/uarm/device_configuration.cpp
+
+      - name: Compile PXA GPIO and TG50 IRQ tracing variants
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+            src/uarm/uarm/pxa_GPIO.cpp
+          g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+            -DTG50_TRACE_GPIO -DTG50_TRACE_IRQ \
+            -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+            src/uarm/uarm/pxa_GPIO.cpp src/uarm/uarm/mmiodev_TG50uc.cpp
+
+      - name: Compile TG50 Memory Stick default and diagnostic variants
+        run: |
+          for mode in default alias zero; do
+            case "$mode" in
+              alias) flags="-DTG50_MS_EXT_ALIAS -DTG50_MS_TRACE" ;;
+              zero) flags="-DTG50_MS_EXT_ZERO -DTG50_MS_TRACE" ;;
+              *) flags="" ;;
+            esac
+            g++ -std=c++17 -Wall -Wextra -Werror=return-type -fsyntax-only \
+              $flags -Isrc/uarm/uarm -Isrc/uarm -Isrc/common \
+              src/uarm/uarm/mmiodev_MemoryStickController.cpp
+          done

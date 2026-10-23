@@ -5,7 +5,64 @@
 #include "keys.h"
 
 namespace {
-    enum KeyId mapKey(SDL_Keycode keysym) {
+    // Hardware keyboard (TG50). Return selects Enter here, so the jog dial
+    // select moves to F11 as in original uARM.
+    enum KeyId mapKeyboardKey(SDL_Keycode keysym) {
+        if (keysym >= SDLK_a && keysym <= SDLK_z)
+            return static_cast<KeyId>(keyIdKbdA + (keysym - SDLK_a));
+
+        switch (keysym) {
+            case SDLK_SPACE:
+                return keyIdKbdSpace;
+            case SDLK_RETURN:
+                return keyIdKbdEnter;
+            case SDLK_BACKSPACE:
+                return keyIdKbdBackspace;
+            case SDLK_LSHIFT:
+            case SDLK_RSHIFT:
+                return keyIdKbdShift;
+            case SDLK_LCTRL:
+            case SDLK_RCTRL:
+                return keyIdKbdCtrl;
+            case SDLK_TAB:
+                return keyIdKbdTab;
+            case SDLK_CAPSLOCK:
+                return keyIdKbdCaps;
+            case SDLK_COMMA:
+                return keyIdKbdComma;
+            case SDLK_PERIOD:
+                return keyIdKbdPeriod;
+            case SDLK_MINUS:
+                return keyIdKbdUnderscore;
+            case SDLK_F7:
+                return keyIdKbdBlue;
+            case SDLK_F9:
+                return keyIdKbdRed;
+            case SDLK_HOME:
+                return keyIdHome;
+            case SDLK_PAGEUP:
+                return keyIdPageUp;
+            case SDLK_PAGEDOWN:
+                return keyIdPageDown;
+            case SDLK_END:
+                return keyIdJogBack;
+            case SDLK_F11:
+                return keyIdSelect;
+            case SDLK_F5:
+                return keyIdVoice;
+            case SDLK_BACKQUOTE:
+                return keyIdGraffiti;
+            default:
+                return keyInvalid;
+        }
+    }
+
+    enum KeyId mapKey(SDL_Keycode keysym, bool hardwareKeyboard) {
+        if (hardwareKeyboard) {
+            const enum KeyId key = mapKeyboardKey(keysym);
+            if (key != keyInvalid) return key;
+        }
+
         switch (keysym) {
             case SDLK_F1:
                 return keyIdHard1;
@@ -45,8 +102,8 @@ namespace {
 
 SdlEventHandler::SdlEventHandler(SoC* soc, int scale,
                                  DisplayConfiguration& deviceDisplayConfiguration,
-                                 Rotation rotation)
-    : soc(soc), scale(scale), rotation(rotation) {
+                                 Rotation rotation, bool hardwareKeyboard)
+    : soc(soc), hardwareKeyboard(hardwareKeyboard), scale(scale), rotation(rotation) {
     width = deviceDisplayConfiguration.width;
     height = deviceDisplayConfiguration.height + deviceDisplayConfiguration.graffitiHeight;
 }
@@ -84,13 +141,13 @@ void SdlEventHandler::HandleEvents() {
                 break;
 
             case SDL_KEYDOWN: {
-                enum KeyId key = mapKey(event.key.keysym.sym);
+                enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
                 if (key) soc->KeyDown(key);
                 break;
             }
 
             case SDL_KEYUP: {
-                enum KeyId key = mapKey(event.key.keysym.sym);
+                enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
                 if (key) soc->KeyUp(key);
                 break;
             }

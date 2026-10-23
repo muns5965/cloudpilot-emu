@@ -4,7 +4,7 @@ import { EngineSettings } from '@common/engine/EngineSettings';
 import { SnapshotContainer } from '@common/engine/Snapshot';
 import { EngineCloudpilotImpl } from '@common/engine/cloudpilot/EngineCloudpilot';
 import { EngineUarmImpl } from '@common/engine/uarm/EngineUarm';
-import { deviceDimensions, engineType, isColor } from '@common/helper/deviceProperties';
+import { deviceDimensions, engineType, hasHardwareKeyboard, isColor } from '@common/helper/deviceProperties';
 import { GRAYSCALE_PALETTE_HEX } from '@common/helper/palette';
 import { SchedulerKind } from '@common/helper/scheduler';
 import { DeviceId } from '@common/model/DeviceId';
@@ -77,6 +77,22 @@ export abstract class AbstractEmulationService {
         if (!this.engine?.isRunning()) return;
 
         this.engine?.buttonUp(button);
+    }
+
+    handleHardwareKeyDown(key: number): void {
+        if (!this.engine?.isRunning() || this.engine.type !== 'uarm') return;
+
+        this.engine.keyDown(key);
+    }
+
+    handleHardwareKeyUp(key: number): void {
+        if (!this.engine?.isRunning() || this.engine.type !== 'uarm') return;
+
+        this.engine.keyUp(key);
+    }
+
+    supportsHardwareKeyboard(): boolean {
+        return this.engine !== undefined && hasHardwareKeyboard(this.engine.getDeviceId());
     }
 
     handleKeyDown(key: number) {

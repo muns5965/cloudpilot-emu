@@ -42,6 +42,7 @@
 #include "pxa_UART.h"
 #include "reschedule.h"
 #include "rom_info5.h"
+#include "sony_tg50_hardware.h"
 #include "syscall_dispatch.h"
 
 #define SAVESTATE_VERSION 2
@@ -70,8 +71,10 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct GetEmuTime getEmuTime = {.getTimeF = GetTimeCB, .userdata = this};
 
     this->socRev = socRev;
+    // NX70V shares the TG50 peripheral set (see deviceSonyTG50.cpp).
+    tg50Mode = deviceType == deviceTypeSonyTG50 || deviceType == deviceTypeSonyNX70V;
 
-    if (ramSize == 0) ramSize = 16 << 20;
+    if (ramSize == 0) ramSize = tg50Mode ? sony_tg50::kRamSize : 16ul << 20;
     if (!deviceConfigurationSupportsRamSize(deviceType, ramSize))
         ERR("unsupported RAM size %u\n", ramSize);
 
@@ -88,7 +91,11 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     patchDispatchSetCpu(patchDispatch, cpu);
 
     syscallDispatch = initSyscallDispatch(this);
-    patchContext = registerPatches(patchDispatch, syscallDispatch, cpu, systemState);
+    // The touch-translation patch hardcodes the Tungsten E2 digitizer (WM9712L) mapping.
+    // The TG50 AD7873 reports different raw values, so let PalmOS use its own calibration.
+    patchContext = registerPatches(
+        patchDispatch, syscallDispatch, cpu, systemState,
+        tg50Mode ? (PATCH_FEATURE_ALL & ~PATCH_FEATURE_TOUCH_TRANSLATION) : PATCH_FEATURE_ALL);
 
     ram = ramInit(mem, this, RAM_BASE, ramSize, &bufferMemory, true);
     rom = romInit(mem, ROM_BASE, romData, romSize);
@@ -132,6 +139,10 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
         sram = ramInit(mem, this, SRAM_BASE, SRAM_SIZE, &bufferSram, false);
     }
 
+    if (tg50Mode)
+        tg50Sram = ramInit(mem, this, sony_tg50::kUnknownSramBase,
+                          sony_tg50::kUnknownSramSize, &bufferTg50Sram, false);
+
     gpio = pxaGpioInit(mem, ic, socRev);
     tmr = pxaTimrInit(mem, ic);
     rtc = pxaRtcInit(mem, ic);
@@ -144,6 +155,8 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     }
 
     pwrClk = pxaPwrClkInit(cpu, mem, this, socRev == 2);
+    // Sony ROMs sleep with PWRMODE 3 and must stay asleep until the power key; E2 keeps the old behavior.
+    pxaPwrClkSetDeepSleepEnabled(pwrClk, tg50Mode);
 
     if (socRev == 2) {
         pwrI2c = pxaI2cInit(mem, ic, dma, PXA_PWR_I2C_BASE, PXA_I_PWR_I2C);
@@ -200,6 +213,7 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct SocPeriphs sp = {};
     sp.mem = mem;
     sp.gpio = gpio;
+    sp.soc = this;
     sp.i2c = i2c;
     sp.i2s = i2s;
     sp.ac97 = ac97;
@@ -271,6 +285,9 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
 
         case SCHEDULER_TASK_AUX_2:
             PumpEventQueues();
+            if (pxaPwrClkInDeepSleep(pwrClk) &&
+                pxaPwrClkCheckWake(pwrClk, pxaGpioGetLevels0(gpio)))
+                deviceSleepWakeup(dev);
             return 1;
 
         default:
@@ -330,7 +347,7 @@ void SocPXA::OnEngageKey(KeyId key, bool down) {
 
 void SocPXA::OnReset() {
     pxaLcdResetPaletteBuffer(lcd);
-    nandResetPageBuffer(nand);
+    if (nand) nandResetPageBuffer(nand);
 }
 
 void SocPXA::OnLoad(SavestateLoader<ChunkType> &loader) {
@@ -353,6 +370,7 @@ void SocPXA::OnLoad(SavestateLoader<ChunkType> &loader) {
     pxaIcLoad(ic, loader);
     pxaMemCtrlrLoad(memCtrl, loader);
     pxaPwrClkLoad(pwrClk, loader);
+    if (tg50Mode) pxaPwrClkLoadDeepSleep(pwrClk, loader);
     if (socRev == 2) pxaI2cLoad(pwrI2c, loader, 1);
 
     pxaPwmLoad(pwm[0], loader, 0);
@@ -403,6 +421,7 @@ void SocPXA::OnSave(T &savestate) {
     pxaIcSave(ic, savestate);
     pxaMemCtrlrSave(memCtrl, savestate);
     pxaPwrClkSave(pwrClk, savestate);
+    if (tg50Mode) pxaPwrClkSaveDeepSleep(pwrClk, savestate);
     if (socRev == 2) pxaI2cSave(pwrI2c, savestate, 1);
 
     pxaPwmSave(pwm[0], savestate, 0);
@@ -430,6 +449,7 @@ void SocPXA::OnSave(T &savestate) {
 void SocPXA::AllocateBuffers() {
     size_t memoryBufferSize = ramSize + 2 * MEMORY_BUFFER_GRANULARITY;
     if (socRev == 2) memoryBufferSize += SRAM_SIZE;
+    if (tg50Mode) memoryBufferSize += MEMORY_BUFFER_GRANULARITY;
 
     bool success = memoryBufferAllocate(&bufferMemory, memoryBufferSize);
 
@@ -443,9 +463,13 @@ void SocPXA::AllocateBuffers() {
                                                   MEMORY_BUFFER_GRANULARITY);
     offset += MEMORY_BUFFER_GRANULARITY;
 
-    if (socRev == 2)
-        success =
-            success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSram, offset, SRAM_SIZE);
+    if (socRev == 2) {
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSram, offset, SRAM_SIZE);
+        offset += SRAM_SIZE;
+    }
+    if (tg50Mode)
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferTg50Sram, offset,
+                                                       MEMORY_BUFFER_GRANULARITY);
 
     if (!success) ERR("failed to allocate memory buffers");
 }

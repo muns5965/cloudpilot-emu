@@ -238,8 +238,22 @@ void SocGeneric<T>::PumpKeyEventQueue() {
     }
 
     if (keyEventQueue->GetSize() > 0) {
+        const KeyEvent& next = keyEventQueue->Peek();
+        if (!next.keyDown && next.key == lastKeyDown &&
+            eventQueueTicks - eventQueueTicksAtKeyDown <
+                (next.key == keyIdPower ? MIN_EVENT_QUEUE_TICKS_BEFORE_POWER_UP
+                                        : MIN_EVENT_QUEUE_TICKS_BEFORE_KEY_UP))
+            return;  // keep a just-pressed key down long enough to be scanned
+
         KeyEvent evt(keyEventQueue->Pop());
         if (evt.key == jammedKey) return;
+
+        if (evt.keyDown) {
+            lastKeyDown = evt.key;
+            eventQueueTicksAtKeyDown = eventQueueTicks;
+        } else if (evt.key == lastKeyDown) {
+            lastKeyDown = keyInvalid;
+        }
 
         static_cast<T&>(*this).OnEngageKey(evt.key, evt.keyDown);
     }

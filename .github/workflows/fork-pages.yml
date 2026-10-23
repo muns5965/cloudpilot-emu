@@ -1,0 +1,77 @@
+# Builds the WASM core and the PWA and deploys it to this fork's GitHub Pages
+# (https://<owner>.github.io/<repo>/). No ROM is included; ROMs are loaded in the browser.
+# Deployed from master (the integration branch: TG50 + NX70V). Feature branches do not deploy.
+#
+# One-time setup: Settings → Pages → Source = "GitHub Actions", and allow the branch you
+# deploy from under Settings → Environments → github-pages → Deployment branches.
+name: Fork Pages (WASM + PWA)
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+env:
+  EM_VERSION: 6.0.0
+  NODE_VERSION: 24
+  EM_CACHE_FOLDER: emsdk
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: fork-pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+      - name: Setup cache
+        uses: actions/cache@v4
+        with:
+          path: ${{env.EM_CACHE_FOLDER}}
+          key: ${{env.EM_VERSION}}-${{ runner.os }}
+      - name: Setup emscripten
+        uses: agriyakhetarpal/setup-emsdk@update-to-cache-v4
+        with:
+          version: ${{env.EM_VERSION}}
+          actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
+      - name: Setup wabt
+        run: sudo apt-get install wabt
+      - name: Build wasm
+        run: make -Csrc -j2 emscripten
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+      - name: Install node deps
+        working-directory: web
+        run: yarn install
+      - name: Lint
+        working-directory: web
+        run: yarn lint
+      - name: Test
+        working-directory: web
+        run: yarn test
+      - name: Build PWA
+        working-directory: web
+        run: |
+          yarn run gen-revision
+          yarn build-preview --base-href "/${{ github.event.repository.name }}/"
+          yarn generate-worker
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/build-pwa
+  deploy:
+    needs: build
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

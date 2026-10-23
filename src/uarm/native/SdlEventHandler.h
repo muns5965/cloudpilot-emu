@@ -8,7 +8,7 @@
 class SdlEventHandler {
    public:
     SdlEventHandler(SoC* soc, int scale, DisplayConfiguration& deviceDisplayConfiguration,
-                    Rotation rotation);
+                    Rotation rotation, bool hardwareKeyboard = false);
 
     void HandleEvents();
 
@@ -24,6 +24,7 @@ class SdlEventHandler {
 
    private:
     SoC* soc;
+    bool hardwareKeyboard{false};
 
     bool penDown{false};
     int scale{1};

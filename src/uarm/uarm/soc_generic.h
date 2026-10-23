@@ -38,6 +38,11 @@ class SocGeneric : public SoC {
    private:
     static constexpr unsigned int SOC_GENERIC_SAVESTATE_VERSION = 2;
     static constexpr unsigned int MIN_EVENT_QUEUE_TICKS_BEFORE_PEN_UP = 2;
+    // Keyboard scanning (TG50/NX70V ROMs) misses keys held for less than ~60 ms;
+    // 3 ticks at 30 Hz keep a key down for about 100 ms.
+    static constexpr unsigned int MIN_EVENT_QUEUE_TICKS_BEFORE_KEY_UP = 3;
+    // Power: a wake from deep sleep needs the press to last until the resumed ROM reads it
+    static constexpr unsigned int MIN_EVENT_QUEUE_TICKS_BEFORE_POWER_UP = 10;
 
    private:
     template <unsigned int breakReason, bool injected>
