@@ -5,9 +5,8 @@
 # deploy from under Settings → Environments → github-pages → Deployment branches.
 name: Fork Pages (WASM + PWA)
 on:
+  # Pages are deployed from feature/sony-nx70v (it carries all TG50 changes); manual runs only here
   workflow_dispatch:
-  push:
-    branches: [feature/sony-tg50]
 env:
   EM_VERSION: 6.0.0
   NODE_VERSION: 24
