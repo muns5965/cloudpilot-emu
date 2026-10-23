@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #include "networking.pb.h"
 #include "pace.h"
@@ -50,7 +52,8 @@ namespace {
     constexpr uint32_t HOSTBUF_ADDRESS = 552;
     constexpr uint32_t HOSTBUF_MAX_ADDRESSES = 3;  // the proto carries up to 3
 
-    netlib_redirect::RpcT rpc;
+    netlib_redirect::SendT send;
+    std::function<void()> idleHandler;
     netlib_redirect::SessionT session;
 
     int32_t netRefNum = -1;
@@ -165,19 +168,70 @@ namespace {
         return request;
     }
 
-    bool call(MsgRequest& request, size_t extraSize, MsgResponse& response,
-              ReceivedBuffer* received = nullptr) {
-        if (!rpc || openCount == 0) return false;
+    enum class CallResult { done, failed, pending };
 
-        std::vector<uint8_t> encoded(512 + extraSize);
-        pb_ostream_t ostream = pb_ostream_from_buffer(encoded.data(), encoded.size());
-        if (!pb_encode(&ostream, MsgRequest_fields, &request)) {
-            fprintf(stderr, "netlib: encode failed: %s\n", PB_GET_ERROR(&ostream));
-            return false;
+    // A request whose response has not arrived yet. The trap is re-executed (PC rewound) until
+    // the response is there; the call is identified by trap word and stack pointer.
+    struct Pending {
+        bool active{false};
+        uint16_t trapWord{0};
+        uint32_t sp{0};
+        uint32_t id{0};
+    } pending;
+
+    uint16_t currentTrap{0};
+    uint32_t currentSp{0};
+    bool rewindRequested{false};
+
+    std::mutex responseMutex;
+    bool responseReady{false};
+    std::vector<uint8_t> responseData;
+
+    CallResult call(MsgRequest& request, size_t extraSize, MsgResponse& response,
+                    ReceivedBuffer* received = nullptr) {
+        if (!send || openCount == 0) return CallResult::failed;
+
+        if (pending.active && (pending.trapWord != currentTrap || pending.sp != currentSp)) {
+            // Another 68k thread calls NetLib while a call is in flight: let it wait its turn.
+            rewindRequested = true;
+            return CallResult::pending;
+        }
+
+        if (!pending.active) {
+            std::vector<uint8_t> encoded(512 + extraSize);
+            pb_ostream_t ostream = pb_ostream_from_buffer(encoded.data(), encoded.size());
+            if (!pb_encode(&ostream, MsgRequest_fields, &request)) {
+                fprintf(stderr, "netlib: encode failed: %s\n", PB_GET_ERROR(&ostream));
+                return CallResult::failed;
+            }
+
+            {
+                std::lock_guard lock(responseMutex);
+                responseReady = false;
+            }
+
+            if (!send(encoded.data(), ostream.bytes_written)) return CallResult::failed;
+
+            pending = {true, currentTrap, currentSp, request.id};
+            rewindRequested = true;
+
+            return CallResult::pending;
         }
 
         std::vector<uint8_t> reply;
-        if (!rpc(encoded.data(), ostream.bytes_written, reply)) return false;
+        {
+            std::lock_guard lock(responseMutex);
+            if (!responseReady) {
+                rewindRequested = true;
+                return CallResult::pending;
+            }
+
+            reply.swap(responseData);
+            responseReady = false;
+        }
+
+        const uint32_t id = pending.id;
+        pending.active = false;
 
         response = MsgResponse_init_zero;
         if (received) {
@@ -188,10 +242,12 @@ namespace {
         pb_istream_t istream = pb_istream_from_buffer(reply.data(), reply.size());
         if (!pb_decode(&istream, MsgResponse_fields, &response)) {
             fprintf(stderr, "netlib: decode failed: %s\n", PB_GET_ERROR(&istream));
-            return false;
+            return CallResult::failed;
         }
 
-        return response.id == request.id && response.which_payload == request.which_payload;
+        return response.id == id && response.which_payload == request.which_payload
+                   ? CallResult::done
+                   : CallResult::failed;
     }
 
     // NetLibOpen(UInt16 libRefNum, UInt16 *netIFErrsP)
@@ -231,7 +287,9 @@ namespace {
         request.payload.socketOpenRequest.protocol = args.u16(6);
 
         MsgResponse response;
-        if (!call(request, 0, response)) {
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
@@ -250,7 +308,9 @@ namespace {
         request.payload.socketCloseRequest.timeout = convertTimeout(args.i32(4));
 
         MsgResponse response;
-        if (!call(request, 0, response)) {
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, netErrInternal);
             return setResult(-1);
         }
@@ -275,7 +335,9 @@ namespace {
         }
 
         MsgResponse response;
-        if (!call(request, 0, response)) {
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, netErrInternal);
             return setResult(-1);
         }
@@ -314,7 +376,9 @@ namespace {
         send.data.funcs.encode = bufferEncodeCb;
 
         MsgResponse response;
-        if (!call(request, len, response)) {
+        const CallResult result = call(request, len, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, netErrInternal);
             return setResult(-1);
         }
@@ -343,7 +407,9 @@ namespace {
 
         ReceivedBuffer received;
         MsgResponse response;
-        if (!call(request, 0, response, &received)) {
+        const CallResult result = call(request, 0, response, &received);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, netErrInternal);
             return setResult(-1);
         }
@@ -386,7 +452,9 @@ namespace {
         strcpy(request.payload.getHostByNameRequest.name, name.c_str());
 
         MsgResponse response;
-        if (!call(request, 0, response)) {
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
             putErr(errP, netErrInternal);
             return setResultPtr(0);
         }
@@ -430,26 +498,8 @@ namespace {
     }
 }  // namespace
 
-namespace netlib_redirect {
-    void Configure(RpcT newRpc, SessionT newSession) {
-        rpc = std::move(newRpc);
-        session = std::move(newSession);
-
-        Reset();
-    }
-
-    bool IsEnabled() { return static_cast<bool>(rpc); }
-
-    void Reset() {
-        if (openCount > 0 && session) session(false);
-
-        netRefNum = -1;
-        pendingRefNumP = 0;
-        openCount = 0;
-    }
-
-    bool HandleTrap(uint16_t trapWord) {
-        if (!rpc) return false;
+namespace {
+    bool handleTrap(uint16_t trapWord) {
 
         // SysLibFind("Net.lib", &refNum) has returned once the next trap arrives.
         if (pendingRefNumP) {
@@ -514,5 +564,58 @@ namespace netlib_redirect {
                 fprintf(stderr, "netlib: call %#06x not redirected\n", trapWord);
                 return false;
         }
+    }
+}  // namespace
+
+namespace netlib_redirect {
+    void Configure(SendT newSend, SessionT newSession) {
+        send = std::move(newSend);
+        session = std::move(newSession);
+
+        Reset();
+    }
+
+    bool IsEnabled() { return static_cast<bool>(send); }
+
+    void Deliver(const uint8_t* response, size_t size) {
+        std::lock_guard lock(responseMutex);
+
+        responseData.assign(response, response + size);
+        responseReady = true;
+    }
+
+    bool IsWaiting() { return pending.active; }
+
+    void SetIdleHandler(std::function<void()> idle) { idleHandler = std::move(idle); }
+
+    void Reset() {
+        if (openCount > 0 && session) session(false);
+
+        netRefNum = -1;
+        pendingRefNumP = 0;
+        openCount = 0;
+        pending.active = false;
+
+        std::lock_guard lock(responseMutex);
+        responseReady = false;
+    }
+
+    bool HandleTrap(uint16_t trapWord) {
+        if (!send) return false;
+
+        currentTrap = trapWord;
+        currentSp = paceGetAreg(7);
+        rewindRequested = false;
+
+        if (!handleTrap(trapWord)) return false;
+
+        // Waiting for a response: execute the same trap again (back to the trap #15 instruction)
+        // after idling until the next interrupt.
+        if (rewindRequested) {
+            paceSetPC(paceGetPC() - 4);
+            if (idleHandler) idleHandler();
+        }
+
+        return true;
     }
 }  // namespace netlib_redirect
