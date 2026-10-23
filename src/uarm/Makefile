@@ -25,7 +25,8 @@ LDFLAGS_EMCC = $(EMCC_OPT) -Wno-version-check -Wl,-u,fileno -g \
 
 WEBIDL_BINDING_SRC = $(WEBIDL_BINDING_DIR)/uarm.idl ../common/web/session_file5.idl
 
-INCLUDE = -I./uarm -I. -I../common -I../common/zip -I../argparse
+INCLUDE = -I./uarm -I. -I../common -I../common/zip -I../argparse \
+	-I../cloudpilot/nanopb -I../cloudpilot/proto -I../cloudpilot/native/network-backend
 
 STD_C ?= -std=gnu11
 
@@ -42,7 +43,11 @@ SOURCE_C = 								\
 	uarm/uae/cpuemu.c 					\
 	uarm/uae/cpustbl.c 					\
 	uarm/uae/readcpu.c 					\
-	uarm/uae/newcpu.c
+	uarm/uae/newcpu.c					\
+	netlib/pb_common.c					\
+	netlib/pb_encode.c					\
+	netlib/pb_decode.c					\
+	netlib/networking.pb.c
 
 SOURCE_CXX =		 					\
 	uarm/SoC.cpp 						\
@@ -122,7 +127,8 @@ SOURCE_CXX =		 					\
 	uarm/audio_queue.cpp				\
 	uarm/db_list.cpp					\
 	uarm/db_backup.cpp					\
-	uarm/system_state.cpp
+	uarm/system_state.cpp				\
+	uarm/netlib_redirect.cpp
 
 SOURCE_C_NATIVE = $(SOURCE_C)
 SOURCE_CXX_NATIVE =						\
@@ -132,6 +138,11 @@ SOURCE_CXX_NATIVE =						\
 	native/SdlEventHandler.cpp			\
 	native/SdlAudioDriver.cpp			\
 	native/Commands.cpp					\
+	native/NetlibNative.cpp				\
+	netlib/backend_NetworkSession.cpp	\
+	netlib/backend_networkBackend.cpp	\
+	netlib/backend_codes.cpp			\
+	netlib/backend_sockopt.cpp			\
 	native/main.cpp
 
 SOURCE_C_EMCC = $(SOURCE_C)
