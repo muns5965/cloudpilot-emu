@@ -57,6 +57,22 @@ namespace {
         }
     }
 
+    // Digits are Blue (NX70V: Fn) + Q..P on the device. Returns the letter of that chord.
+    enum KeyId mapDigitKey(SDL_Keycode keysym) {
+        int digit;
+
+        if (keysym >= SDLK_0 && keysym <= SDLK_9)
+            digit = keysym - SDLK_0;
+        else if (keysym >= SDLK_KP_1 && keysym <= SDLK_KP_9)
+            digit = keysym - SDLK_KP_1 + 1;
+        else if (keysym == SDLK_KP_0)
+            digit = 0;
+        else
+            return keyInvalid;
+
+        return static_cast<KeyId>(keyIdKbdA + ("PQWERTYUIO"[digit] - 'A'));
+    }
+
     enum KeyId mapKey(SDL_Keycode keysym, bool hardwareKeyboard) {
         if (hardwareKeyboard) {
             const enum KeyId key = mapKeyboardKey(keysym);
@@ -141,12 +157,30 @@ void SdlEventHandler::HandleEvents() {
                 break;
 
             case SDL_KEYDOWN: {
+                const enum KeyId digit =
+                    hardwareKeyboard ? mapDigitKey(event.key.keysym.sym) : keyInvalid;
+                if (digit) {
+                    if (!event.key.repeat) {
+                        soc->KeyDown(keyIdKbdBlue);
+                        soc->KeyDown(digit);
+                    }
+                    break;
+                }
+
                 enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
                 if (key) soc->KeyDown(key);
                 break;
             }
 
             case SDL_KEYUP: {
+                const enum KeyId digit =
+                    hardwareKeyboard ? mapDigitKey(event.key.keysym.sym) : keyInvalid;
+                if (digit) {
+                    soc->KeyUp(digit);
+                    soc->KeyUp(keyIdKbdBlue);
+                    break;
+                }
+
                 enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
                 if (key) soc->KeyUp(key);
                 break;
