@@ -1,6 +1,6 @@
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 port
 
-> **Experimental.** This fork of [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu) runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)**: Setup with pen calibration, the CLIÉ Launcher, apps, the QWERTY keyboard, sleep/resume and session files. It runs in the browser at **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** and as a native Linux build. No ROM is included; bring your own TG50 ROM.
+> **Experimental.** This fork of [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu) ports the PEG-TG50 hardware model of the original [uARM](https://github.com/uARM-Palm/uARM) to CloudpilotEmu's Palm OS 5 (uARM) engine and runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)**: Setup with pen calibration, the CLIÉ Launcher, apps, the QWERTY keyboard, sleep/resume and session files. It runs in the browser at **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** and as a native Linux build. No ROM is included; bring your own TG50 ROM.
 
 [**Technical notes and fix history**](docs/sony-tg50-port.md) · [**NX70V branch**](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) · [**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**Original uARM TG50 code**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
@@ -85,7 +85,7 @@ NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloud
 
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 포팅
 
-> **실험 단계입니다.** [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)를 포크해 **Sony CLIÉ PEG-TG50(Palm OS 5)** 을 실행합니다. 펜 보정을 포함한 Setup, CLIÉ 런처, 앱, QWERTY 키보드, 절전·복귀, 세션 파일이 동작합니다. 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 와 Linux 네이티브 빌드에서 실행됩니다. ROM은 포함하지 않으므로 TG50 ROM을 직접 준비해야 합니다.
+> **실험 단계입니다.** [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)를 포크해, 원본 [uARM](https://github.com/uARM-Palm/uARM)의 PEG-TG50 하드웨어 모델을 CloudpilotEmu의 Palm OS 5(uARM) 엔진에 이식하고 **Sony CLIÉ PEG-TG50(Palm OS 5)** 을 실행합니다. 펜 보정을 포함한 Setup, CLIÉ 런처, 앱, QWERTY 키보드, 절전·복귀, 세션 파일이 동작합니다. 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 와 Linux 네이티브 빌드에서 실행됩니다. ROM은 포함하지 않으므로 TG50 ROM을 직접 준비해야 합니다.
 
 [**기술 문서·수정 이력(영문)**](docs/sony-tg50-port.md) · [**NX70V 브랜치**](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
