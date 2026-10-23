@@ -6,6 +6,14 @@
 
 [한국어](#cloudpilotemu--sony-clié-peg-tg50-포팅)
 
+## Screenshot
+
+Browser build (`master` 0fd3d89) in Chromium: Memo typed with the on-screen keyboard, then folded with **⌨ ▼ Hide**.
+
+| On-screen keyboard | Keyboard hidden |
+| --- | --- |
+| <img src="docs/images/tg50-web-keyboard.png" width="240" alt="TG50 on-screen keyboard"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="240" alt="TG50 keyboard hidden"> |
+
 ## Status (2026-10-23)
 
 Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c…860b94f`).
@@ -82,6 +90,14 @@ NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloud
 > **실험 단계입니다.** [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)를 포크해 **Sony CLIÉ PEG-TG50(Palm OS 5)** 을 실행합니다. 펜 보정을 포함한 Setup, CLIÉ 런처, 앱, QWERTY 키보드, 절전·복귀, 세션 파일이 동작합니다. 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 와 Linux 네이티브 빌드에서 실행됩니다. ROM은 포함하지 않으므로 TG50 ROM을 직접 준비해야 합니다.
 
 [**기술 문서·수정 이력(영문)**](docs/sony-tg50-port.md) · [**NX70V 브랜치**](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
+
+## 실행 화면
+
+브라우저 빌드(`master` 0fd3d89)를 Chromium에서 실행: 화면 키보드로 메모 입력 후 **⌨ ▼ Hide** 로 접은 모습.
+
+| 화면 키보드 | 키보드 접음 |
+| --- | --- |
+| <img src="docs/images/tg50-web-keyboard.png" width="240" alt="TG50 화면 키보드"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="240" alt="TG50 키보드 접음"> |
 
 ## 현황(2026-10-23)
 
