@@ -50,6 +50,10 @@ class SoC {
 
     void Sleep();
     void Wakeup(uint8_t wakeupSource);
+    // PXA deep sleep: halted until ExitDeepSleep(); interrupts do not wake it.
+    void EnterDeepSleep();
+    void ExitDeepSleep();
+    bool IsInDeepSleep() const { return deepSleep; }
 
     void SetAudioQueue(struct AudioQueue *audioQueue);
     void SetPcmOutputEnabled(bool pcmOutputEnabled);
@@ -153,6 +157,7 @@ class SoC {
     struct AudioQueue *audioQueue;
 
     bool sleeping{false};
+    bool deepSleep{false};
     bool framebufferDirty{true};
     bool pcmEnabled{false};
     bool pcmSuspended{false};

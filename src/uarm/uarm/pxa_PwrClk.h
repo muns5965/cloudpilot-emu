@@ -14,6 +14,13 @@ struct PxaPwrClk* pxaPwrClkInit(struct ArmCpu* cpu, struct ArmMem* physMem, clas
 
 void pxaPwrClkReset(struct PxaPwrClk* pc);
 
+// Deep sleep (PWRMODE 3). Disabled by default: the CPU is reset immediately ("pretend we woke up").
+// When enabled, the CPU stays powered down until pxaPwrClkCheckWake() sees a PWER wake edge.
+void pxaPwrClkSetDeepSleepEnabled(struct PxaPwrClk* pc, bool enabled);
+bool pxaPwrClkInDeepSleep(struct PxaPwrClk* pc);
+// Feed the current GPIO0-31 pin levels. Returns true if an enabled edge on GPIO0-15 woke the CPU.
+bool pxaPwrClkCheckWake(struct PxaPwrClk* pc, uint32_t gpioLevels);
+
 template <typename T>
 void pxaPwrClkSave(struct PxaPwrClk* pc, T& savestate);
 

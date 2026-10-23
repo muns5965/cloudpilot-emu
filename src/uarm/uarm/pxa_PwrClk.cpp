@@ -26,6 +26,9 @@ struct PxaPwrClk {
     // power mgr 270 only
     uint32_t PSTR, PVCR, PUCR, PKWR, PKSR, PCMD[32];
     bool turbo, isPXA270;
+    // deep sleep state (not saved: only the native TG50/NX70V modes enable it, and they have no savestates)
+    bool deepSleepEnabled, deepSleep, sleepLevelsValid;
+    uint32_t sleepGpioLevels;
 
     template <typename T>
     void DoSaveLoad(T &chunkHelper) {
@@ -89,6 +92,10 @@ static bool pxaPwrClkPrvCoproc14regXferFunc(struct ArmCpu *cpu, void *userData, 
                     val = 0;
                 else if (val == 1 && op2 == 0) {
                     pc->soc->Sleep();
+                } else if (val == 3 && op2 == 0 && pc->deepSleepEnabled) {
+                    pc->deepSleep = true;
+                    pc->sleepLevelsValid = false;
+                    pc->soc->EnterDeepSleep();
                 } else if (val == 3 && op2 == 0) {
                     // pretend we woke up
                     pc->RCSR |= 4;
@@ -405,3 +412,33 @@ template void pxaPwrClkSave<SavestateProbe<ChunkType>>(PxaPwrClk *pc,
                                                        SavestateProbe<ChunkType> &savestate);
 template void pxaPwrClkLoad<SavestateLoader<ChunkType>>(PxaPwrClk *pc,
                                                         SavestateLoader<ChunkType> &loader);
+
+void pxaPwrClkSetDeepSleepEnabled(struct PxaPwrClk *pc, bool enabled) { pc->deepSleepEnabled = enabled; }
+
+bool pxaPwrClkInDeepSleep(struct PxaPwrClk *pc) { return pc->deepSleep; }
+
+bool pxaPwrClkCheckWake(struct PxaPwrClk *pc, uint32_t gpioLevels) {
+    if (!pc->deepSleep) return false;
+
+    gpioLevels &= 0xffff;  // PXA255 wakes from GPIO0-15 only
+    if (!pc->sleepLevelsValid) {
+        pc->sleepGpioLevels = gpioLevels;
+        pc->sleepLevelsValid = true;
+        return false;
+    }
+
+    const uint32_t rose = gpioLevels & ~pc->sleepGpioLevels;
+    const uint32_t fell = ~gpioLevels & pc->sleepGpioLevels & 0xffff;
+    pc->sleepGpioLevels = gpioLevels;
+
+    const uint32_t wake = ((rose & pc->PRER) | (fell & pc->PFER)) & pc->PWER;
+    if (!wake) return false;
+
+    pc->PEDR |= wake;
+    pc->RCSR |= 4;  // sleep reset
+    pc->deepSleep = false;
+    pc->soc->ExitDeepSleep();
+    cpuReset(pc->cpu, 0);
+
+    return true;
+}

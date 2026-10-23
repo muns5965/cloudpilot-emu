@@ -154,6 +154,8 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     }
 
     pwrClk = pxaPwrClkInit(cpu, mem, this, socRev == 2);
+    // Sony ROMs sleep with PWRMODE 3 and must stay asleep until the power key; E2 keeps the old behavior.
+    pxaPwrClkSetDeepSleepEnabled(pwrClk, tg50Mode);
 
     if (socRev == 2) {
         pwrI2c = pxaI2cInit(mem, ic, dma, PXA_PWR_I2C_BASE, PXA_I_PWR_I2C);
@@ -210,6 +212,7 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct SocPeriphs sp = {};
     sp.mem = mem;
     sp.gpio = gpio;
+    sp.soc = this;
     sp.i2c = i2c;
     sp.i2s = i2s;
     sp.ac97 = ac97;
@@ -281,6 +284,9 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
 
         case SCHEDULER_TASK_AUX_2:
             PumpEventQueues();
+            if (pxaPwrClkInDeepSleep(pwrClk) &&
+                pxaPwrClkCheckWake(pwrClk, pxaGpioGetLevels0(gpio)))
+                deviceSleepWakeup(dev);
             return 1;
 
         default:

@@ -384,6 +384,8 @@ void pxaGpioSetState(struct PxaGpio *gpio, uint_fast8_t gpioNum, bool on) {
     pxaGpioPrvRecalcIntrs(gpio);
 }
 
+uint32_t pxaGpioGetLevels0(struct PxaGpio *gpio) { return gpio->levels[0]; }
+
 enum PxaGpioState pxaGpioGetState(struct PxaGpio *gpio, uint_fast8_t gpioNum) {
     uint32_t sSet = gpioNum >> 5;
     uint32_t bSet = gpioNum >> 4;

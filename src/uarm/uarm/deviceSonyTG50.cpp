@@ -15,6 +15,7 @@ struct SonyTG50 {
     AK4534* codec;
     MemoryStickController* stick;
     PxaGpio* gpio;
+    SoC* soc;
 };
 
 SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
@@ -31,6 +32,7 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     auto* dev = static_cast<SonyTG50*>(std::calloc(1, sizeof(SonyTG50)));
     if (!dev) return nullptr;
     dev->gpio = sp->gpio;
+    dev->soc = sp->soc;
     // Registration of emulated peripherals is not currently reversible.
     // Call only once per initialized SoC, after TG50 is selected by a future factory.
     dev->touch = ad7873Init(sp->ssp, sp->gpio, sony_tg50::kTouchIrqGpio);
@@ -51,9 +53,12 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     pxaGpioSetState(sp->gpio, 0, true);   // power key released (active low)
     pxaGpioSetState(sp->gpio, 1, true);   // reset switch (active low)
     pxaGpioSetState(sp->gpio, 3, true);   // cradle switch (not pressed)
+    // GPIO4-6 bit-bang a 64-word serial EEPROM read on sleep resume. Data out (GPIO5) idles high,
+    // so the ROM reads an erased EEPROM (0xFFFF) instead of zeros that it walks past its records.
+    pxaGpioSetState(sp->gpio, 5, true);
     pxaGpioSetState(sp->gpio, 7, true);   // Memory Stick absent
     pxaGpioSetState(sp->gpio, 10, true);  // Memory Stick interrupt inactive
-    pxaGpioSetState(sp->gpio, sony_tg50::kKeyRelatedIdleGpio, true); // GPIO13 stays inactive
+    pxaGpioSetState(sp->gpio, sony_tg50::kKeyRelatedIdleGpio, true); // GPIO13 idle high; the power key pulls it low
     // GPIO14 is owned by TG50uc after initialization; do not override it here.
     ad7873SetVbatt(dev->touch, 4200);
     ad7873Periodic(dev->touch);
@@ -119,7 +124,19 @@ void sonyTG50HostKey(SonyTG50* dev, KeyId key, bool pressed) {
             }
             break;
     }
-    // Original uARM also drives GPIO0 (active low) from the power key. Doing so here
-    // currently ends in a Fatal Exception (sleep path), so GPIO0 stays released.
+    if (key == keyIdPower) {
+        // The power key drives GPIO0 (active low, as in original uARM) and pulls the controller's
+        // key line GPIO13 low. The ROM sleeps on GPIO0; it only fully wakes on a GPIO13 edge.
+        const bool asleep = dev->soc && dev->soc->IsInDeepSleep();
+        pxaGpioSetState(dev->gpio, sony_tg50::kKeyRelatedIdleGpio, !pressed);
+
+        // A press that wakes the device stays off GPIO0; otherwise the ROM treats it as a GPIO0
+        // wake and goes back to sleep. It still reaches the matrix (the ROM turns the screen on).
+        if (!(pressed && asleep)) pxaGpioSetState(dev->gpio, 0, !pressed);
+    }
     sonyTG50Key(dev, tg50, pressed);
+}
+
+void sonyTG50SleepWakeup(SonyTG50* dev) {
+    if (dev) tg50ucIgnoreNextReset(dev->controller);
 }

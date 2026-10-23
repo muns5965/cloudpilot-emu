@@ -27,6 +27,8 @@ struct PxaGpio* pxaGpioInit(struct ArmMem* physMem, struct PxaIc* ic, uint_fast8
 
 // for external use :)
 enum PxaGpioState pxaGpioGetState(struct PxaGpio* gpio, uint_fast8_t gpioNum);
+// Pin levels of GPIO0-31 as read through GPLR0 (inputs included).
+uint32_t pxaGpioGetLevels0(struct PxaGpio* gpio);
 void pxaGpioSetState(struct PxaGpio* gpio, uint_fast8_t gpioNum,
                      bool on);  // we can only set value (and only of input pins), not direction
 
