@@ -1,5 +1,5 @@
-// Partial PEG-TG50 peripheral initialization adapted from uARM's deviceSonyTG50.c.
-// Not yet connected to CloudpilotEmu's E2-only device factory or ROM loading.
+// PEG-TG50 peripheral initialization adapted from uARM's deviceSonyTG50.c; also used for the
+// PEG-NX70V (same peripherals, see docs/sony-nx70v-port.md).
 #include "deviceSonyTG50.h"
 #include "i2cdev_AN32502A.h"
 #include "i2sdev_AK4534.h"
