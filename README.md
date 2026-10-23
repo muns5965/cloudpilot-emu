@@ -8,6 +8,14 @@
 
 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50 and PEG-NX70V. Open **Sessions → +** and choose your ROM; the device is detected from it. For the NX70V, the settings dialog also asks for a TG50 ROM, which supplies the missing boot ROM. ROM files stay in your browser.
 
+## Screenshots
+
+Browser build of `master` (revision 0fd3d89) in Chromium: Memo typed with the on-screen keyboard (Shift for capitals, Blue/Fn for digits), then the keyboard folded with **⌨ ▼ Hide** (**⌨ ▲ Show keyboard** brings it back).
+
+| PEG-TG50 | PEG-TG50 (keyboard hidden) | PEG-NX70V | PEG-NX70V (keyboard hidden) |
+| --- | --- | --- | --- |
+| <img src="docs/images/tg50-web-keyboard.png" width="200" alt="TG50 with on-screen keyboard"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="200" alt="TG50 keyboard hidden"> | <img src="docs/images/nx70v-web-keyboard.png" width="200" alt="NX70V with on-screen keyboard"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="200" alt="NX70V keyboard hidden"> |
+
 ## Branches
 
 | Branch | Device | Runs in | Status |
@@ -32,6 +40,14 @@ Workflow: device-specific work and tests happen on the feature branches; finishe
 ## 브라우저에서 실행
 
 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50, PEG-NX70V. **Sessions → +** 에서 ROM을 고르면 기종이 자동으로 인식됩니다. NX70V는 설정 창에서 빠진 부트 ROM을 채울 TG50 ROM을 하나 더 고릅니다. ROM 파일은 브라우저 안에서만 쓰입니다.
+
+## 실행 화면
+
+`master` 브라우저 빌드(리비전 0fd3d89)를 Chromium에서 실행한 화면입니다. 화면 키보드로 메모를 입력(대문자는 Shift, 숫자는 Blue/Fn)한 뒤 **⌨ ▼ Hide** 로 키보드를 접었습니다(**⌨ ▲ Show keyboard** 로 다시 펼침).
+
+| PEG-TG50 | PEG-TG50 (키보드 접음) | PEG-NX70V | PEG-NX70V (키보드 접음) |
+| --- | --- | --- | --- |
+| <img src="docs/images/tg50-web-keyboard.png" width="200" alt="TG50 화면 키보드"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="200" alt="TG50 키보드 접음"> | <img src="docs/images/nx70v-web-keyboard.png" width="200" alt="NX70V 화면 키보드"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="200" alt="NX70V 키보드 접음"> |
 
 ## 브랜치
 
