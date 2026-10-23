@@ -137,7 +137,11 @@ struct PxaRtc *pxaRtcInit(struct ArmMem *physMem, struct PxaIc *ic) {
     return rtc;
 }
 
-bool pxaRtcAlarmPending(struct PxaRtc *rtc) { return rtc->RTSR & 1; }
+bool pxaRtcAlarmDue(struct PxaRtc *rtc, uint32_t leadSeconds) {
+    if (rtc->RTSR & 1) return true;
+
+    return (rtc->RTSR & 4) && palmEpochSeconds() + leadSeconds >= rtc->RTAR;
+}
 
 void pxaRtcTick(struct PxaRtc *rtc) {
     pxaRtcPrvUpdateAlarm(rtc);
