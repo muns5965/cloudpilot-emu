@@ -25,7 +25,7 @@ Reproduce the header check: `python3 tools/probe-nx70v-rom.py /path/to/nx70v.rom
 
 - Branch created and isolated from TG50: **done**.
 - Local header parsing of user-supplied ROM: **done**.
-- Native build (`cp-uarm`, scratch copy with diagnostic logging only) and CPU execution with the TG50 peripherals (`--tg50`): **done** (2026-10-23). It does **not** reach the Palm OS screen; see below.
+- Native build (`cp-uarm`, scratch copy with diagnostic logging only) and CPU execution with the TG50 peripherals (`--tg50`): **done** (2026-10-23). With a local composite image and four NX70V-specific settings it completes Setup (including pen calibration) and reaches the CLIÉ Launcher; see below.
 - Next: see "Next" at the end of the boot diagnostics. Do not merge into TG50 until hardware differences and boot have been validated.
 
 ## Boot diagnostics (2026-10-23)
@@ -86,9 +86,9 @@ Composite image, local only: TG50 `0x0`–`0x17FFF` + NX70V `0x18000`– (the or
   - A NULL-pointer write to `0x00000004` (PC `0x209D60F8`, Memory Stick routine) also appears, but TG50 hits the same fault once at the same routine (`0x20A86200`) and boots normally, so it is not the cause.
   - `0x14000000` is the same Memory Stick controller as TG50 (the TG50 port maps it at `0x14000000`; its init routine matches TG50 `0x20A862DC`).
 
-### Local test: dummy device at `0x10000000` (scratch build only, not committed)
+### Local test: emulating `0x10000000` (scratch build only, not committed)
 
-A diagnostic region at `0x10000000`–`0x1000FFFF` that accepts writes (enabled only with `NX70V_DIAG`, so TG50 runs are unchanged):
+A diagnostic region at `0x10000000`–`0x1000FFFF` that accepts writes (enabled only with `NX70V_DIAG`, so TG50 runs are unchanged). It was later identified as the CF slot controller (below):
 
 - No more reboot loop. **NX70V Palm OS reaches the Setup screen ("Setup 1 of 4").**
 - Ignoring NOR flash writes was also tested and made no difference (reverted).
@@ -122,7 +122,7 @@ Register map inferred from the bit handling (8-bit registers, 4-byte stride):
 
 Power-on (`0x209A0A1C`) for a 3.3 V setting (`0x21`): set `+0x28` bit `0x02`, wait 150 ms, set `+0x24` bit `0x80`, wait 50 ms. Power-off reverses this and waits 300 ms. The DAL boot step 2 (`0x209D9BD0`, mode 3) writes 0 to `+0x24`–`+0x44` and ORs 3 into `+0x40`.
 
-Effect of the status value in the dummy device:
+Effect of the status value in the diagnostic CF slot model:
 
 | `+0x10` returns | `+0x10` reads | `+0x24` writes | `+0x28` writes | Result |
 | --- | --- | --- | --- | --- |
@@ -131,16 +131,28 @@ Effect of the status value in the dummy device:
 
 So a minimal model is: `+0x10` returns `0xC0`, other registers accept writes.
 
-### Touch: not working yet
+### Touch: works after clearing the HOLD switch
 
-- The digitizer is the same AD7873 as TG50: boot sends the same SSP commands (`A6` battery, `B8` pressure, `E6` aux).
-- On TG50 the pen interrupt is GPIO9. On NX70V, GPIO9 is configured by the "Sony Rmc Library" module (headphone remote control, `0x20964564`) and its edge interrupts are turned off at the end of boot, so taps on the screen are never noticed.
-- Feeding the pen signal to GPIO 5, 10 or 21, or inverting its polarity, produced no X/Y commands (`93`/`D3`). The NX70V pen interrupt path (another GPIO, or through the Sony microcontroller) is still unknown.
+- The digitizer is the same AD7873 as TG50 (same SSP commands), and the pen interrupt is the same GPIO9: the HAL interrupt handler tables of both ROMs (dumped in the scratch build) register the same HAL pen handler on GPIO9 (TG50 `0x20030F4C`, NX70V `0x20030F78`). An earlier note that GPIO9 is the remote-control interrupt on NX70V was wrong.
+- The "Sony Sys Library" turns the pen interrupt off when the switch state is `Hold_By_HoldKey` (other states: `Hold_OFF`, `Hold_By_FlipClose`). The state is polled from the Sony microcontroller port A (`0x08000000`); **bit `0x10` = HOLD switch on**. The TG50 microcontroller model returns `0xF010`, so NX70V saw HOLD on and disabled touch.
+- With bit `0x10` cleared, taps reach the HAL. Of five coordinate mappings tried, only **X and Y both inverted** (relative to TG50) passed pen calibration. The 480 lines are currently scaled into the TG50 raw range (`×2/3`).
+- Result: Setup 1–4 including calibration, then the **CLIÉ Launcher** (320×480, input area collapsed). Tapping the status bar opens the virtual Graffiti area.
+
+### NX70V settings needed in the diagnostic build
+
+All four are scratch-only and enabled with `NX70V_DIAG` (TG50 runs unchanged):
+
+| # | Setting | Value |
+| --- | --- | --- |
+| 1 | CF slot controller at `0x10000000` | Minimal model: `+0x10` returns `0xC0` (no card), other registers accept writes |
+| 2 | Display | 320×480 |
+| 3 | Sony microcontroller port A (`0x08000000`) | Bit `0x10` (HOLD switch) cleared |
+| 4 | Pen coordinates | X and Y inverted versus TG50; 480 lines scaled into the TG50 raw range |
 
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. Find the NX70V pen interrupt path by comparing the HAL pen code with TG50.
+2. Decide whether to add a real NX70V device type with the four settings above. Booting would still need a small boot ROM.
 
 ## 한국어
 
@@ -159,12 +171,21 @@ So a minimal model is: `+0x10` returns `0xC0`, other registers accept writes.
   - **재부팅 원인**: Sony DAL 초기화 2단계가 `0x10000000`(CS4) 장치의 1바이트 레지스터(`+0x24`~`+0x44`)에 쓰는데, 에뮬레이트된 장치가 없어 쓰기 실패 → 재부팅.
   - 주소 `0x4` NULL 쓰기 실패도 보이지만 TG50도 같은 루틴에서 한 번 똑같이 실패하고 정상 부팅 → 원인 아님.
   - `0x14000000`은 TG50과 같은 메모리스틱 컨트롤러(포트도 `0x14000000`에 매핑) → 원인 아님.
-- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기를 받아 주는 진단 장치(`NX70V_DIAG` 있을 때만)를 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 플래시 쓰기 무시도 시험했으나 영향 없어 되돌림.
+- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기를 받아 주는 진단 영역(`NX70V_DIAG` 있을 때만, 나중에 CF 슬롯 컨트롤러로 확인)을 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 플래시 쓰기 무시도 시험했으나 영향 없어 되돌림.
 - **화면 320×480 확인**: ROM이 LCD를 320×480으로 설정(`LCCR1` `0x1F070D3F` = 320, `LCCR2` `0x080801DF` = 480). TG50은 320×320(`0x0808013F`). 진단 빌드에서 320×480 모드로 띄우니 Setup 화면 아래에 NX70V 가상 그래피티 영역과 상태 표시줄이 ROM 자체로 그려짐.
 - **`0x10000000` = CF 슬롯 컨트롤러**: 접근 코드가 "Sony CfSlot Library" 모듈(`CFSlot.c`, `CFLib.c`) 안에 있음. 슬롯 최대 2개.
   - `+0x10` 상태(읽기): `0xC0` 비트 중 하나라도 1이면 카드 없음. 비트 0~4는 별도 상태 플래그(준비·쓰기 금지·배터리로 추정).
   - `+0x24`·`+0x28` 전원 제어: 3.3V 켜기 = `+0x28` 비트 `0x02` → 150ms → `+0x24` 비트 `0x80` → 50ms. 끄기는 반대 순서 후 300ms. HAL 절전 루프가 절전 전후로 `+0x28` 비트 `0x01`을 켜고 끔.
   - `+0x2C` 인터럽트 마스크 추정, `+0x30`·`+0x34`·`+0x38`·`+0x3C` 제어(상세는 영문 표).
-  - 진단 장치의 `+0x10` 값 비교: `0x00`이면 카드 있음으로 보고 전원 켜기 진행(`+0x10` 300회 읽기), `0xC0`이면 카드 없음 경로(2회 읽기). 둘 다 Setup까지 부팅. **최소 모델은 `+0x10` = `0xC0`, 나머지 쓰기 수용.**
-- **터치 안 됨**: 터치 칩은 TG50과 같은 AD7873(같은 SSP 명령). 하지만 TG50의 펜 인터럽트인 GPIO9가 NX70V에서는 "Sony Rmc Library"(이어폰 리모컨)가 쓰는 핀이고, 부팅 끝에 인터럽트가 꺼짐. 펜 신호를 GPIO 5·10·21에 연결하거나 극성을 뒤집어도 좌표 명령(`93`/`D3`) 없음. 펜 인터럽트 경로는 미확인.
-- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 그동안 HAL 펜 코드를 TG50과 비교해 펜 인터럽트 경로를 찾음.
+  - 진단용 CF 슬롯 모델의 `+0x10` 값 비교: `0x00`이면 카드 있음으로 보고 전원 켜기 진행(`+0x10` 300회 읽기), `0xC0`이면 카드 없음 경로(2회 읽기). 둘 다 Setup까지 부팅. **최소 모델은 `+0x10` = `0xC0`, 나머지 쓰기 수용.**
+- **터치: HOLD 스위치 비트를 끄자 동작**
+  - 터치 칩(AD7873)과 펜 인터럽트(GPIO9) 모두 TG50과 같음. 두 ROM의 HAL 인터럽트 처리 함수 표를 덤프하니 GPIO9에 같은 HAL 펜 처리 함수가 등록돼 있음(TG50 `0x20030F4C`, NX70V `0x20030F78`). 앞서 적은 "GPIO9 = 리모컨 인터럽트"는 틀림.
+  - "Sony Sys Library"가 스위치 상태가 `Hold_By_HoldKey`이면 펜 인터럽트를 끔(다른 상태: `Hold_OFF`, `Hold_By_FlipClose`). 상태는 Sony 마이컴 포트 A(`0x08000000`)에서 읽고 **비트 `0x10` = HOLD**. TG50 마이컴 모델이 `0xF010`을 돌려줘 NX70V가 HOLD 켜짐으로 판단.
+  - 비트 `0x10`을 지우자 탭이 전달됨. 좌표 변환 5가지 중 **X·Y 모두 반전**(TG50 기준)만 펜 보정 통과. 480줄은 TG50 원시값 범위로 줄여 넣음(`×2/3`).
+  - 결과: 펜 보정 포함 Setup 1~4 완료 → **CLIÉ 런처**(320×480, 입력 영역 접힘). 상태 표시줄 탭으로 가상 그래피티 영역 열림.
+- **진단 빌드에서 필요한 NX70V 설정 4가지**(모두 작업 사본, `NX70V_DIAG`일 때만):
+  1. `0x10000000` CF 슬롯 컨트롤러 최소 모델: `+0x10` = `0xC0`(카드 없음), 나머지 쓰기 수용
+  2. 화면 320×480
+  3. Sony 마이컴 포트 A 비트 `0x10`(HOLD) 끄기
+  4. 펜 좌표 X·Y 반전, 480줄을 TG50 원시값 범위로 축소
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 위 4가지 설정을 정식 NX70V 기종으로 코드에 넣을지 결정(부팅에는 여전히 작은 부트 ROM 필요).
