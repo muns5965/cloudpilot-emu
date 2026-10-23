@@ -224,9 +224,7 @@ export class SessionSettingsComponent implements OnInit {
             }
 
             if (!isSonyBootRomSource(content)) {
-                void this.alertService.errorMessage(
-                    `${file.name} is not a Sony ROM with a boot ROM (e.g. a TG50 ROM).`,
-                );
+                void this.alertService.errorMessage(`${file.name} is not a PEG-TG50 ROM.`);
                 return;
             }
 

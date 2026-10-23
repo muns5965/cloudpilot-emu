@@ -416,7 +416,7 @@ export class SessionsPage implements DragDropClient, OnInit {
             const ramSizes = selectableRamSizes(romInfo.supportedDevices[0]);
             const ramSize = await this.nativeSupportService.ramSizeForDevice(romInfo.supportedDevices[0], content);
             const defaultDevice = romInfo.supportedDevices[0];
-            const selectBootRom = needsSonyBootRom(content);
+            const selectBootRom = defaultDevice === DeviceId.pegNX70V && needsSonyBootRom(content);
 
             const editSettingsResult = await this.editSettings(
                 settings,
