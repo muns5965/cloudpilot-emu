@@ -1,7 +1,7 @@
-// Sony CLIÉ PEG-TG50 hardware definitions for the planned uARM device port.
+// Sony CLIÉ PEG-TG50 and PEG-NX70V hardware definitions: shared peripheral register addresses,
+// GPIO assignments and the keyboard matrix used by the uARM device models.
 // Source: https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c
 //         https://github.com/uARM-Palm/uARM/blob/master/mmiodev_TG50uc.c
-// These definitions alone do NOT register or emulate a TG50 device.
 #ifndef _SONY_TG50_HARDWARE_H_
 #define _SONY_TG50_HARDWARE_H_
 
