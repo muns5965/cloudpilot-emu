@@ -231,6 +231,10 @@ void devicePeriodic(struct Device *dev, uint32_t tier) {
     if (tier == DEVICE_PERIODIC_TIER0) directNandPeriodic(dev->nand);
 }
 
+void deviceSleepWakeup(struct Device *dev) {
+    if (dev->tg50) sonyTG50SleepWakeup(dev->tg50);
+}
+
 void devicePcmPeriodic(struct Device *dev) { if (!dev->tg50) wm9712Lperiodic(dev->wm9712L); }
 
 void deviceTouch(struct Device *dev, int x, int y) {

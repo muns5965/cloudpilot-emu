@@ -24,7 +24,8 @@ constexpr uint8_t kNx70vCfSlotNoCard = 0xC0;       // card-detect bits: no card 
 constexpr unsigned kHoldSwitchPort = 0;
 constexpr unsigned kHoldSwitchPin = 4;
 // uARM deviceSonyTG50.c keeps GPIO13 high (inactive) and drives GPIO14
-// through the Sony microcontroller. The GPIO13 dispatcher note is tentative.
+// through the Sony microcontroller. GPIO13 is a sleep wake source (PWER/PFER);
+// this port pulls it low while the power key is pressed so the ROM wakes up.
 constexpr unsigned kKeyRelatedIdleGpio = 13;
 constexpr unsigned kUcIrqGpio = 14;
 constexpr unsigned kTouchIrqGpio = 9;

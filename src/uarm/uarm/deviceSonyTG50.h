@@ -11,6 +11,7 @@ struct SonyTG50;
 SonyTG50* sonyTG50Initialize(SocPeriphs* peripherals, bool nx70v = false);
 void sonyTG50Periodic(SonyTG50* device);
 void sonyTG50Touch(SonyTG50* device, int x, int y);
+void sonyTG50SleepWakeup(SonyTG50* device);
 void sonyTG50Key(SonyTG50* device, sony_tg50::Key key, bool pressed);
 // Maps the host's existing generic hardware key identifiers into TG50 matrix keys.
 void sonyTG50HostKey(SonyTG50* device, KeyId key, bool pressed);

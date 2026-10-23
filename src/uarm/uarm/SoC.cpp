@@ -86,8 +86,22 @@ void SoC::Sleep() {
     // printf("sleep\n");
 }
 
+void SoC::EnterDeepSleep() {
+    deepSleep = true;
+    if (sleeping) return;
+
+    OnSleep();
+    sleeping = true;
+    cpuSetSleeping(cpu);
+}
+
+void SoC::ExitDeepSleep() {
+    deepSleep = false;
+    Wakeup(0);
+}
+
 void SoC::Wakeup(uint8_t wakeupSource) {
-    if (!sleeping) return;
+    if (!sleeping || deepSleep) return;
     sleeping = false;
 
     cpuWakeup(cpu);

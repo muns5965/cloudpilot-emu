@@ -66,6 +66,7 @@ struct TG50uc {
 
 	bool keys[8][8];
 	uint32_t keyVals[8][8];
+	bool ignoreNextReset;
 };
 
 
@@ -314,7 +315,10 @@ static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, 
 	else if (size == 1) {
 		
 		if (pa == 0x210 && write && *(uint8_t*)buf == 0xff) {	//reset
-			
+			if (uc->ignoreNextReset) {	// sleep resume: keep keyboard/IRQ configuration
+				uc->ignoreNextReset = false;
+				return true;
+			}
 			tg50ucPrvReset(uc);
 			fprintf(stderr, " * UC reset\n");
 			return true;
@@ -365,6 +369,11 @@ struct TG50uc* tg50ucInit(struct ArmMem *physMem, struct PxaGpio *gpio, int8_t g
 	if (!memRegionAdd(physMem, TG50_UC_BASE, TG50_UC_SIZE, tg50ucPrvMemAccessF, uc)) { free(uc); return nullptr; }
 	
 	return uc;
+}
+
+void tg50ucIgnoreNextReset(struct TG50uc *uc)
+{
+	uc->ignoreNextReset = true;
 }
 
 void tg50ucGpioSetInState(struct TG50uc *uc, unsigned port, unsigned pin, bool hi)
