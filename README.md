@@ -15,11 +15,11 @@
 
 ## Goal
 
-Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). The native TG50 build now completes **Setup (including pen calibration) and reaches the CLIÉ Launcher**. The built-in QWERTY keyboard is wired to host keys. The power key now sleeps and wakes the device. Next: savestates, and only then browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
+Reuse CloudpilotEmu's existing ARM/PXA OS 5 engine and port Sony-specific hardware models from [uARM-Palm/uARM](https://github.com/uARM-Palm/uARM). The native TG50 build now completes **Setup (including pen calibration) and reaches the CLIÉ Launcher**. The built-in QWERTY keyboard is wired to host keys. The power key now sleeps and wakes the device. Session files save and resume. Next: browser/WASM selection and display. A TG50 ROM must be obtained separately; no proprietary ROM is included.
 
 ## 개발 목표
 
-CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 현재 네이티브 TG50 빌드는 **펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 진입**합니다. TG50 내장 QWERTY 키보드는 PC 키에 연결됐습니다. 전원 키로 절전·복귀도 됩니다. 다음 단계는 상태 저장이며, 그다음 브라우저/WASM 기기 선택과 화면 출력을 연결합니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
+CloudpilotEmu에 이미 구현된 ARM/PXA 기반 OS 5 실행 엔진을 재사용하고, [uARM 원본](https://github.com/uARM-Palm/uARM)의 Sony 전용 하드웨어 구현을 이식합니다. 현재 네이티브 TG50 빌드는 **펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 진입**합니다. TG50 내장 QWERTY 키보드는 PC 키에 연결됐습니다. 전원 키로 절전·복귀도 됩니다. 세션 파일 저장·재개도 됩니다. 다음 단계는 브라우저/WASM 기기 선택과 화면 출력입니다. TG50 ROM은 별도로 준비해야 하며, 저작권이 있는 ROM 파일은 이 저장소에 포함하지 않습니다.
 
 ---
 
@@ -43,7 +43,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | AN32502A power (I²C) | Ported, not individually tested | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
 | AK4534 audio codec (I²C) | Register model only, no PCM output | `src/uarm/uarm/i2sdev_AK4534.cpp` |
 | Memory Stick controller | Register model only, no media | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
-| Savestates / session files | **Incomplete**: TG50 device state is not serialized | `--tg50` rejects session files |
+| Savestates / session files | **Works** (native): `save-session <file>` saves, starting the emulator with the session file resumes (also while asleep) | Sony peripherals in one `sonyTG50` chunk, deep sleep in a `pxaDeepSleep` chunk; the device type comes from the session file |
 | Browser/WASM TG50 UI and input | Not implemented | After native input is complete |
 
 ## 현재 진행 상태
@@ -66,7 +66,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | AN32502A 전원 관리(I²C) | 이식 완료, 개별 시험 안 함 | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
 | AK4534 오디오 코덱(I²C) | 레지스터 모델만, PCM 출력 없음 | `src/uarm/uarm/i2sdev_AK4534.cpp` |
 | Memory Stick 컨트롤러 | 레지스터 모델만, 카드 미지원 | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
-| 상태 저장·세션 파일 | **미완성**: TG50 장치 상태 직렬화 없음 | `--tg50`은 세션 파일을 거부 |
+| 상태 저장·세션 파일 | **동작**(네이티브): `save-session <파일>`로 저장, 세션 파일로 실행하면 이어서 동작(절전 중 저장도 가능) | Sony 주변장치는 `sonyTG50` 저장 단위 하나, 절전 상태는 `pxaDeepSleep` 저장 단위. 기종은 세션 파일에서 읽음 |
 | 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 입력 완성 후 진행 |
 
 ---
@@ -75,7 +75,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 
 1. **Sleep follow-ups**: check RTC alarm wake; optionally map PC digit keys to Blue + top row.
 2. **TG50 display configuration**: drop the E2 silkscreen (or replace it with a keyboard image) without changing the E2's shared configuration.
-3. **Savestates**: serialize TG50 device state so session files can be saved and resumed.
+3. **Savestates**: done (native). The browser/WASM build has not been checked.
 4. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
 5. **Browser/WASM support**, then audio and Memory Stick.
 
@@ -85,7 +85,7 @@ Detailed file-level checklist and fix history: [docs/sony-tg50-port.md](docs/son
 
 1. **절전 후속:** 알람(RTC)으로 깨우기를 확인하고, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
 2. **TG50 화면 설정:** E2와 공유하는 설정은 건드리지 않고 E2 실크스크린을 없애거나 키보드 그림으로 바꿉니다.
-3. **상태 저장:** TG50 장치 상태를 직렬화해 세션 파일 저장·재개를 지원합니다.
+3. **상태 저장:** 완료(네이티브). 브라우저/WASM 빌드는 확인하지 않음.
 4. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.
 5. **브라우저/WASM 지원**, 그다음 오디오와 Memory Stick.
 
@@ -147,7 +147,7 @@ The native emulator offers an explicit device override for a Palm OS 5 NOR image
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM, and does not support NAND or resuming session files in TG50 mode.
+This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM and does not take a NAND image. To resume, start the emulator with a saved session file instead of the ROM (`--tg50` is not needed; the session records the device type).
 
 What to expect on first launch:
 
@@ -165,7 +165,7 @@ Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션입
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며, TG50 모드에서는 별도 NAND 및 세션 파일 재개를 지원하지 않습니다.
+이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며 NAND 이미지는 받지 않습니다. 이어서 실행하려면 ROM 대신 저장한 세션 파일로 실행합니다(세션에 기종이 기록되므로 `--tg50`은 필요 없음).
 
 첫 실행 순서:
 

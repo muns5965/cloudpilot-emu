@@ -18,14 +18,14 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Host power key, sleep/resume | Works | Esc sleeps and wakes; see "Sleep and resume" below |
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
-| Savestates / sessions | Not implemented for TG50 | `--tg50` rejects session files |
+| Savestates / sessions | Works (native) | See "Savestates" below |
 | Browser/WASM | Not implemented | — |
 
 ## Remaining work
 
 1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
-3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
+3. **Savestates:** done for native sessions; browser/WASM not checked.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
 5. **Browser/WASM:** device selection, frame output and input bridge; then audio and Memory Stick media.
 
@@ -104,7 +104,7 @@ The sections below are kept in chronological order. Status lines in older sectio
 - `devicePalmTungstenE2.cpp` now recognizes `deviceTypeSonyTG50`, allocates a TG50-flavored Device wrapper and calls `sonyTG50Initialize` instead of E2 NAND/AC97/WM9712L setup.
 - Device periodic/touch/hardware-key operations dispatch to the Sony model, and `SocPXA::OnReset` skips the absent NAND page buffer.
 - **Not boot validated:** ROM format/mapping, 1 KiB SRAM mapping, full QWERTY host input and LCD geometry remain outstanding. A source-only GitHub update is not proof of a successful build.
-- **Savestates incomplete:** the Sony-specific controller state is not serialized. The temporary factory branch skips Sony peripheral save/load and should not be considered safe for persistent sessions. Do not distribute as working TG50 support.
+- **Savestates:** done later (see "Savestates").
 - Generic keypad events still pass through the common keypad interface; review duplicate or unintended input when TG50 host mapping is brought online.
 
 ## TG50 RAM and extra SRAM mapping (staged, not boot-verified)
@@ -182,7 +182,7 @@ The native executable now accepts `--tg50` explicitly:
 ./src/uarm/cp-uarm --tg50 /path/to/your/TG50-ROM.bin
 ```
 
-This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection. ROM images are not included in the repository.
+This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image. Session files are accepted and select the device type they record. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection. ROM images are not included in the repository.
 - *Later verified: the reference TG50 ROM passes the parser and boots (see the following sections).*
 
 ## Boot blocker fixed: power key GPIO0 idle level
@@ -237,4 +237,11 @@ Previously the power key reached only the controller matrix, and driving GPIO0 e
 | 5 | Device pointer missing | `SocPeriphs.soc` was never set, so the device could not see the sleep state | `soc_PXA.cpp` sets `sp.soc = this` |
 
 Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard buttons and fast typing after resume, Setup and pen calibration unchanged.
+
+## Savestates (2026-10-23)
+
+- `deviceSave`/`deviceLoad` no longer skip TG50: `sonyTG50Save`/`sonyTG50Load` write one `sonyTG50` chunk (version 1) holding a size field plus fixed state blobs of the Sony controller (ports, pressed keys, IRQ, resume flag), AD7873 (last conversion, battery/aux values; the pen is up after restore), AN32502A, AK4534 and the Memory Stick controller.
+- Deep sleep state (asleep, wake baseline) goes into a separate `pxaDeepSleep` chunk written only when deep sleep is enabled, so the shared `pxaPwrClk` chunk and E2 sessions are unchanged.
+- `main.cpp` takes the device type from the session file; TG50 ROM headers are not identified, so `--tg50` was the only way before and is now ignored for sessions.
+- Verified: save after typing a memo, restart from the session (same memo screen, typing, hard buttons and taps work); save while asleep, restart, Esc wakes to the Launcher.
 
