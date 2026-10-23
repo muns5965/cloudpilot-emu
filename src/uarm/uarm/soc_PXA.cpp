@@ -285,9 +285,21 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
 
         case SCHEDULER_TASK_AUX_2:
             PumpEventQueues();
-            if (pxaPwrClkInDeepSleep(pwrClk) &&
-                pxaPwrClkCheckWake(pwrClk, pxaGpioGetLevels0(gpio)))
-                deviceSleepWakeup(dev);
+            if (pxaPwrClkInDeepSleep(pwrClk)) {
+                // TG50/NX70V: the ROM arms the RTC alarm before sleeping but enables no RTC
+                // wake source, and a bare CPU wake leaves the screen off. A due alarm presses
+                // the power key instead; after waking, the ROM shows the alarm.
+                if (pxaRtcAlarmPending(rtc) && !rtcAlarmWakeRequested) {
+                    rtcAlarmWakeRequested = true;
+                    KeyDown(keyIdPower);
+                    KeyUp(keyIdPower);
+                }
+
+                if (pxaPwrClkCheckWake(pwrClk, pxaGpioGetLevels0(gpio))) {
+                    rtcAlarmWakeRequested = false;
+                    deviceSleepWakeup(dev);
+                }
+            }
             return 1;
 
         default:

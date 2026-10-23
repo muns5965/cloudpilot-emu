@@ -89,6 +89,7 @@ class SocPXA : public SocGeneric<SocPXA> {
    private:
     uint8_t socRev{0};
     bool tg50Mode{false};
+    bool rtcAlarmWakeRequested{false};
 
     PxaUart *ffUart{nullptr}, *hwUart{nullptr}, *stUart{nullptr}, *btUart{nullptr};
     PxaSsp *ssp[3]{nullptr, nullptr, nullptr};

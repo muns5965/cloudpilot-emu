@@ -13,6 +13,9 @@ struct PxaRtc* pxaRtcInit(struct ArmMem* physMem, struct PxaIc* ic);
 
 void pxaRtcTick(struct PxaRtc* rtc);
 
+// RTC alarm status (RTSR.AL) is set.
+bool pxaRtcAlarmPending(struct PxaRtc* rtc);
+
 template <typename T>
 void pxaRtcSave(struct PxaRtc* rtc, T& savestate);
 
