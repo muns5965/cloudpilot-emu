@@ -4,6 +4,14 @@
 
 [**NX70V notes**](docs/sony-nx70v-port.md) · [**TG50 branch README**](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md) · [**TG50 technical notes**](docs/sony-tg50-port.md) · [**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu)
 
+## Screenshot
+
+Browser build (`master` 0fd3d89) in Chromium: Memo typed with the on-screen keyboard, then folded with **⌨ ▼ Hide**.
+
+| On-screen keyboard | Keyboard hidden |
+| --- | --- |
+| <img src="docs/images/nx70v-web-keyboard.png" width="240" alt="NX70V on-screen keyboard"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="240" alt="NX70V keyboard hidden"> |
+
 ## Status (2026-10-23)
 
 NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this repository.
@@ -74,6 +82,14 @@ See the TG50 branch README for building:
 > **실험 단계입니다.** NX70V 작업과 시험은 이 브랜치에서 하고, 마친 변경은 브라우저 버전을 배포하는 [`master`](https://github.com/muns5965/cloudpilot-emu)로 합칩니다. NX70V는 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 에서도 실행됩니다([브라우저 실행](#브라우저-실행) 참고, TG50도 같은 주소). 네이티브 빌드에 `--nx70v` 모드가 있으며, NX70V Palm OS가 펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 들어갑니다. 알려진 덤프에 작은 부트 ROM이 없어서, 실행할 때 TG50 NOR 이미지의 부트 ROM을 빌려 씁니다(`--boot-rom`). 이 브랜치는 [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50)에서 갈라져 나왔고, 그 TG50 코드(`--tg50` 실행 경로와 TG50 장치 모델)를 바탕으로 씁니다. NX70V는 TG50 장치 코드를 그대로 쓰고 NX70V 차이 4가지만 따로 둡니다.
 
 [**NX70V 조사 기록(영문·한국어)**](docs/sony-nx70v-port.md) · [**TG50 브랜치 README**](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md) · [**TG50 기술 문서(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu)
+
+## 실행 화면
+
+브라우저 빌드(`master` 0fd3d89)를 Chromium에서 실행: 화면 키보드로 메모 입력 후 **⌨ ▼ Hide** 로 접은 모습.
+
+| 화면 키보드 | 키보드 접음 |
+| --- | --- |
+| <img src="docs/images/nx70v-web-keyboard.png" width="240" alt="NX70V 화면 키보드"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="240" alt="NX70V 키보드 접음"> |
 
 ## 현황(2026-10-23)
 
