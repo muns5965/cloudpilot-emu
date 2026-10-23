@@ -152,7 +152,9 @@ First found with scratch-only `NX70V_DIAG` changes, then implemented in the bran
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. Savestates, CF cards, RTC alarm wake.
+2. CF cards, RTC alarm wake.
+
+Session files work (shared TG50 change): saved after typing a memo and resumed with typing, saved while asleep and woken with Esc. A NX70V session stores the running ROM image including the TG50 boot ROM, so it must not be shared.
 
 ### `--nx70v` usage test (2026-10-23)
 
@@ -199,4 +201,5 @@ First found with scratch-only `NX70V_DIAG` changes, then implemented in the bran
   4. 펜 좌표 X·Y 반전, 480줄을 TG50 원시값 범위로 축소
 - **`--nx70v` 사용 시험(2026-10-23)**: F2 주소록·F3 할 일·F4 메모장 실행(F1은 변화 없음). 키 표는 TG50과 같고 a~z 정확. 빠른 입력 누락(키를 약 60ms보다 짧게 누르면 놓침, TG50과 같음)은 키를 최소 3틱(약 100ms) 눌린 상태로 유지하도록 고쳐 해결(키당 40ms·반복 글자 확인). CLIÉ 앨범·계산기(탭으로 `1 + 3 =` → 4)·메모장 동작. 전원 키(Esc)는 변화 없음(TG50과 같음).
 - **절전·복귀**: TG50과 공통 수정으로 동작(Esc로 절전·복귀 2회, 복귀 후 메모장 입력 확인).
-- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 상태 저장, CF 카드, 알람(RTC)으로 깨우기.
+- **세션 파일**: TG50과 공통 수정으로 동작(메모 입력 후 저장·재개, 절전 중 저장 후 Esc로 복귀). NX70V 세션에는 TG50 부트 ROM이 들어간 ROM 이미지가 저장되므로 공유 금지.
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. CF 카드, 알람(RTC)으로 깨우기.

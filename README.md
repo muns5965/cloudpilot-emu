@@ -22,6 +22,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Hard buttons | F2 Address, F3 To Do, F4 Memo work | F1 does nothing visible; the NX70V meaning of button 1 is not checked |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
 | Power key (Esc), sleep/resume | **Works** | Shared with TG50: Esc sleeps (screen off), Esc again wakes; keyboard works after resume |
+| Session files | **Works** | Shared with TG50: `save-session <file>`, then start the emulator with the session file (no `--nx70v`/`--boot-rom` needed); also while asleep |
 
 ## NX70V differences in `--nx70v`
 
@@ -32,12 +33,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | 3 | Sony microcontroller port A | Bit `0x10` (HOLD switch) cleared |
 | 4 | Pen coordinates | X and Y inverted versus TG50; 480 lines scaled into the TG50 raw range |
 
-Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself, savestates, the flip and HOLD switches as user controls.
+Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself, the flip and HOLD switches as user controls.
 
 ## Next
 
 1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
-2. Savestates, CF cards, RTC alarm wake.
+2. CF cards, RTC alarm wake.
 
 ## Running
 
@@ -51,7 +52,7 @@ Native build only (see the TG50 branch README for building):
 - Window: 320×480. The pen calibration targets are at the screen corners; tap them in Setup.
 - Check a ROM header: `python3 tools/probe-nx70v-rom.py /path/to/nx70v.rom`. For building and running TG50, see the [TG50 branch README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md).
 
-**Never commit or publish** NX70V or TG50 ROM files or the device data area at `0x18000`.
+**Never commit or publish** NX70V or TG50 ROM files, the device data area at `0x18000`, or NX70V session files (a session stores the whole ROM image as running, including the TG50 boot ROM copied in by `--boot-rom`).
 
 ---
 
@@ -79,6 +80,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 하드 버튼 | F2 주소록, F3 할 일, F4 메모장 동작 | F1은 화면 변화 없음. NX70V 1번 버튼의 기능은 미확인 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
 | 전원 키(Esc), 절전·복귀 | **동작** | TG50과 공통: Esc로 절전(화면 꺼짐), 다시 Esc로 복귀. 복귀 후 키보드 정상 |
+| 세션 파일 | **동작** | TG50과 공통: `save-session <파일>` 후 세션 파일로 실행(`--nx70v`·`--boot-rom` 불필요). 절전 중 저장도 가능 |
 
 ## `--nx70v`의 NX70V 차이
 
@@ -89,12 +91,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 3 | Sony 마이컴 포트 A | 비트 `0x10`(HOLD 스위치) 끄기 |
 | 4 | 펜 좌표 | TG50 대비 X·Y 반전, 480줄을 TG50 원시값 범위로 축소 |
 
-`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체, 상태 저장, 접힘·HOLD 스위치 조작.
+`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체, 접힘·HOLD 스위치 조작.
 
 ## 다음 단계
 
 1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
-2. 상태 저장, CF 카드, 알람(RTC)으로 깨우기.
+2. CF 카드, 알람(RTC)으로 깨우기.
 
 ## 실행
 
@@ -108,4 +110,4 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 - 창 크기 320×480. Setup의 펜 보정 표적은 화면 모서리에 나옵니다.
 - ROM 헤더 확인: `python3 tools/probe-nx70v-rom.py /path/to/nx70v.rom`. TG50 빌드·실행 방법은 [TG50 브랜치 README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md)를 보세요.
 
-NX70V·TG50 ROM 파일과 `0x18000`의 기기 데이터 영역은 **절대 커밋·공개하지 않습니다.**
+NX70V·TG50 ROM 파일, `0x18000`의 기기 데이터 영역, NX70V 세션 파일은 **절대 커밋·공개하지 않습니다**(세션은 `--boot-rom`으로 덮어쓴 TG50 부트 ROM을 포함한 실행 중 ROM 전체를 저장함).
