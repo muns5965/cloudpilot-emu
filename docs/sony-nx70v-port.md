@@ -217,7 +217,7 @@ Sources: Sony "PEG-NX70V/NX60 Read This First" (4-667-217-11) and photos of a US
 
 - `RomInfo5`: company `sony` + HAL `crdb` → `deviceTypeSonyNX70V`, 17 MiB. Native also accepts the ROM without `--nx70v` (it still needs `--boot-rom`).
 - The web stores the ROM with a TG50 boot ROM copied to `0x0`–`0x17FFF` (session settings field "Boot ROM", `web/common/helper/sonyBootRom.ts`), so its header at `0x0` reads TG50. `Uarm::SetDeviceType()` lets the worker start the session device instead of the header's.
-- Keys: Fn = TG50 Blue, Alt = TG50 Red; `<,` `>.` `:;` = TG50 `@_` `.` `,` matrix positions (checked natively; plain/Shift/Fn give `, < -`, `. > ?`, `; : &`). The NX70V ROM here is European: Alt + W…P types `é € ß ë ê è Ç ç à`.
+- Keys: Fn = TG50 Blue, Alt = TG50 Red; `<,` `>.` `:;` = TG50 `@_` `.` `,` matrix positions (checked natively; plain/Shift/Fn give `, <` (Fn: none), `. > ?`, `; : &`). The NX70V ROM here is European: Alt + W…P types `é € ß ë ê è Ç ç à`.
 - Verified: combined image started as NX70V natively (Setup, Launcher, first F1 → Date Book); helper checks on the real ROMs; CI build and Pages deploy. Browser run not yet tried by hand.
 - 브라우저 요약: `crdb` 인식, 세션 설정에서 TG50 ROM을 부트 ROM으로 받아 앞부분에 덮어 브라우저에만 보관, 세션 기종을 엔진에 넘김. Fn=Blue, Alt=Red. 이 NX70V ROM은 유럽판.
 
