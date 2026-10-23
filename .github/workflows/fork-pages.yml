@@ -14,7 +14,8 @@ env:
   NODE_VERSION: 24
   EM_CACHE_FOLDER: emsdk
 permissions:
-  contents: read
+  # write: the build is also pushed to the pwa-build branch (for local browser tests)
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -61,6 +62,20 @@ jobs:
           yarn run gen-revision
           yarn build-preview --base-href "/${{ github.event.repository.name }}/"
           yarn generate-worker
+      - name: Publish the build to the pwa-build branch
+        # The same files as the Pages site (no ROMs); used to run the web app in local browser tests.
+        if: github.ref == 'refs/heads/master'
+        working-directory: web/build-pwa
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q
+          git checkout -q -b pwa-build
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "PWA build of ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" pwa-build
+          rm -rf .git
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
