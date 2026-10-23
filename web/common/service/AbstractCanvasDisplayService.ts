@@ -664,6 +664,7 @@ export abstract class AbstractCanvasDisplayService {
                 return SkinElement.HARD_BUTTONS_ACER_S10;
 
             case DeviceId.pegNR70:
+            case DeviceId.pegTG50:
                 return SkinElement.HARD_BUTTONS_PEG_NR70;
 
             case DeviceId.pegN700c:

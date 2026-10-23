@@ -123,6 +123,10 @@ export interface EngineUarm extends EngineCommon {
     getPcmPort(): MessagePort;
     enablePcmStreaming(): Promise<void>;
     disablePcmStreaming(): Promise<void>;
+
+    // Raw device keys (KeyId) for devices with a hardware keyboard
+    keyDown(key: number): void;
+    keyUp(key: number): void;
 }
 
 export type Engine = EngineCloudpilot | EngineUarm;

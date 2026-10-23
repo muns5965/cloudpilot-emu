@@ -14,6 +14,7 @@ export class NativeSupportService {
         switch (device) {
             case DeviceId.te2:
             case DeviceId.repalmPV:
+            case DeviceId.pegTG50:
             case DeviceId.frankene2: {
                 const rominfo = (await this.cloudpilot).getRomInfo(romData);
 

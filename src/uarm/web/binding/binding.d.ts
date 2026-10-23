@@ -41,6 +41,27 @@ export const enum KeyId {
     keyIdRight = 8,
     keyIdSelect = 9,
     keyIdPower = 10,
+    // Hardware keyboard and extra device keys (Sony TG50), see keys.h
+    keyIdKbdA = 11,
+    keyIdKbdZ = 36,
+    keyIdKbdSpace = 37,
+    keyIdKbdEnter = 38,
+    keyIdKbdBackspace = 39,
+    keyIdKbdShift = 40,
+    keyIdKbdCtrl = 41,
+    keyIdKbdTab = 42,
+    keyIdKbdCaps = 43,
+    keyIdKbdComma = 44,
+    keyIdKbdPeriod = 45,
+    keyIdKbdUnderscore = 46,
+    keyIdKbdBlue = 47,
+    keyIdKbdRed = 48,
+    keyIdHome = 49,
+    keyIdPageUp = 50,
+    keyIdPageDown = 51,
+    keyIdJogBack = 52,
+    keyIdVoice = 53,
+    keyIdGraffiti = 54,
 }
 
 export const enum DisplayMode {

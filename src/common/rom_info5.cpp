@@ -14,6 +14,8 @@ namespace {
     constexpr uint32_t HAL_ID_TUNGSTEN_E2 = 'hspr';
     constexpr uint32_t HAL_ID_PV = 'PvPv';
     constexpr uint32_t COMPANY_ID_PALM = 'Palm';
+    constexpr uint32_t COMPANY_ID_SONY = 'sony';
+    constexpr uint32_t HAL_ID_SONY_TG50 = 'vrna';
 
     constexpr uint32_t SIGNATURE = 0xfeedbeef;
 
@@ -40,6 +42,9 @@ namespace {
 
             case DeviceType5::deviceTypeFrankenE2:
                 return "Tungsten E3 / Dmitry's Frankenpilot";
+
+            case DeviceType5::deviceTypeSonyTG50:
+                return "Sony PEG-TG50";
 
             default:
                 return "unknown";
@@ -76,6 +81,8 @@ uint32_t RomInfo5::GetCompanyId() const { return companyId; }
 uint32_t RomInfo5::GetHalId() const { return halId; }
 
 uint32_t RomInfo5::GetRecommendedRamSize() const {
+    if (GetDeviceType() == DeviceType5::deviceTypeSonyTG50) return 17ul << 20;
+
     return IsDmitryPatched() ? (32ul << 20) : (16ul << 20);
 }
 
@@ -92,6 +99,10 @@ DeviceType5 RomInfo5::GetDeviceType() const {
 
     if (companyId == COMPANY_ID_PALM && halId == HAL_ID_DMITRY_TUNGSTEN_E3) {
         return DeviceType5::deviceTypeFrankenE2;
+    }
+
+    if (companyId == COMPANY_ID_SONY && halId == HAL_ID_SONY_TG50) {
+        return DeviceType5::deviceTypeSonyTG50;
     }
 
     return DeviceType5::deviceTypeInvalid;

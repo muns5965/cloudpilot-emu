@@ -77,6 +77,9 @@ export function deviceTypeUarmToDeviceId(deviceType: DeviceType5): DeviceId | un
         case DeviceType5.deviceTypePV:
             return DeviceId.repalmPV;
 
+        case DeviceType5.deviceTypeSonyTG50:
+            return DeviceId.pegTG50;
+
         default:
             return undefined;
     }
@@ -92,6 +95,9 @@ export function deviceTypeUarmFromDeviceId(deviceId: DeviceId): DeviceType5 {
 
         case DeviceId.repalmPV:
             return DeviceType5.deviceTypePV;
+
+        case DeviceId.pegTG50:
+            return DeviceType5.deviceTypeSonyTG50;
 
         default:
             return DeviceType5.deviceTypeInvalid;

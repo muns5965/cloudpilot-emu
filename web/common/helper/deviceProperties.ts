@@ -130,6 +130,13 @@ export function deviceDimensions(deviceId: DeviceId, screenSize?: ScreenSize): D
                 silkscreenHeight: 0,
             };
 
+        // Hardware keyboard instead of a Graffiti silkscreen
+        case DeviceId.pegTG50:
+            return {
+                ...dimensionsForScreenSize(ScreenSize.screen320x320),
+                silkscreenHeight: 0,
+            };
+
         case DeviceId.repalmPV: {
             const resolvedScreenSize = screenSize ?? ScreenSize.screen320x480;
 
@@ -233,6 +240,9 @@ export function cpuClock(deviceId: DeviceId): number {
         case DeviceId.frankene2:
         case DeviceId.repalmPV:
             return 100;
+
+        case DeviceId.pegTG50:
+            return 200;
     }
 }
 
@@ -352,6 +362,9 @@ export function deviceName(deviceId: DeviceId): string {
         case DeviceId.repalmPV:
             return 'rePalm paravirtualized';
 
+        case DeviceId.pegTG50:
+            return 'Sony PEG-TG50';
+
         default:
             throw new Error('bad device ID');
     }
@@ -378,6 +391,7 @@ export function quirkNoHotsync(deviceId: DeviceId) {
         case DeviceId.frankene2:
         case DeviceId.te2:
         case DeviceId.repalmPV:
+        case DeviceId.pegTG50:
             return true;
 
         default:
@@ -424,6 +438,7 @@ export function engineType(deviceId: DeviceId): EngineType {
         case DeviceId.te2:
         case DeviceId.frankene2:
         case DeviceId.repalmPV:
+        case DeviceId.pegTG50:
             return 'uarm';
 
         default:
@@ -477,4 +492,8 @@ export function selectableRamSizes(deviceId: DeviceId): Array<number> | undefine
     }
 
     return undefined;
+}
+
+export function hasHardwareKeyboard(deviceId: DeviceId): boolean {
+    return deviceId === DeviceId.pegTG50;
 }

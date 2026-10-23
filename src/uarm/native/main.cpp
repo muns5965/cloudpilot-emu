@@ -200,7 +200,7 @@ namespace {
         cerr << romInfo;
 
         if (!romInfo.IsValid()) return false;
-        // A session records its device type (TG50 ROMs are not identified from their header).
+        // A session records its device type; TG50 ROMs (sony/vrna) are also identified from their header.
         const DeviceType5 deviceType =
             sessionDeviceType ? *sessionDeviceType
             : options.forceTg50 ? DeviceType5::deviceTypeSonyTG50

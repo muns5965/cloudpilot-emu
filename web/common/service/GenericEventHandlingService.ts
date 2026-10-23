@@ -1,4 +1,5 @@
 import { PalmButton } from '@common/bridge/Cloudpilot';
+import { hardwareKeyFromCode } from '@common/helper/hardwareKeyboard';
 import { AbstractCanvasDisplayService } from '@common/service/AbstractCanvasDisplayService';
 import { AbstractEmulationService } from '@common/service/AbstractEmulationService';
 
@@ -68,6 +69,7 @@ export class GenericEventHandlingService {
 
         this.addEventListener(this.keyEventTarget, 'keydown', this.handleKeyDown);
         this.addEventListener(this.keyEventTarget, 'keyup', this.handleKeyUp);
+        this.addEventListener(this.keyEventTarget, 'blur', this.releaseHardwareKeys);
     }
 
     release(): void {
@@ -84,6 +86,9 @@ export class GenericEventHandlingService {
 
         this.removeEventListener(this.keyEventTarget, 'keydown', this.handleKeyDown);
         this.removeEventListener(this.keyEventTarget, 'keyup', this.handleKeyUp);
+        this.removeEventListener(this.keyEventTarget, 'blur', this.releaseHardwareKeys);
+
+        this.releaseHardwareKeys();
 
         for (const button of this.activeButtons) {
             this.handleButtonUp(button);
@@ -102,6 +107,7 @@ export class GenericEventHandlingService {
 
     setGameMode(enableGameMode: boolean): void {
         this.gameMode = enableGameMode;
+        if (enableGameMode) this.releaseHardwareKeys();
 
         this.onToggleGameMode();
     }
@@ -310,7 +316,20 @@ export class GenericEventHandlingService {
             e.preventDefault();
 
             this.gameMode = !this.gameMode;
+            if (this.gameMode) this.releaseHardwareKeys();
             this.onToggleGameMode();
+
+            return;
+        }
+
+        const hardwareKey = this.hardwareKeyFromEvent(e);
+        if (hardwareKey !== undefined) {
+            e.preventDefault();
+
+            if (!this.activeHardwareKeys.has(hardwareKey)) {
+                this.activeHardwareKeys.add(hardwareKey);
+                this.emulationService.handleHardwareKeyDown(hardwareKey);
+            }
 
             return;
         }
@@ -332,6 +351,15 @@ export class GenericEventHandlingService {
 
     private handleKeyUp = (e: KeyboardEvent): void => {
         if (this.emulationService.isSuspended() || !this.enableKeyboardEvents()) return;
+
+        const hardwareKey = hardwareKeyFromCode(e.code);
+        if (hardwareKey !== undefined && this.activeHardwareKeys.has(hardwareKey)) {
+            this.activeHardwareKeys.delete(hardwareKey);
+            this.emulationService.handleHardwareKeyUp(hardwareKey);
+            e.preventDefault();
+
+            return;
+        }
 
         const button = this.buttonFromEvent(e);
         if (button !== undefined) {
@@ -377,6 +405,21 @@ export class GenericEventHandlingService {
         this.activeButtons.delete(button);
         this.emulationService.handleButtonUp(button);
         void this.canvasDisplayService.drawButtons(Array.from(this.activeButtons.values()));
+    }
+
+    private releaseHardwareKeys = (): void => {
+        for (const key of this.activeHardwareKeys) {
+            this.emulationService.handleHardwareKeyUp(key);
+        }
+
+        this.activeHardwareKeys.clear();
+    };
+
+    // Devices with a hardware keyboard get raw device keys unless game mode is on.
+    private hardwareKeyFromEvent(e: KeyboardEvent): number | undefined {
+        if (this.gameMode || !this.emulationService.supportsHardwareKeyboard()) return undefined;
+
+        return hardwareKeyFromCode(e.code);
     }
 
     private isToggleGameMode(e: KeyboardEvent): boolean {
@@ -494,6 +537,7 @@ export class GenericEventHandlingService {
     private interactionMouse: Interaction | undefined;
     private interactionsTouch = new Map<number, Interaction>();
     private activeButtons = new Set<PalmButton>();
+    private activeHardwareKeys = new Set<number>();
     private gameMode = false;
     private enableGamemodeHotkey = true;
 }
