@@ -13,7 +13,7 @@
 | Branch | Device | Runs in | Status |
 | --- | --- | --- | --- |
 | [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50 (Palm OS 5.0, 320×320, QWERTY keyboard) | Browser and native Linux | Setup, Launcher, apps, keyboard (PC and on-screen), sleep/resume, sessions (native). No sound, no Memory Stick media |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V (Palm OS 5.0, 320×480) | Browser and native Linux | Setup, Launcher, apps, keyboard (PC and on-screen), sleep/resume, sessions (native). Browser not yet tried by hand. The known dump lacks the small boot ROM, so a TG50 ROM supplies it at run time (`--boot-rom`) |
+| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V (Palm OS 5.0, 320×480) | Browser and native Linux | Setup, Launcher, apps, keyboard (PC and on-screen), sleep/resume, sessions (native). Boots in the browser (phone test). The known dump lacks the small boot ROM, so a TG50 ROM supplies it at run time (`--boot-rom`) |
 | `master` | — | — | Upstream code at the fork point; only this README differs |
 
 Each branch README has the details, keys and build steps.
@@ -38,7 +38,7 @@ Each branch README has the details, keys and build steps.
 | 브랜치 | 기종 | 실행 환경 | 현황 |
 | --- | --- | --- | --- |
 | [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50(Palm OS 5.0, 320×320, QWERTY 키보드) | 브라우저, Linux 네이티브 | Setup, 런처, 앱, 키보드(PC·화면 키보드), 절전·복귀, 세션(네이티브). 소리·Memory Stick 카드 없음 |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V(Palm OS 5.0, 320×480) | 브라우저, Linux 네이티브 | Setup, 런처, 앱, 키보드(PC·화면 키보드), 절전·복귀, 세션(네이티브). 브라우저는 직접 시험 전. 알려진 덤프에 작은 부트 ROM이 없어 실행 때 TG50 ROM에서 빌려 씀(`--boot-rom`) |
+| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V(Palm OS 5.0, 320×480) | 브라우저, Linux 네이티브 | Setup, 런처, 앱, 키보드(PC·화면 키보드), 절전·복귀, 세션(네이티브). 브라우저 부팅 확인(휴대폰 시험). 알려진 덤프에 작은 부트 ROM이 없어 실행 때 TG50 ROM에서 빌려 씀(`--boot-rom`) |
 | `master` | — | — | 포크 시점의 원본 코드 그대로, 이 README만 다름 |
 
 자세한 내용, 키 연결, 빌드 방법은 각 브랜치 README에 있습니다.
