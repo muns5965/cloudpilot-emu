@@ -1,6 +1,6 @@
 # Sony CLIÉ PEG-TG50 port (work in progress)
 
-This branch runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu's **native** build. As of 2026-10-23 the TG50 ROM boots, completes Setup including pen calibration, and reaches the CLIÉ Launcher, which responds to taps. Browser/WASM support does not exist yet. No ROM files are included.
+This branch runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu's **native** build. As of 2026-10-23 the TG50 ROM boots, completes Setup including pen calibration, and reaches the CLIÉ Launcher, which responds to taps. Since 2026-10-23 it also runs in the browser (WASM): https://muns5965.github.io/cloudpilot-emu/ . No ROM files are included.
 
 ## Current status (2026-10-23)
 
@@ -9,7 +9,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Native build (`libcommon.a` + `cp-uarm`) | Builds locally, no warnings | GitHub Actions result not checked |
-| ROM selection | `--tg50` override | No automatic TG50 ROM identification |
+| ROM selection | Identified from the header (`sony`/`vrna`); `--tg50` optional | `RomInfo5::GetDeviceType()`, 17 MiB recommended |
 | Boot | Works | Needed GPIO13/14 idle levels and the GPIO0 power-key fix (below) |
 | Setup 1–4, pen calibration | Works | Needed the touch-translation patch fix (below) |
 | Launcher, on-screen touch (AD7873) | Works | Calibrated by Palm OS itself |
@@ -19,19 +19,20 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
 | Savestates / sessions | Works (native) | See "Savestates" below |
-| Browser/WASM | Not implemented | — |
+| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. No text input on phones yet |
 
 ## Remaining work
 
+0. **Browser on-screen keyboard** for phones (the raw key path already exists).
 1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
-3. **Savestates:** done for native sessions; browser/WASM not checked.
+3. **Savestates:** done for native sessions; browser save/restore not checked.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
-5. **Browser/WASM:** device selection, frame output and input bridge; then audio and Memory Stick media.
+5. **Browser/WASM:** done for boot, display and input (see below); then audio and Memory Stick media.
 
 ## Scope / safety
 
-No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 as a supported browser device until the remaining work above is done. Existing E2, FrankenE2 and PV behavior must stay unchanged; TG50-specific behavior is gated by `deviceTypeSonyTG50` / `tg50Mode`.
+No ROM files or proprietary Sony firmware are committed. The browser build is experimental; it is published only on this fork's Pages, never with a ROM. Existing E2, FrankenE2 and PV behavior must stay unchanged; TG50-specific behavior is gated by `deviceTypeSonyTG50` / `tg50Mode`.
 
 ## Debugging method
 
@@ -244,4 +245,12 @@ Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard 
 - Deep sleep state (asleep, wake baseline) goes into a separate `pxaDeepSleep` chunk written only when deep sleep is enabled, so the shared `pxaPwrClk` chunk and E2 sessions are unchanged.
 - `main.cpp` takes the device type from the session file; TG50 ROM headers are not identified, so `--tg50` was the only way before and is now ignored for sessions.
 - Verified: save after typing a memo, restart from the session (same memo screen, typing, hard buttons and taps work); save while asleep, restart, Esc wakes to the Launcher.
+
+## Browser / WASM (2026-10-23)
+
+- `RomInfo5::GetDeviceType()` maps company `sony` + HAL `vrna` to `deviceTypeSonyTG50` and recommends 17 MiB RAM. The web build creates the device from this, so no option is needed; native `--tg50` stays as an explicit override.
+- Web device `DeviceId.pegTG50` (`'PEG-TG50'`): 320×320 frame, silkscreen height 0, uARM engine, no NAND, no slot, NR70 hard-button image, CPU shown as 200 MHz. `mapping.ts` maps it to and from `DeviceType5.deviceTypeSonyTG50` (= 3, also in `common.d.ts`).
+- Keyboard: `binding.d.ts` `KeyId` now lists the TG50 keys (11–54, same values as `keys.h`). `hardwareKeyboard.ts` maps `KeyboardEvent.code` like `SdlEventHandler.cpp`. `GenericEventHandlingService` sends raw key down/up through `AbstractEmulationService.handleHardwareKeyDown/Up` → `EngineUarm.keyDown/keyUp` → worker messages `keyDown`/`keyUp` → `Uarm.keyDown/keyUp` → `Uarm::KeyDown/KeyUp`. Auto-repeat is ignored; held keys are released on blur, unbind and when game mode is switched on. Other devices are unchanged.
+- Deployment: `.github/workflows/fork-pages.yml` (emsdk 6.0.0, `make -Csrc emscripten`, lint, tests, `build-preview` with the repo base path, `actions/deploy-pages`). The `github-pages` environment must allow the branch.
+- Verified: CI build, lint and 55 tests; type-check with `pwa/tsconfig.app.json` and `tsconfig.worker.json`; native auto-detect boot to Setup. In the browser (user test, phone): ROM import, boot, To Do opened with a hard button. PC keyboard typing in the browser is not yet reported.
 

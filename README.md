@@ -1,13 +1,13 @@
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 port
 
-> **Work in progress · native ROM boots through Setup to the CLIÉ Launcher.** This is a development fork of [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu), focused on running the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu. The existing emulator's Palm OS 1–4 and E2 implementations remain the upstream baseline; **TG50 runs only in the experimental native build and is not yet a browser device**.
+> **Work in progress · native ROM boots through Setup to the CLIÉ Launcher.** This is a development fork of [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu), focused on running the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu. The existing emulator's Palm OS 1–4 and E2 implementations remain the upstream baseline; TG50 runs in the experimental native build and, since 2026-10-23, in the browser: **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** (bring your own ROM; see [Browser](#browser-wasm)).
 
 [**TG50 port plan and technical notes**](docs/sony-tg50-port.md) · [**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**Original uARM TG50 code**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
 
 # CloudpilotEmu — Sony CLIÉ PEG-TG50 포팅
 
-> **개발 진행 중 · 네이티브 ROM이 Setup을 거쳐 CLIÉ 런처까지 부팅됨.** 이 저장소는 [CloudpilotEmu 원본](https://github.com/cloudpilot-emu/cloudpilot-emu)을 포크하여 **Sony CLIÉ PEG-TG50(Palm OS 5)** 실행을 목표로 개발하는 프로젝트입니다. 기존 Palm OS 1~4 및 Tungsten E2 에뮬레이션은 원본 프로젝트를 기반으로 하며, **TG50은 실험용 네이티브 빌드에서만 실행되고 브라우저 기종으로는 아직 지원하지 않습니다.**
+> **개발 진행 중 · 네이티브 ROM이 Setup을 거쳐 CLIÉ 런처까지 부팅됨.** 이 저장소는 [CloudpilotEmu 원본](https://github.com/cloudpilot-emu/cloudpilot-emu)을 포크하여 **Sony CLIÉ PEG-TG50(Palm OS 5)** 실행을 목표로 개발하는 프로젝트입니다. 기존 Palm OS 1~4 및 Tungsten E2 에뮬레이션은 원본 프로젝트를 기반으로 하며, TG50은 실험용 네이티브 빌드와, 2026-10-23부터 브라우저에서도 실행됩니다: **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)**(ROM은 직접 준비, [브라우저 실행](#브라우저wasm-실행) 참고).
 
 [**TG50 상세 이식 계획(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
@@ -30,7 +30,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | Component | Status | Code / notes |
 | --- | --- | --- |
 | Native build (common + cp-uarm) | **Builds locally** (Linux, no warnings); CI result not checked | `src/uarm/Makefile`, `.github/workflows/tg50-native-build.yml` |
-| Native launch (`--tg50`) | **Works** | `src/uarm/native/main.cpp`; 17 MiB RAM, 320×320 |
+| Native launch | **Works**; the ROM header (`sony`/`vrna`) is identified, `--tg50` is optional | `src/uarm/native/main.cpp`, `src/common/rom_info5.cpp`; 17 MiB RAM, 320×320 |
 | Boot: GPIO13/14 controller IRQ lines | **Works** | `src/uarm/uarm/deviceSonyTG50.cpp` |
 | Boot: power key GPIO0 idle level | **Fixed**, boots past the debounce loop | `sonyTG50Initialize()` |
 | Setup 1–4 incl. pen calibration | **Works** | E2 touch-translation patch disabled for TG50 (`soc_PXA.cpp`) |
@@ -44,7 +44,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | AK4534 audio codec (I²C) | Register model only, no PCM output | `src/uarm/uarm/i2sdev_AK4534.cpp` |
 | Memory Stick controller | Register model only, no media | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
 | Savestates / session files | **Works** (native): `save-session <file>` saves, starting the emulator with the session file resumes (also while asleep) | Sony peripherals in one `sonyTG50` chunk, deep sleep in a `pxaDeepSleep` chunk; the device type comes from the session file |
-| Browser/WASM TG50 UI and input | Not implemented | After native input is complete |
+| Browser/WASM | **Works** (PC Chrome and phone browser): ROM import, boot, touch, hard buttons. PC keyboard mapped as in native, typing in the browser not yet hand-tested | Device `PEG-TG50` (320×320, no silkscreen, NR70 button image); raw key path `web/common/helper/hardwareKeyboard.ts` → worker → `Uarm.KeyDown/KeyUp`. **No text input on phones** yet (no on-screen keyboard). Deployed by `.github/workflows/fork-pages.yml` |
 
 ## 현재 진행 상태
 
@@ -53,7 +53,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | 구성 요소 | 상태 | 코드 / 비고 |
 | --- | --- | --- |
 | 네이티브 빌드(common + cp-uarm) | **로컬 빌드 성공**(Linux, 경고 없음), CI 결과는 미확인 | `src/uarm/Makefile`, `.github/workflows/tg50-native-build.yml` |
-| 네이티브 실행(`--tg50`) | **동작** | `src/uarm/native/main.cpp`, RAM 17MiB, 320×320 |
+| 네이티브 실행 | **동작**. ROM 헤더(`sony`/`vrna`)로 자동 인식, `--tg50`은 생략 가능 | `src/uarm/native/main.cpp`, `src/common/rom_info5.cpp`, RAM 17MiB, 320×320 |
 | 부팅: GPIO13/14 컨트롤러 IRQ 신호선 | **동작** | `src/uarm/uarm/deviceSonyTG50.cpp` |
 | 부팅: 전원 키 GPIO0 대기 상태 | **수정 완료**, 키 해제 대기 루프 통과 | `sonyTG50Initialize()` |
 | Setup 1~4(펜 보정 포함) | **동작** | TG50에서 E2용 펜 좌표 변환 패치 해제(`soc_PXA.cpp`) |
@@ -67,27 +67,29 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | AK4534 오디오 코덱(I²C) | 레지스터 모델만, PCM 출력 없음 | `src/uarm/uarm/i2sdev_AK4534.cpp` |
 | Memory Stick 컨트롤러 | 레지스터 모델만, 카드 미지원 | `src/uarm/uarm/mmiodev_MemoryStickController.cpp` |
 | 상태 저장·세션 파일 | **동작**(네이티브): `save-session <파일>`로 저장, 세션 파일로 실행하면 이어서 동작(절전 중 저장도 가능) | Sony 주변장치는 `sonyTG50` 저장 단위 하나, 절전 상태는 `pxaDeepSleep` 저장 단위. 기종은 세션 파일에서 읽음 |
-| 브라우저/WASM TG50 화면·입력 | 미구현 | 네이티브 입력 완성 후 진행 |
+| 브라우저/WASM | **동작**(PC Chrome, 휴대폰 브라우저): ROM 불러오기, 부팅, 터치, 하드 버튼. PC 키보드는 네이티브와 같게 연결, 브라우저에서 직접 입력 시험은 아직 | 기종 `PEG-TG50`(320×320, 실크스크린 없음, NR70 버튼 그림). 키 경로 `web/common/helper/hardwareKeyboard.ts` → 워커 → `Uarm.KeyDown/KeyUp`. **휴대폰에서는 아직 글자 입력 불가**(화면 키보드 없음). `.github/workflows/fork-pages.yml`로 배포 |
 
 ---
 
 ## Development order
 
-1. **Sleep follow-ups**: check RTC alarm wake; optionally map PC digit keys to Blue + top row.
-2. **TG50 display configuration**: drop the E2 silkscreen (or replace it with a keyboard image) without changing the E2's shared configuration.
-3. **Savestates**: done (native). The browser/WASM build has not been checked.
-4. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
-5. **Browser/WASM support**, then audio and Memory Stick.
+1. **Browser on-screen keyboard**: a TG50 keyboard image below the buttons, sending the same keys, so phones can type.
+2. **Sleep follow-ups**: check RTC alarm wake; optionally map PC digit keys to Blue + top row.
+3. **Native display configuration**: drop the E2 silkscreen in the native window (the browser already has none) without changing the E2's shared configuration.
+4. **Savestates in the browser**: native done; browser save/restore not checked yet.
+5. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
+6. Audio and Memory Stick.
 
 Detailed file-level checklist and fix history: [docs/sony-tg50-port.md](docs/sony-tg50-port.md).
 
 ## 개발 순서
 
-1. **절전 후속:** 알람(RTC)으로 깨우기를 확인하고, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
-2. **TG50 화면 설정:** E2와 공유하는 설정은 건드리지 않고 E2 실크스크린을 없애거나 키보드 그림으로 바꿉니다.
-3. **상태 저장:** 완료(네이티브). 브라우저/WASM 빌드는 확인하지 않음.
-4. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.
-5. **브라우저/WASM 지원**, 그다음 오디오와 Memory Stick.
+1. **브라우저 화면 키보드:** 버튼 줄 아래에 TG50 키보드 그림을 넣고 같은 키 신호를 보내 휴대폰에서도 입력할 수 있게 합니다.
+2. **절전 후속:** 알람(RTC)으로 깨우기를 확인하고, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
+3. **네이티브 화면 설정:** E2와 공유하는 설정은 건드리지 않고 네이티브 창의 E2 실크스크린을 없앱니다(브라우저에는 이미 없음).
+4. **브라우저 상태 저장:** 네이티브는 완료, 브라우저 저장·복원은 아직 확인하지 않음.
+5. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.
+6. 오디오와 Memory Stick.
 
 파일별 상세 점검표와 수정 이력: [TG50 포팅 기술 문서](docs/sony-tg50-port.md).
 
@@ -141,13 +143,13 @@ A diagnostic-only build may define `TG50_TRACE_GPIO` (PXA GPIO13/14 levels and G
 
 ## Experimental native TG50 ROM launch
 
-The native emulator offers an explicit device override for a Palm OS 5 NOR image:
+The native emulator identifies a TG50 NOR image from its ROM header (company `sony`, HAL `vrna`). `--tg50` still selects TG50 explicitly:
 
 ```sh
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-This does not identify arbitrary Sony ROM files automatically or bypass ROM-format validation. It defaults to 17 MiB RAM and does not take a NAND image. To resume, start the emulator with a saved session file instead of the ROM (`--tg50` is not needed; the session records the device type).
+Other Sony ROMs are not identified, and ROM-format validation is not bypassed. TG50 defaults to 17 MiB RAM and does not take a NAND image. To resume, start the emulator with a saved session file instead of the ROM (`--tg50` is not needed; the session records the device type).
 
 What to expect on first launch:
 
@@ -159,13 +161,13 @@ The E2 silkscreen drawn below the screen does nothing on TG50. Type with the PC 
 
 ## 실험용 TG50 네이티브 ROM 실행
 
-Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션입니다.
+네이티브 에뮬레이터는 ROM 헤더(회사 `sony`, HAL `vrna`)로 TG50 NOR 이미지를 인식합니다. `--tg50`으로 명시적으로 고를 수도 있습니다.
 
 ```sh
 ./src/uarm/cp-uarm --tg50 /path/to/TG50-ROM.bin
 ```
 
-이 옵션은 Sony ROM을 자동 판별하거나 ROM 형식 검사를 생략하지 않습니다. 기본 RAM은 17MiB이며 NAND 이미지는 받지 않습니다. 이어서 실행하려면 ROM 대신 저장한 세션 파일로 실행합니다(세션에 기종이 기록되므로 `--tg50`은 필요 없음).
+다른 Sony ROM은 인식하지 않으며 ROM 형식 검사도 생략하지 않습니다. TG50 기본 RAM은 17MiB이며 NAND 이미지는 받지 않습니다. 이어서 실행하려면 ROM 대신 저장한 세션 파일로 실행합니다(세션에 기종이 기록되므로 `--tg50`은 필요 없음).
 
 첫 실행 순서:
 
@@ -174,3 +176,55 @@ Palm OS 5 NOR 이미지로 TG50 기기를 명시적으로 선택하는 옵션입
 3. Setup 3에서 **Next**, Setup 4에서 **Done**을 누르면 CLIÉ 런처가 나타납니다.
 
 화면 아래에 그려지는 E2 실크스크린은 TG50에서 동작하지 않습니다. 입력은 PC 키보드로 합니다: 글자, Space, Enter, Backspace, Shift, Ctrl, F7 = Blue(숫자·기호), F9 = Red, Home = 런처, F11 = 조그 선택, Esc = 전원(절전·복귀).
+
+## Browser (WASM)
+
+Open **https://muns5965.github.io/cloudpilot-emu/**. No ROM is hosted; the ROM file stays in your browser.
+
+1. **Sessions → +**, choose the TG50 NOR ROM. The device shows as **Sony PEG-TG50** with 17 MB RAM.
+2. Start the session; Setup and pen calibration work as in native (tap with the mouse or finger).
+3. Hard buttons below the screen work (the button image is borrowed from the NR70).
+
+PC keyboard (same mapping as native):
+
+| Host key | TG50 |
+| --- | --- |
+| Letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-` | Same keys |
+| F7 / F9 | Blue / Red |
+| F1–F4 | Hard buttons 1–4 |
+| Arrows | Up / Down / Left / Right |
+| PageUp / PageDown / End / F11 | Jog up / down / back / select |
+| Home | Home |
+| F5 / `` ` `` | Voice / Graffiti |
+| Esc | Power (sleep/wake) |
+| Ctrl+Shift | Toggle game mode (keys drive buttons, as for other devices) |
+
+Limits: phones have no way to type yet (no on-screen keyboard). F5 is captured while the emulator runs, so it does not reload the page.
+
+Deployment: `.github/workflows/fork-pages.yml` builds the WASM core and the PWA on each push to `feature/sony-tg50` (or manually) and deploys to GitHub Pages. One-time setup: Settings → Pages → Source = GitHub Actions, and allow the branch under Settings → Environments → github-pages → Deployment branches.
+
+## 브라우저(WASM) 실행
+
+**https://muns5965.github.io/cloudpilot-emu/** 를 엽니다. ROM은 올라가 있지 않으며, ROM 파일은 브라우저 안에서만 쓰입니다.
+
+1. **Sessions → +** 에서 TG50 NOR ROM을 고릅니다. 기종은 **Sony PEG-TG50**, RAM은 17MB로 표시됩니다.
+2. 세션을 실행하면 네이티브와 같이 Setup과 펜 보정이 진행됩니다(마우스나 손가락으로 누름).
+3. 화면 아래 하드 버튼이 동작합니다(버튼 그림은 NR70 것을 빌려 씀).
+
+PC 키보드(네이티브와 같은 연결):
+
+| PC 키 | TG50 |
+| --- | --- |
+| 글자, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-` | 같은 키 |
+| F7 / F9 | Blue / Red |
+| F1~F4 | 하드 버튼 1~4 |
+| 방향키 | 위 / 아래 / 왼쪽 / 오른쪽 |
+| PageUp / PageDown / End / F11 | 조그 위 / 아래 / 뒤로 / 선택 |
+| Home | 홈 |
+| F5 / `` ` `` | 음성 / 그래피티 |
+| Esc | 전원(절전·복귀) |
+| Ctrl+Shift | 게임 모드 전환(다른 기종처럼 키가 버튼을 누름) |
+
+제한: 휴대폰에서는 아직 글자를 입력할 방법이 없습니다(화면 키보드 없음). 에뮬레이터 실행 중에는 F5를 에뮬레이터가 받으므로 페이지 새로고침이 되지 않습니다.
+
+배포: `.github/workflows/fork-pages.yml`이 `feature/sony-tg50`에 push할 때마다(또는 수동 실행) WASM과 PWA를 빌드해 GitHub Pages에 올립니다. 처음 한 번 설정: Settings → Pages → Source = GitHub Actions, 그리고 Settings → Environments → github-pages → Deployment branches에서 이 브랜치를 허용합니다.
