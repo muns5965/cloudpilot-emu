@@ -49,7 +49,7 @@ Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_har
 3. In the settings dialog, tap **Boot ROM (TG50 ROM, required)** and choose a TG50 NOR ROM. Its first 0x18000 bytes are copied over the start of the NX70V ROM in this browser only.
 4. Save, select the session and press ▶. Setup and calibration as on the device.
 
-On-screen keyboard: NX70V layout (positions measured on a device photo; keys drawn as plain shapes). Tap **Fn**, **Alt**, **Shift** or **Ctrl** to latch it for the next key. Blue characters: Fn, purple: Alt, as the European NX70V ROM types them. PC keys are the same as for the TG50 (F7 = Fn, F9 = Alt).
+On-screen keyboard: NX70V layout (positions measured on a device photo; keys drawn as plain shapes). Tap **Fn**, **Alt**, **Shift** or **Ctrl** to latch it for the next key. Blue characters: Fn, purple: Alt, as the European NX70V ROM types them. PC keys are the same as for the TG50 (F7 = Fn, F9 = Alt). **Hide ⌨** (end of the bottom row) folds the keyboard away so the screen gets larger; **⌨ Show keyboard** brings it back.
 
 Do not export or share NX70V sessions: they contain the TG50 boot ROM.
 
@@ -120,7 +120,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 3. 설정 창의 **Boot ROM (TG50 ROM, required)** 칸을 눌러 TG50 NOR ROM을 고릅니다. 그 앞 0x18000바이트를 이 브라우저 안에서만 NX70V ROM 앞부분에 덮어씁니다.
 4. 저장한 뒤 세션을 선택하고 ▶를 누릅니다. Setup과 펜 보정은 실기와 같습니다.
 
-화면 키보드: NX70V 배열(실기 사진에서 위치를 측정, 키는 단순 도형으로 그림). **Fn**, **Alt**, **Shift**, **Ctrl**을 탭하면 다음 키 한 번에 적용됩니다. 파란 글자는 Fn, 보라 글자는 Alt로, 유럽판 NX70V ROM이 실제로 내는 글자입니다. PC 키는 TG50과 같습니다(F7 = Fn, F9 = Alt).
+화면 키보드: NX70V 배열(실기 사진에서 위치를 측정, 키는 단순 도형으로 그림). **Fn**, **Alt**, **Shift**, **Ctrl**을 탭하면 다음 키 한 번에 적용됩니다. 파란 글자는 Fn, 보라 글자는 Alt로, 유럽판 NX70V ROM이 실제로 내는 글자입니다. PC 키는 TG50과 같습니다(F7 = Fn, F9 = Alt). 맨 아래 줄 끝의 **Hide ⌨** 로 키보드를 접으면 화면이 커지고, **⌨ Show keyboard** 로 다시 폅니다.
 
 NX70V 세션은 TG50 부트 ROM을 포함하므로 내보내거나 공유하지 않습니다.
 
