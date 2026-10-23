@@ -26,9 +26,9 @@ Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c�
 | QWERTY keyboard (Sony controller matrix) | **Works** | Typing in Memo Pad; fast typing (40 ms per key) is correct |
 | Hard buttons, jog dial keys | **Works** | |
 | Power key, sleep/resume | **Works** | Sleep turns the screen off; the next press resumes. RTC alarm wake not checked |
-| Session files | **Works** (native) | Also while asleep. Browser save/restore not checked |
-| Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons, on-screen keyboard | PC keyboard in the browser not yet tested by hand |
-| Native window | Works | Still draws the E2 Graffiti silkscreen, which does nothing on TG50 |
+| Session files | **Works** | Native: also while asleep. Browser: state is resumed after closing and reopening (tested in Chromium) |
+| Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons, on-screen keyboard | PC keyboard in the browser tested in Chromium (letters, Shift, digits, key repeat, release on focus loss) |
+| Native window | Works | Screen only (320×320), no silkscreen |
 | Audio (AK4534), Memory Stick | Register models only | No sound, no media |
 | CI | **Passing** | Native build, controller compile check, browser build and deployment |
 
@@ -54,7 +54,7 @@ Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c�
 | Esc | Power (sleep/wake) |
 | Ctrl+Shift | Game mode on/off (keys drive the hard buttons) |
 
-PC digit keys are not mapped; use Blue + top row. While the emulator runs, F5 does not reload the page.
+PC digit keys (row and numpad) type `1`–`0` (sent as Blue + top row). Holding a key repeats. While the emulator runs, F5 does not reload the page.
 
 ## Native build
 
@@ -70,10 +70,9 @@ The ROM is identified automatically; `--tg50` forces TG50. Type `save-session <f
 
 ## Next
 
-1. Hand test of the on-screen keyboard and PC keyboard in the browser; browser session save/restore.
-2. RTC alarm wake; optionally PC digit keys → Blue + top row.
-3. Native window without the E2 silkscreen.
-4. Audio and Memory Stick.
+1. Phone check of browser session resume.
+2. RTC alarm wake.
+3. Audio and Memory Stick.
 
 NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) (native only so far).
 
@@ -111,9 +110,9 @@ uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했�
 | QWERTY 키보드(Sony 마이컴 매트릭스) | **동작** | 메모장 입력 확인, 빠른 입력(키당 40ms)도 정확 |
 | 하드 버튼, 조그 다이얼 키 | **동작** | |
 | 전원 키, 절전·복귀 | **동작** | 절전하면 화면이 꺼지고 다시 누르면 복귀. 알람(RTC)으로 깨우기는 미확인 |
-| 세션 파일 | **동작**(네이티브) | 절전 중 저장도 가능. 브라우저 저장·복원은 미확인 |
-| 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼, 화면 키보드 | 브라우저에서 PC 키보드는 아직 직접 시험 전 |
-| 네이티브 창 | 동작 | E2 그래피티 실크스크린이 아직 그려지며 TG50에서는 기능 없음 |
+| 세션 파일 | **동작** | 네이티브: 절전 중 저장도 가능. 브라우저: 닫았다 다시 열면 이어서 실행(Chromium 확인) |
+| 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼, 화면 키보드 | 브라우저 PC 키보드는 Chromium에서 시험(글자, Shift, 숫자, 키 반복, 포커스 잃을 때 키 해제) |
+| 네이티브 창 | 동작 | 화면만 표시(320×320), 실크스크린 없음 |
 | 오디오(AK4534), Memory Stick | 레지스터 모델만 | 소리·카드 없음 |
 | CI | **통과** | 네이티브 빌드, 마이컴 컴파일 검사, 브라우저 빌드·배포 |
 
@@ -139,7 +138,7 @@ uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했�
 | Esc | 전원(절전·복귀) |
 | Ctrl+Shift | 게임 모드 켜기·끄기(키로 하드 버튼을 누름) |
 
-PC 숫자 키는 연결되지 않았으니 Blue + 윗줄을 씁니다. 에뮬레이터 실행 중에는 F5로 페이지가 새로고침되지 않습니다.
+PC 숫자 키(윗줄·숫자패드)로 `1`~`0`이 입력됩니다(Blue + 윗줄로 전달). 키를 누르고 있으면 반복 입력됩니다. 에뮬레이터 실행 중에는 F5로 페이지가 새로고침되지 않습니다.
 
 ## 네이티브 빌드
 
@@ -155,10 +154,9 @@ ROM은 자동 인식되며 `--tg50`으로 강제할 수도 있습니다. 터미�
 
 ## 다음 단계
 
-1. 브라우저에서 화면 키보드·PC 키보드 직접 시험, 브라우저 세션 저장·복원 확인.
-2. 알람(RTC)으로 깨우기, 필요하면 PC 숫자 키 → Blue + 윗줄.
-3. 네이티브 창에서 E2 실크스크린 제거.
-4. 오디오와 Memory Stick.
+1. 휴대폰에서 브라우저 세션 이어하기 확인.
+2. 알람(RTC)으로 깨우기.
+3. 오디오와 Memory Stick.
 
 NX70V 작업은 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v)에서 진행합니다(아직 네이티브 전용).
 
