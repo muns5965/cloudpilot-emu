@@ -71,7 +71,8 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct GetEmuTime getEmuTime = {.getTimeF = GetTimeCB, .userdata = this};
 
     this->socRev = socRev;
-    tg50Mode = deviceType == deviceTypeSonyTG50;
+    // NX70V shares the TG50 peripheral set (see deviceSonyTG50.cpp).
+    tg50Mode = deviceType == deviceTypeSonyTG50 || deviceType == deviceTypeSonyNX70V;
 
     if (ramSize == 0) ramSize = tg50Mode ? sony_tg50::kRamSize : 16ul << 20;
     if (!deviceConfigurationSupportsRamSize(deviceType, ramSize))

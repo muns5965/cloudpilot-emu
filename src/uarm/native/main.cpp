@@ -49,11 +49,59 @@ struct Options {
     optional<unsigned int> ramSize;
     bool smallWindow;
     bool forceTg50;
+    bool forceNx70v;
+    optional<string> bootRom;
     optional<DisplayMode> displayMode;
 };
 
 namespace {
     constexpr size_t AUDIO_QUEUE_SIZE = 44100 / MAIN_LOOP_FPS * 10;
+
+    // PEG-NX70V: the known dump holds device data, not the small boot ROM, at 0x0-0x1FFFF.
+    // --boot-rom copies the first 0x18000 bytes of another Sony NOR image over it, in memory only.
+    constexpr size_t NX70V_BOOT_ROM_SIZE = 0x18000;
+    constexpr uint32_t PALM_CARD_SIGNATURE = 0xFEEDBEEF;
+
+    uint32_t readLe32(const uint8_t* p) {
+        return p[0] | (p[1] << 8) | (p[2] << 16) | (static_cast<uint32_t>(p[3]) << 24);
+    }
+
+    bool hasPalmCardHeaderAt(const uint8_t* data, size_t size, size_t offset) {
+        return size >= offset + 12 && readLe32(data + offset + 8) == PALM_CARD_SIGNATURE;
+    }
+
+    bool applyNx70vBootRom(const Options& options, uint8_t* nor, size_t norSize) {
+        if (!hasPalmCardHeaderAt(nor, norSize, 0x20000)) {
+            cerr << "--nx70v: no Palm OS ROM header at 0x20000" << endl;
+            return false;
+        }
+
+        if (hasPalmCardHeaderAt(nor, norSize, 0)) {
+            if (options.bootRom) cerr << "--nx70v: ROM already has a boot ROM at 0x0; --boot-rom ignored" << endl;
+            return true;
+        }
+
+        if (!options.bootRom) {
+            cerr << "--nx70v: this ROM has no boot ROM at 0x0 (device data instead)." << endl
+                 << "Pass --boot-rom <Sony NOR image>; its first 0x18000 bytes are used in memory only."
+                 << endl;
+            return false;
+        }
+
+        size_t bootLen{0};
+        unique_ptr<uint8_t[]> bootData;
+        if (!util::ReadFile(*options.bootRom, bootData, bootLen)) return false;
+
+        if (!hasPalmCardHeaderAt(bootData.get(), bootLen, 0) || bootLen < NX70V_BOOT_ROM_SIZE) {
+            cerr << "--boot-rom: no boot ROM (Palm OS card header) at 0x0" << endl;
+            return false;
+        }
+
+        memcpy(nor, bootData.get(), NX70V_BOOT_ROM_SIZE);
+        cerr << "using boot ROM from " << *options.bootRom << " (0x0-0x17FFF, in memory only)" << endl;
+
+        return true;
+    }
 
     uint32_t ramSizeFromMemorySize(uint32_t memorySize) {
         return 1 << (31 - __builtin_clz(memorySize));
@@ -130,8 +178,8 @@ namespace {
 
         if (SessionFile5::IsSessionFile(norOrSessionLen, norOrSessionData.get()) &&
             sessionFile.Deserialize(norOrSessionLen, norOrSessionData.get())) {
-            if (options.forceTg50) {
-                cerr << "--tg50 accepts a raw NOR ROM, not a saved session" << endl;
+            if (options.forceTg50 || options.forceNx70v) {
+                cerr << "--tg50/--nx70v accept a raw NOR ROM, not a saved session" << endl;
                 return false;
             }
             if (options.nand) {
@@ -169,6 +217,10 @@ namespace {
 
             ramSize = 0;
 
+            if (options.forceNx70v &&
+                !applyNx70vBootRom(options, norOrSessionData.get(), norOrSessionLen))
+                return false;
+
             nor.size = norOrSessionLen;
             nor.data = norOrSessionData.release();
 
@@ -198,11 +250,13 @@ namespace {
         cerr << romInfo;
 
         if (!romInfo.IsValid()) return false;
-        const DeviceType5 deviceType =
-            options.forceTg50 ? DeviceType5::deviceTypeSonyTG50 : romInfo.GetDeviceType();
+        const bool sonyDevice = options.forceTg50 || options.forceNx70v;
+        const DeviceType5 deviceType = options.forceNx70v ? DeviceType5::deviceTypeSonyNX70V
+                                       : options.forceTg50 ? DeviceType5::deviceTypeSonyTG50
+                                                           : romInfo.GetDeviceType();
         if (deviceType == DeviceType5::deviceTypeInvalid) return false;
-        if (options.forceTg50 && options.nand) {
-            cerr << "TG50 has no E2-style NAND; omit --nand" << endl;
+        if (sonyDevice && options.nand) {
+            cerr << "TG50/NX70V have no E2-style NAND; omit --nand" << endl;
             return false;
         }
 
@@ -216,7 +270,7 @@ namespace {
         }
 
         if (ramSize == 0)
-            ramSize = options.forceTg50 ? (17ul << 20) : romInfo.GetRecommendedRamSize();
+            ramSize = sonyDevice ? (17ul << 20) : romInfo.GetRecommendedRamSize();
 
         if (!deviceConfigurationSupportsRamSize(deviceType, ramSize)) {
             cerr << "unsupported RAM size: " << ramSize << " bytes" << endl;
@@ -317,7 +371,8 @@ namespace {
         auto sdlRenderer =
             make_unique<SdlRenderer>(window, soc, scale, displayConfiguration, rotation);
         SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation,
-                                        deviceType == DeviceType5::deviceTypeSonyTG50);
+                                        deviceType == DeviceType5::deviceTypeSonyTG50 ||
+                                            deviceType == DeviceType5::deviceTypeSonyNX70V);
 
         SdlAudioDriver audioDriver(soc, audioQueue);
         if (!options.disableAudio) audioDriver.Start();
@@ -398,6 +453,15 @@ int main(int argc, char** argv) {
         .default_value(false)
         .implicit_value(true);
 
+    program.add_argument("--nx70v")
+        .help("experimental Sony PEG-NX70V mode (raw Palm OS 5 NOR ROM only)")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--boot-rom")
+        .help("with --nx70v: Sony NOR image whose boot ROM (0x0-0x17FFF) is used in memory")
+        .metavar("<NOR file>");
+
     program.add_argument("--nand", "-n").help("NAND rom file").metavar("<nand file>");
 
     program.add_argument("--sd", "-s").help("SD card file").metavar("<SD card file>");
@@ -473,7 +537,18 @@ int main(int argc, char** argv) {
                        .ramSize = program.present<unsigned int>("--ram-size"),
                        .smallWindow = program.get<bool>("--small-window"),
                        .forceTg50 = program.get<bool>("--tg50"),
+                       .forceNx70v = program.get<bool>("--nx70v"),
+                       .bootRom = program.present("--boot-rom"),
                        .displayMode = program.present<DisplayMode>("--display")};
+
+    if (options.forceTg50 && options.forceNx70v) {
+        cerr << "--tg50 and --nx70v are mutually exclusive" << endl;
+        exit(1);
+    }
+    if (options.bootRom && !options.forceNx70v) {
+        cerr << "--boot-rom requires --nx70v" << endl;
+        exit(1);
+    }
 
     logEnable();
 
