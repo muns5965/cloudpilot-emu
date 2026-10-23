@@ -138,9 +138,9 @@ So a minimal model is: `+0x10` returns `0xC0`, other registers accept writes.
 - With bit `0x10` cleared, taps reach the HAL. Of five coordinate mappings tried, only **X and Y both inverted** (relative to TG50) passed pen calibration. The 480 lines are currently scaled into the TG50 raw range (`×2/3`).
 - Result: Setup 1–4 including calibration, then the **CLIÉ Launcher** (320×480, input area collapsed). Tapping the status bar opens the virtual Graffiti area.
 
-### NX70V settings needed in the diagnostic build
+### NX70V settings (implemented as `--nx70v`)
 
-All four are scratch-only and enabled with `NX70V_DIAG` (TG50 runs unchanged):
+First found with scratch-only `NX70V_DIAG` changes, then implemented in the branch as the `--nx70v` mode (`deviceTypeSonyNX70V`, sharing the TG50 peripherals with a variant flag). `--boot-rom <TG50 NOR>` copies the TG50 boot ROM (`0x0`–`0x17FFF`) over the device data in memory only. Verified 2026-10-23: Setup, pen calibration and the CLIÉ Launcher; TG50 `--tg50` Setup/calibration unchanged.
 
 | # | Setting | Value |
 | --- | --- | --- |
@@ -152,7 +152,7 @@ All four are scratch-only and enabled with `NX70V_DIAG` (TG50 runs unchanged):
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. Decide whether to add a real NX70V device type with the four settings above. Booting would still need a small boot ROM.
+2. With `--nx70v`: check apps, keyboard and sleep; savestates.
 
 ## 한국어
 
@@ -183,9 +183,9 @@ All four are scratch-only and enabled with `NX70V_DIAG` (TG50 runs unchanged):
   - "Sony Sys Library"가 스위치 상태가 `Hold_By_HoldKey`이면 펜 인터럽트를 끔(다른 상태: `Hold_OFF`, `Hold_By_FlipClose`). 상태는 Sony 마이컴 포트 A(`0x08000000`)에서 읽고 **비트 `0x10` = HOLD**. TG50 마이컴 모델이 `0xF010`을 돌려줘 NX70V가 HOLD 켜짐으로 판단.
   - 비트 `0x10`을 지우자 탭이 전달됨. 좌표 변환 5가지 중 **X·Y 모두 반전**(TG50 기준)만 펜 보정 통과. 480줄은 TG50 원시값 범위로 줄여 넣음(`×2/3`).
   - 결과: 펜 보정 포함 Setup 1~4 완료 → **CLIÉ 런처**(320×480, 입력 영역 접힘). 상태 표시줄 탭으로 가상 그래피티 영역 열림.
-- **진단 빌드에서 필요한 NX70V 설정 4가지**(모두 작업 사본, `NX70V_DIAG`일 때만):
+- **NX70V 설정 4가지**(처음엔 작업 사본 `NX70V_DIAG`로 찾고, 이후 `--nx70v` 모드로 브랜치에 구현. `--boot-rom <TG50 NOR>`이 TG50 부트 ROM을 메모리에서만 덮어씀. 2026-10-23 Setup·펜 보정·CLIÉ 런처 확인, TG50 `--tg50` 보정 영향 없음):
   1. `0x10000000` CF 슬롯 컨트롤러 최소 모델: `+0x10` = `0xC0`(카드 없음), 나머지 쓰기 수용
   2. 화면 320×480
   3. Sony 마이컴 포트 A 비트 `0x10`(HOLD) 끄기
   4. 펜 좌표 X·Y 반전, 480줄을 TG50 원시값 범위로 축소
-- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 위 4가지 설정을 정식 NX70V 기종으로 코드에 넣을지 결정(부팅에는 여전히 작은 부트 ROM 필요).
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. `--nx70v`로 앱·키보드·절전 확인, 상태 저장.
