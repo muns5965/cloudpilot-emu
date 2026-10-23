@@ -19,11 +19,11 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
 | Savestates / sessions | Works (native) | See "Savestates" below |
-| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. No text input on phones yet |
+| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. On-screen keyboard added, not yet hand-tested |
 
 ## Remaining work
 
-0. **Browser on-screen keyboard** for phones (the raw key path already exists).
+0. **Browser:** hand test of the on-screen keyboard and PC keyboard; session save/restore.
 1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
 3. **Savestates:** done for native sessions; browser save/restore not checked.
@@ -253,4 +253,4 @@ Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard 
 - Keyboard: `binding.d.ts` `KeyId` now lists the TG50 keys (11–54, same values as `keys.h`). `hardwareKeyboard.ts` maps `KeyboardEvent.code` like `SdlEventHandler.cpp`. `GenericEventHandlingService` sends raw key down/up through `AbstractEmulationService.handleHardwareKeyDown/Up` → `EngineUarm.keyDown/keyUp` → worker messages `keyDown`/`keyUp` → `Uarm.keyDown/keyUp` → `Uarm::KeyDown/KeyUp`. Auto-repeat is ignored; held keys are released on blur, unbind and when game mode is switched on. Other devices are unchanged.
 - Deployment: `.github/workflows/fork-pages.yml` (emsdk 6.0.0, `make -Csrc emscripten`, lint, tests, `build-preview` with the repo base path, `actions/deploy-pages`). The `github-pages` environment must allow the branch.
 - Verified: CI build, lint and 55 tests; type-check with `pwa/tsconfig.app.json` and `tsconfig.worker.json`; native auto-detect boot to Setup. In the browser (user test, phone): ROM import, boot, To Do opened with a hard button. PC keyboard typing in the browser is not yet reported.
-
+- On-screen keyboard (TG50 only): `hardwareKeyboardLayout.ts` defines the keys after the manual's keyboard drawing (p. 94), plus a row for Home, Graffiti, Voice, jog and Back; `AbstractCanvasDisplayService` adds a keyboard area below the hard buttons (layout, drawing, hit test) and `GenericEventHandlingService` sends the keys. A native test showed the ROM applies Shift and Blue only while held (Blue tap, then Q → `q`; Blue held + W → `2`), so Shift, Blue, Red and Ctrl latch on the on-screen keyboard and are held down together with the next key.
