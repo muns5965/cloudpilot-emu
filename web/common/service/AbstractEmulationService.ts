@@ -86,7 +86,9 @@ export abstract class AbstractEmulationService {
     }
 
     handleHardwareKeyUp(key: number): void {
-        if (!this.engine?.isRunning() || this.engine.type !== 'uarm') return;
+        // Also while paused (e.g. a modal is open): the core queues the release and applies it
+        // on resume, so a key pressed before the pause does not stay down.
+        if (this.engine?.type !== 'uarm') return;
 
         this.engine.keyUp(key);
     }

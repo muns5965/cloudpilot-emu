@@ -386,8 +386,7 @@ export class GenericEventHandlingService {
     };
 
     private handleKeyUp = (e: KeyboardEvent): void => {
-        if (this.emulationService.isSuspended() || !this.enableKeyboardEvents()) return;
-
+        // Release a pressed device key even while a modal is open; otherwise it stays down.
         const hardwareKeys = this.activeHardwareKeys.get(e.code);
         if (hardwareKeys !== undefined) {
             this.activeHardwareKeys.delete(e.code);
@@ -396,6 +395,8 @@ export class GenericEventHandlingService {
 
             return;
         }
+
+        if (this.emulationService.isSuspended() || !this.enableKeyboardEvents()) return;
 
         const button = this.buttonFromEvent(e);
         if (button !== undefined) {

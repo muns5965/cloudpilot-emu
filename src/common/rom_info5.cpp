@@ -157,8 +157,9 @@ uint32_t RomInfo5::Read32(size_t offset, bool& error) const {
         return 0;
     }
 
-    return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) |
-           (buffer[offset + 3] << 24);
+    return static_cast<uint32_t>(buffer[offset]) | (static_cast<uint32_t>(buffer[offset + 1]) << 8) |
+           (static_cast<uint32_t>(buffer[offset + 2]) << 16) |
+           (static_cast<uint32_t>(buffer[offset + 3]) << 24);
 }
 
 std::string RomInfo5::ReadString(size_t offset, uint8_t maxLen, bool& error) const {
@@ -168,6 +169,11 @@ std::string RomInfo5::ReadString(size_t offset, uint8_t maxLen, bool& error) con
     bool terminated = false;
 
     for (size_t i = 0; i < maxLen && !terminated; i++) {
+        if (offset >= size || i >= size - offset) {
+            error = true;
+            return "";
+        }
+
         str[i] = buffer[offset + i];
         terminated = str[i] == '\0';
     }
