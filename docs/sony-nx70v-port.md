@@ -152,7 +152,16 @@ First found with scratch-only `NX70V_DIAG` changes, then implemented in the bran
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. With `--nx70v`: check apps, keyboard and sleep; savestates.
+2. Sleep/resume, fast-typing drops (shared with TG50), savestates, CF cards.
+
+### `--nx70v` usage test (2026-10-23)
+
+| Item | Result |
+| --- | --- |
+| Hard buttons | F2 Address, F3 To Do, F4 Memo launch; F1 shows no change (NX70V button 1 not checked) |
+| Keyboard | ROM key table equals TG50's (only `,`/`;` positions differ); a–z typed slowly all correct in Memo Pad; very fast typing drops keys, as on TG50 |
+| Apps | CLIÉ Album ("No Album"), Calculator (`1 + 3 =` by taps → 4), Memo Pad |
+| Power key (Esc) | No effect, no sleep (same as TG50; matrix only) |
 
 ## 한국어
 
@@ -188,4 +197,5 @@ First found with scratch-only `NX70V_DIAG` changes, then implemented in the bran
   2. 화면 320×480
   3. Sony 마이컴 포트 A 비트 `0x10`(HOLD) 끄기
   4. 펜 좌표 X·Y 반전, 480줄을 TG50 원시값 범위로 축소
-- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. `--nx70v`로 앱·키보드·절전 확인, 상태 저장.
+- **`--nx70v` 사용 시험(2026-10-23)**: F2 주소록·F3 할 일·F4 메모장 실행(F1은 변화 없음). 키 표는 TG50과 같고 천천히 입력하면 a~z 정확, 빠른 입력은 누락(TG50과 같음). CLIÉ 앨범·계산기(탭으로 `1 + 3 =` → 4)·메모장 동작. 전원 키(Esc)는 변화 없음(TG50과 같음).
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 절전·복귀, 빠른 입력 누락(TG50과 공통), 상태 저장, CF 카드.
