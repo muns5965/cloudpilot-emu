@@ -333,11 +333,13 @@ export abstract class AbstractCanvasDisplayService {
         for (const k of this.keyboardKeys) {
             const background = k.toggle
                 ? BACKGROUND_KEY_TOGGLE
-                : latched.has(k.key)
-                  ? BACKGROUND_KEY_LATCHED
-                  : active.has(k.key)
-                    ? BACKGROUND_KEY_ACTIVE
-                    : BACKGROUND_KEY;
+                : active.has(k.key)
+                  ? BACKGROUND_KEY_ACTIVE
+                  : k.background
+                    ? k.background
+                    : latched.has(k.key)
+                      ? BACKGROUND_KEY_LATCHED
+                      : BACKGROUND_KEY;
 
             this.ctx.beginPath();
             this.ctx.roundRect(

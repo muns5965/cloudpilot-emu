@@ -20,6 +20,8 @@ export interface OnScreenKey {
     color?: string;
     // Shows / hides the on-screen keyboard instead of sending a key
     toggle?: boolean;
+    // Key background (default: plain key)
+    background?: string;
     x: number;
     y: number;
     width: number;
@@ -148,6 +150,10 @@ const EXTRA_KEYS: Array<{ key: KeyId; label: string }> = [
     { key: KeyId.keyIdJogBack, label: 'Back' },
 ];
 
+// Power: sleep / wake (the same key as Esc on a PC keyboard)
+const POWER_KEY = { key: KeyId.keyIdPower, label: '⏻ Power', color: 'white', background: '#424242' };
+const POWER_UNITS = 1.4;
+
 const TOGGLE_LABEL_HIDE = '⌨ ▼ Hide';
 const TOGGLE_LABEL_SHOW = '⌨ ▲ Show keyboard';
 // The hide key is wider than the device buttons next to it
@@ -201,6 +207,7 @@ function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
     const extraTop = mainHeight(spec, width) + LABEL_SPACE;
     const extraKeys = [
         ...EXTRA_KEYS.map((key) => ({ ...key, units: 1 })),
+        { ...POWER_KEY, units: POWER_UNITS },
         { key: KeyId.keyInvalid, label: TOGGLE_LABEL_HIDE, toggle: true, units: TOGGLE_UNITS },
     ];
     const unit = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / extraKeys.reduce((acc, { units }) => acc + units, 0);
@@ -224,14 +231,24 @@ function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
 // Collapsed: a single strip that shows the keyboard again. It starts after the gap on the left,
 // where the PWA places its floating menu button.
 function buildCollapsedLayout(width: number): Array<OnScreenKey> {
+    const available = width - EXTRA_ROW_LEFT_GAP - MARGIN;
+    const powerWidth = available * 0.3;
+
     return [
+        {
+            ...POWER_KEY,
+            x: EXTRA_ROW_LEFT_GAP,
+            y: MARGIN / 2,
+            width: powerWidth,
+            height: COLLAPSED_HEIGHT - MARGIN,
+        },
         {
             key: KeyId.keyInvalid,
             label: TOGGLE_LABEL_SHOW,
             toggle: true,
-            x: EXTRA_ROW_LEFT_GAP,
+            x: EXTRA_ROW_LEFT_GAP + powerWidth,
             y: MARGIN / 2,
-            width: width - EXTRA_ROW_LEFT_GAP - MARGIN,
+            width: available - powerWidth,
             height: COLLAPSED_HEIGHT - MARGIN,
         },
     ];
