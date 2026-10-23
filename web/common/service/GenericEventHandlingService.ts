@@ -390,7 +390,7 @@ export class GenericEventHandlingService {
         const hardwareKeys = this.activeHardwareKeys.get(e.code);
         if (hardwareKeys !== undefined) {
             this.activeHardwareKeys.delete(e.code);
-            this.releaseHardwareKeyChord(hardwareKeys);
+            this.releaseDeviceKeys(hardwareKeys);
             e.preventDefault();
 
             return;
@@ -481,11 +481,10 @@ export class GenericEventHandlingService {
     }
 
     private handleOnScreenKeyboardToggle(): void {
-        for (const key of this.activeOnScreenKeys) {
-            this.emulationService.handleHardwareKeyUp(key);
-        }
+        const keys = [...this.activeOnScreenKeys];
         this.activeOnScreenKeys.clear();
         this.latchedOnScreenKeys.clear();
+        this.releaseDeviceKeys(keys);
 
         void this.canvasDisplayService.toggleKeyboard();
     }
@@ -493,10 +492,8 @@ export class GenericEventHandlingService {
     private handleOnScreenKeyUp(keys: Array<number>): void {
         if (keys.length === 0) return;
 
-        for (const k of [...keys].reverse()) {
-            this.activeOnScreenKeys.delete(k);
-            this.emulationService.handleHardwareKeyUp(k);
-        }
+        for (const k of keys) this.activeOnScreenKeys.delete(k);
+        this.releaseDeviceKeys(keys);
 
         this.drawOnScreenKeyboard();
     }
@@ -506,15 +503,28 @@ export class GenericEventHandlingService {
     }
 
     private releaseHardwareKeys = (): void => {
-        for (const keys of this.activeHardwareKeys.values()) {
-            this.releaseHardwareKeyChord(keys);
-        }
-
+        const chords = [...this.activeHardwareKeys.values()];
         this.activeHardwareKeys.clear();
+
+        for (const keys of chords) this.releaseDeviceKeys(keys);
     };
 
-    private releaseHardwareKeyChord(keys: Array<number>): void {
-        for (let i = keys.length - 1; i >= 0; i--) this.emulationService.handleHardwareKeyUp(keys[i]);
+    // Releases device keys in reverse order, except keys still held by another host key or an
+    // on-screen key (e.g. Blue held with F7 while a digit chord Blue + Q is released).
+    private releaseDeviceKeys(keys: Array<number>): void {
+        for (let i = keys.length - 1; i >= 0; i--) {
+            if (!this.isDeviceKeyHeld(keys[i])) this.emulationService.handleHardwareKeyUp(keys[i]);
+        }
+    }
+
+    private isDeviceKeyHeld(key: number): boolean {
+        if (this.activeOnScreenKeys.has(key)) return true;
+
+        for (const keys of this.activeHardwareKeys.values()) {
+            if (keys.includes(key)) return true;
+        }
+
+        return false;
     }
 
     // Devices with a hardware keyboard get raw device keys unless game mode is on.
