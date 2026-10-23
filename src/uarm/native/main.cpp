@@ -320,6 +320,10 @@ namespace {
         DisplayConfiguration displayConfiguration =
             deviceConfigurationDisplayConfigForMode(*displayMode);
 
+        // The TG50 has a keyboard instead of a silkscreen: the window shows the screen only
+        // (the web version does the same).
+        if (deviceType == DeviceType5::deviceTypeSonyTG50) displayConfiguration.graffitiHeight = 0;
+
         SoC* soc =
             (deviceType == DeviceType5::deviceTypePV)
                 ? static_cast<SoC*>(new SocPV(ramSize, nor.data, nor.size, *displayMode, gdbPort))
