@@ -1,6 +1,6 @@
 # CloudpilotEmu — Sony CLIÉ PEG-NX70V investigation branch
 
-> **Experimental.** The native build has an `--nx70v` mode: NX70V Palm OS completes Setup (with pen calibration) and reaches the CLIÉ Launcher. Because the known dump lacks the small boot ROM, it still borrows the boot ROM of a TG50 NOR image at run time (`--boot-rom`). This branch was created from [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) and uses its TG50 code (the `--tg50` path and the TG50 device models) as the base. NX70V reuses the TG50 peripheral code with four NX70V differences.
+> **Experimental.** NX70V also runs in the browser at **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** (see [Browser](#browser); TG50 runs there too). The native build has an `--nx70v` mode: NX70V Palm OS completes Setup (with pen calibration) and reaches the CLIÉ Launcher. Because the known dump lacks the small boot ROM, it still borrows the boot ROM of a TG50 NOR image at run time (`--boot-rom`). This branch was created from [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) and uses its TG50 code (the `--tg50` path and the TG50 device models) as the base. NX70V reuses the TG50 peripheral code with four NX70V differences.
 
 [**NX70V notes**](docs/sony-nx70v-port.md) · [**TG50 branch README**](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md) · [**TG50 technical notes**](docs/sony-tg50-port.md) · [**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu)
 
@@ -22,6 +22,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Hard buttons | **Works**: F1 Date Book, F2 Address, F3 To Do, F4 Memo (factory setting per the NX70V manual, p. 45) | The first press after boot used to be lost (shared with TG50; fixed by swapping the controller's edge-detect registers) |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
 | Power key (Esc), sleep/resume | **Works** | Shared with TG50: Esc sleeps (screen off), Esc again wakes; keyboard works after resume |
+| Browser | **Built and deployed**; not yet tried by hand | Device `PEG-NX70V`, TG50 ROM as boot ROM in the session settings, on-screen keyboard with the NX70V layout |
 | Session files | **Works** | Shared with TG50: `save-session <file>`, then start the emulator with the session file (no `--nx70v`/`--boot-rom` needed); also while asleep |
 
 ## NX70V differences in `--nx70v`
@@ -37,13 +38,24 @@ Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_har
 
 ## Next
 
-1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
+1. Booting borrows the TG50 boot ROM (no NX70V device is available for a new dump). A dump that includes the device's own boot ROM (header at `0x0`) is used as is, natively and in the browser.
 2. RTC alarm wake; CF network card (low priority, the slot takes no memory cards).
-3. Browser (WASM): TG50 already runs in the browser from the TG50 branch ([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)); NX70V needs `crdb` detection, the 320×480 screen and a second file for the boot ROM.
+3. Browser: hand test (boot, keyboard incl. Fn/Alt, sessions).
 
-## Running
+## Browser
 
-Native build only for NX70V (see the TG50 branch README for building):
+1. Open **https://muns5965.github.io/cloudpilot-emu/**. ROM files stay in your browser.
+2. **Sessions → +**, choose the NX70V ROM. The device shows as **Sony PEG-NX70V** (320×480, 17 MB).
+3. In the settings dialog, tap **Boot ROM (TG50 ROM, required)** and choose a TG50 NOR ROM. Its first 0x18000 bytes are copied over the start of the NX70V ROM in this browser only.
+4. Save, select the session and press ▶. Setup and calibration as on the device.
+
+On-screen keyboard: NX70V layout (positions measured on a device photo; keys drawn as plain shapes). Tap **Fn**, **Alt**, **Shift** or **Ctrl** to latch it for the next key. Blue characters: Fn, purple: Alt, as the European NX70V ROM types them. PC keys are the same as for the TG50 (F7 = Fn, F9 = Alt).
+
+Do not export or share NX70V sessions: they contain the TG50 boot ROM.
+
+## Running (native)
+
+See the TG50 branch README for building:
 
 ```sh
 ./src/uarm/cp-uarm --nx70v --boot-rom /path/to/TG50-ROM.bin /path/to/nx70v.rom
@@ -59,7 +71,7 @@ Native build only for NX70V (see the TG50 branch README for building):
 
 # CloudpilotEmu — Sony CLIÉ PEG-NX70V 조사 브랜치
 
-> **실험 단계입니다.** 네이티브 빌드에 `--nx70v` 모드가 있으며, NX70V Palm OS가 펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 들어갑니다. 알려진 덤프에 작은 부트 ROM이 없어서, 실행할 때 TG50 NOR 이미지의 부트 ROM을 빌려 씁니다(`--boot-rom`). 이 브랜치는 [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50)에서 갈라져 나왔고, 그 TG50 코드(`--tg50` 실행 경로와 TG50 장치 모델)를 바탕으로 씁니다. NX70V는 TG50 장치 코드를 그대로 쓰고 NX70V 차이 4가지만 따로 둡니다.
+> **실험 단계입니다.** NX70V는 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 에서도 실행됩니다([브라우저 실행](#브라우저-실행) 참고, TG50도 같은 주소). 네이티브 빌드에 `--nx70v` 모드가 있으며, NX70V Palm OS가 펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 들어갑니다. 알려진 덤프에 작은 부트 ROM이 없어서, 실행할 때 TG50 NOR 이미지의 부트 ROM을 빌려 씁니다(`--boot-rom`). 이 브랜치는 [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50)에서 갈라져 나왔고, 그 TG50 코드(`--tg50` 실행 경로와 TG50 장치 모델)를 바탕으로 씁니다. NX70V는 TG50 장치 코드를 그대로 쓰고 NX70V 차이 4가지만 따로 둡니다.
 
 [**NX70V 조사 기록(영문·한국어)**](docs/sony-nx70v-port.md) · [**TG50 브랜치 README**](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md) · [**TG50 기술 문서(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu)
 
@@ -81,6 +93,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 하드 버튼 | **동작**: F1 일정(Date Book), F2 주소록, F3 할 일, F4 메모장(NX70V 매뉴얼 45쪽의 기본 설정) | 부팅 후 첫 누름이 무시되던 문제(TG50과 공통)는 마이컴 엣지 감지 레지스터를 바로잡아 해결 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
 | 전원 키(Esc), 절전·복귀 | **동작** | TG50과 공통: Esc로 절전(화면 꺼짐), 다시 Esc로 복귀. 복귀 후 키보드 정상 |
+| 브라우저 | **빌드·배포 완료**, 직접 시험 전 | 기종 `PEG-NX70V`, 세션 설정에서 TG50 ROM을 부트 ROM으로 지정, NX70V 배열 화면 키보드 |
 | 세션 파일 | **동작** | TG50과 공통: `save-session <파일>` 후 세션 파일로 실행(`--nx70v`·`--boot-rom` 불필요). 절전 중 저장도 가능 |
 
 ## `--nx70v`의 NX70V 차이
@@ -96,13 +109,24 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 
 ## 다음 단계
 
-1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
+1. 부팅은 TG50 부트 ROM을 빌려 씀(새로 덤프할 NX70V 실기가 없음). 기기 자체 부트 ROM이 들어 있는 덤프(`0x0`에 헤더)가 있으면 네이티브·브라우저 모두 그대로 사용.
 2. 알람(RTC)으로 깨우기. CF 네트워크 카드(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음).
-3. 브라우저(WASM): TG50은 TG50 브랜치에서 이미 브라우저로 실행됨([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)). NX70V는 `crdb` 인식, 320×480 화면, 부트 ROM용 두 번째 파일 입력이 필요.
+3. 브라우저 직접 시험(부팅, Fn·Alt 포함 키보드, 세션).
 
-## 실행
+## 브라우저 실행
 
-NX70V는 네이티브 빌드 전용입니다(빌드 방법은 TG50 브랜치 README 참고).
+1. **https://muns5965.github.io/cloudpilot-emu/** 를 엽니다. ROM 파일은 브라우저 안에서만 쓰입니다.
+2. **Sessions → +** 에서 NX70V ROM을 고릅니다. 기종 **Sony PEG-NX70V**(320×480, 17MB)로 표시됩니다.
+3. 설정 창의 **Boot ROM (TG50 ROM, required)** 칸을 눌러 TG50 NOR ROM을 고릅니다. 그 앞 0x18000바이트를 이 브라우저 안에서만 NX70V ROM 앞부분에 덮어씁니다.
+4. 저장한 뒤 세션을 선택하고 ▶를 누릅니다. Setup과 펜 보정은 실기와 같습니다.
+
+화면 키보드: NX70V 배열(실기 사진에서 위치를 측정, 키는 단순 도형으로 그림). **Fn**, **Alt**, **Shift**, **Ctrl**을 탭하면 다음 키 한 번에 적용됩니다. 파란 글자는 Fn, 보라 글자는 Alt로, 유럽판 NX70V ROM이 실제로 내는 글자입니다. PC 키는 TG50과 같습니다(F7 = Fn, F9 = Alt).
+
+NX70V 세션은 TG50 부트 ROM을 포함하므로 내보내거나 공유하지 않습니다.
+
+## 네이티브 실행
+
+빌드 방법은 TG50 브랜치 README를 참고합니다.
 
 ```sh
 ./src/uarm/cp-uarm --nx70v --boot-rom /path/to/TG50-ROM.bin /path/to/nx70v.rom

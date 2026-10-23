@@ -212,3 +212,12 @@ Sources: Sony "PEG-NX70V/NX60 Read This First" (4-667-217-11) and photos of a US
 - Wireless communication slot (p. 38): CF network cards only (PEGA-WL100); a protect card is inserted at the factory. The minimal "no card" model is enough for now.
 - Hardware keyboard (p. 37 commands; layout from p. 45 and the photos): rows Q–P, A–L, Tab Z–M BS, Ctrl Fn Alt `<,` `>.` `:;` ▲PgUp ↵, Shift Space ← ▼PgDn → Caps. Rows 1–3 match the TG50; blue (Fn) characters differ (row 2 in the US manual: `~ ! % " ' ( ) \ -`). Fn = Blue and Alt = Red are assumed from the key positions and must be checked in the emulator.
 - 매뉴얼·실기 사진 요약: 하드 버튼은 F1 일정, F2 주소록, F3 할 일, F4 메모장. CF 슬롯은 네트워크 카드 전용. 키보드 1~3줄은 TG50과 같고 4~5줄과 파란 글자(Fn)가 다름. Fn=Blue, Alt=Red 대응은 에뮬레이터에서 확인 필요.
+
+## Browser (2026-10-23)
+
+- `RomInfo5`: company `sony` + HAL `crdb` → `deviceTypeSonyNX70V`, 17 MiB. Native also accepts the ROM without `--nx70v` (it still needs `--boot-rom`).
+- The web stores the ROM with a TG50 boot ROM copied to `0x0`–`0x17FFF` (session settings field "Boot ROM", `web/common/helper/sonyBootRom.ts`), so its header at `0x0` reads TG50. `Uarm::SetDeviceType()` lets the worker start the session device instead of the header's.
+- Keys: Fn = TG50 Blue, Alt = TG50 Red; `<,` `>.` `:;` = TG50 `@_` `.` `,` matrix positions (checked natively; plain/Shift/Fn give `, < -`, `. > ?`, `; : &`). The NX70V ROM here is European: Alt + W…P types `é € ß ë ê è Ç ç à`.
+- Verified: combined image started as NX70V natively (Setup, Launcher, first F1 → Date Book); helper checks on the real ROMs; CI build and Pages deploy. Browser run not yet tried by hand.
+- 브라우저 요약: `crdb` 인식, 세션 설정에서 TG50 ROM을 부트 ROM으로 받아 앞부분에 덮어 브라우저에만 보관, 세션 기종을 엔진에 넘김. Fn=Blue, Alt=Red. 이 NX70V ROM은 유럽판.
+
