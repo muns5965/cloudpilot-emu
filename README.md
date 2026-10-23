@@ -39,10 +39,11 @@ Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_har
 
 1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
 2. CF cards, RTC alarm wake.
+3. Browser (WASM): TG50 already runs in the browser from the TG50 branch ([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)); NX70V needs `crdb` detection, the 320×480 screen and a second file for the boot ROM.
 
 ## Running
 
-Native build only (see the TG50 branch README for building):
+Native build only for NX70V (see the TG50 branch README for building):
 
 ```sh
 ./src/uarm/cp-uarm --nx70v --boot-rom /path/to/TG50-ROM.bin /path/to/nx70v.rom
@@ -97,10 +98,11 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 
 1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
 2. CF 카드, 알람(RTC)으로 깨우기.
+3. 브라우저(WASM): TG50은 TG50 브랜치에서 이미 브라우저로 실행됨([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)). NX70V는 `crdb` 인식, 320×480 화면, 부트 ROM용 두 번째 파일 입력이 필요.
 
 ## 실행
 
-네이티브 빌드 전용입니다(빌드 방법은 TG50 브랜치 README 참고).
+NX70V는 네이티브 빌드 전용입니다(빌드 방법은 TG50 브랜치 README 참고).
 
 ```sh
 ./src/uarm/cp-uarm --nx70v --boot-rom /path/to/TG50-ROM.bin /path/to/nx70v.rom

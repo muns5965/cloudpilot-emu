@@ -1,6 +1,6 @@
 # Sony CLIÉ PEG-TG50 port (work in progress)
 
-This branch runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu's **native** build. As of 2026-10-23 the TG50 ROM boots, completes Setup including pen calibration, and reaches the CLIÉ Launcher, which responds to taps. Browser/WASM support does not exist yet. No ROM files are included.
+This branch runs the **Sony CLIÉ PEG-TG50 (Palm OS 5)** in CloudpilotEmu's **native** build. As of 2026-10-23 the TG50 ROM boots, completes Setup including pen calibration, and reaches the CLIÉ Launcher, which responds to taps. Since 2026-10-23 it also runs in the browser (WASM): https://muns5965.github.io/cloudpilot-emu/ . No ROM files are included.
 
 ## Current status (2026-10-23)
 
@@ -9,29 +9,30 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Native build (`libcommon.a` + `cp-uarm`) | Builds locally, no warnings | GitHub Actions result not checked |
-| ROM selection | `--tg50` override | No automatic TG50 ROM identification |
+| ROM selection | Identified from the header (`sony`/`vrna`); `--tg50` optional | `RomInfo5::GetDeviceType()`, 17 MiB recommended |
 | Boot | Works | Needed GPIO13/14 idle levels and the GPIO0 power-key fix (below) |
 | Setup 1–4, pen calibration | Works | Needed the touch-translation patch fix (below) |
 | Launcher, on-screen touch (AD7873) | Works | Calibrated by Palm OS itself |
 | Sony controller keyboard matrix | Works (typing in Memo Pad) | `mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
 | Host key mapping | Works: letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/Down, End (jog back), F11 (jog select), F5 (voice), `` ` `` (Graffiti) | New `KeyId` values in `keys.h`; SDL mapping only in TG50 mode. PC digits unmapped. ~40 ms key presses drop some keys (original uARM does not) |
-| Host power key → GPIO0 | Not driven | Driving it (as original uARM does) ends in a Fatal Exception via the sleep path; Esc reaches the matrix only |
+| Host power key, sleep/resume | Works | Esc sleeps and wakes; see "Sleep and resume" below |
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
-| Savestates / sessions | Not implemented for TG50 | `--tg50` rejects session files |
-| Browser/WASM | Not implemented | — |
+| Savestates / sessions | Works (native) | See "Savestates" below |
+| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. No text input on phones yet |
 
 ## Remaining work
 
-1. **Power key and sleep:** driving GPIO0 from the power key ends in a Fatal Exception (log shows `R of 4 bytes to 0x02200000 failed!` around memory-controller writes); compare with original uARM's sleep/resume. Also compare fast-typing drops (the event queue applies one key event per 1/30 s tick).
+0. **Browser on-screen keyboard** for phones (the raw key path already exists).
+1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
-3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
+3. **Savestates:** done for native sessions; browser save/restore not checked.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
-5. **Browser/WASM:** device selection, frame output and input bridge; then audio and Memory Stick media.
+5. **Browser/WASM:** done for boot, display and input (see below); then audio and Memory Stick media.
 
 ## Scope / safety
 
-No ROM files or proprietary Sony firmware are committed. Do not advertise TG50 as a supported browser device until the remaining work above is done. Existing E2, FrankenE2 and PV behavior must stay unchanged; TG50-specific behavior is gated by `deviceTypeSonyTG50` / `tg50Mode`.
+No ROM files or proprietary Sony firmware are committed. The browser build is experimental; it is published only on this fork's Pages, never with a ROM. Existing E2, FrankenE2 and PV behavior must stay unchanged; TG50-specific behavior is gated by `deviceTypeSonyTG50` / `tg50Mode`.
 
 ## Debugging method
 
@@ -104,7 +105,7 @@ The sections below are kept in chronological order. Status lines in older sectio
 - `devicePalmTungstenE2.cpp` now recognizes `deviceTypeSonyTG50`, allocates a TG50-flavored Device wrapper and calls `sonyTG50Initialize` instead of E2 NAND/AC97/WM9712L setup.
 - Device periodic/touch/hardware-key operations dispatch to the Sony model, and `SocPXA::OnReset` skips the absent NAND page buffer.
 - **Not boot validated:** ROM format/mapping, 1 KiB SRAM mapping, full QWERTY host input and LCD geometry remain outstanding. A source-only GitHub update is not proof of a successful build.
-- **Savestates incomplete:** the Sony-specific controller state is not serialized. The temporary factory branch skips Sony peripheral save/load and should not be considered safe for persistent sessions. Do not distribute as working TG50 support.
+- **Savestates:** done later (see "Savestates").
 - Generic keypad events still pass through the common keypad interface; review duplicate or unintended input when TG50 host mapping is brought online.
 
 ## TG50 RAM and extra SRAM mapping (staged, not boot-verified)
@@ -182,7 +183,7 @@ The native executable now accepts `--tg50` explicitly:
 ./src/uarm/cp-uarm --tg50 /path/to/your/TG50-ROM.bin
 ```
 
-This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image or a session-file input. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection. ROM images are not included in the repository.
+This bypasses only the **device-type identification decision**; the image must still pass the existing Palm OS 5 NOR ROM parser. It selects `deviceTypeSonyTG50`, uses 17 MiB RAM by default, and rejects an explicit NAND image. Session files are accepted and select the device type they record. Other devices still use their normal `RomInfo5::GetDeviceType()` identification path. This is not auto-detection. ROM images are not included in the repository.
 - *Later verified: the reference TG50 ROM passes the parser and boots (see the following sections).*
 
 ## Boot blocker fixed: power key GPIO0 idle level
@@ -192,7 +193,7 @@ This bypasses only the **device-type identification decision**; the image must s
 - Cause: original `deviceSetup()` calls `keypadAddGpioKey(kp, SDLK_ESCAPE, 0, false)`, registering the power key on GPIO0 as active low and thereby driving the line high (released). The port omitted it, so GPIO0 stayed low and the firmware waited for the power key to be released.
 - Fix: `sonyTG50Initialize()` sets GPIO0 high (released).
 - Verified natively (Linux, SDL2): the TG50 ROM now boots to the **Setup 1 of 4** screen, and controller keypad accesses continue as in the original.
-- Still open: host power key handling should also drive GPIO0 low while pressed (the original wires the same key both to the controller matrix and to GPIO0).
+- Done later: the host power key now also drives GPIO0 low while pressed (see "Sleep and resume").
 
 
 ## Setup blocker fixed: pen calibration (E2 touch translation patch)
@@ -210,7 +211,7 @@ This bypasses only the **device-type identification decision**; the image must s
 - Diagnosis: on original uARM with the same ROM, typing in Memo Pad works, so the ROM's keyboard driver reads the Sony controller matrix directly. In this port the matrix model was present, but host keys never reached it: the SDL handler mapped only F1–F4, arrows, Return (jog select) and Esc, and the common `KeyId` had 10 values.
 - Change: `keys.h` adds keyboard key IDs after `keyIdPower` (existing values unchanged). `SdlEventHandler` maps letters, Space, Return, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, F7 (Blue), F9 (Red), Home, PageUp/PageDown, End (jog back), F11 (jog select), F5 (voice) and `` ` `` (Graffiti) **only in TG50 mode**; other devices keep the old mapping. `sonyTG50HostKey()` translates the IDs to `kMatrix` keys. E2/PV keypads ignore unknown IDs.
 - Verified natively: lower/upper case, Shift, Blue+q/w/e = `123`, Red layer, comma/period, Backspace, Enter, Home back to the launcher.
-- Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped; ~40 ms presses drop some keys in this port but not in original uARM.
+- Open: PC digit keys are not mapped. Fast-typing drops are fixed: the event queue applies one key event per 1/30 s tick, so a quick press was down for only ~33 ms while the TG50 keyboard scan needs ~60 ms; key-ups are now delayed until the key has been down for 3 ticks (~100 ms). Zero-hold a–z: 5/26 before, 26/26 after.
 
 ## Memory Stick extended-register diagnostic comparison (KOSPI)
 
@@ -223,3 +224,33 @@ The controller now reserves `0x1400` bytes, while **the default build rejects al
 - Optional `-DTG50_MS_TRACE` prints zero-mode accesses; diagnostics are off by default.
 
 Build each variant separately; compare clean boot, KOSPI installation and reset, memo text persistence, and boot without KOSPI. If both modes boot, this alone does **not** prove that the hardware uses aliases. The observed null-address writes under KOSPI require a separate PC-level investigation. No actual A/B boot run is claimed in this commit.
+
+## Sleep and resume (2026-10-23)
+
+Previously the power key reached only the controller matrix, and driving GPIO0 ended in a Fatal Exception. Five causes were found with a diagnostic build:
+
+| # | Problem | Cause | Fix |
+| --- | --- | --- | --- |
+| 1 | No sleep state | `PWRMODE 3` (PXA sleep) reset the CPU at once ("pretend we woke up") | Deep sleep for TG50/NX70V only (`pxaPwrClkSetDeepSleepEnabled`): the CPU stays halted, interrupts do not wake it, and every 1/30 s `pxaPwrClkCheckWake()` compares GPIO0–15 with `PWER`/`PRER`/`PFER`; on a match it sets `PEDR`, `RCSR` bit 2 and resets the CPU. E2 keeps the old behavior |
+| 2 | Woke and slept again | The ROM sleeps with `PWER` = GPIO0 rising (power-key release), then with `0x608B` (GPIO0/1/3/7/13/14 falling). A GPIO0 wake only counts the press (`0x200323C8`) and sleeps again; a full wake needs GPIO13 | The power key also pulls GPIO13 low; a press while asleep is kept off GPIO0 but still reaches the matrix (the ROM turns the screen on) |
+| 3 | Fatal Exception after wake (`R of 4 bytes to 0x02200000`) | On resume the ROM bit-bangs a 64-word serial EEPROM on GPIO4–6 (`0x20033268`); data out GPIO5 read 0, so the record walker (`0x20033A00`) never met its `0xFFFF` end and ran off memory | GPIO5 idles high (erased EEPROM) |
+| 4 | Keyboard dead after wake | The boot code writes the controller reset command (`0x210` = `0xFF`) on resume; the model reset all port/IRQ configuration, which the ROM does not reprogram on resume | `tg50ucIgnoreNextReset()` after each wake |
+| 5 | Device pointer missing | `SocPeriphs.soc` was never set, so the device could not see the sleep state | `soc_PXA.cpp` sets `sp.soc = this` |
+
+Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard buttons and fast typing after resume, Setup and pen calibration unchanged.
+
+## Savestates (2026-10-23)
+
+- `deviceSave`/`deviceLoad` no longer skip TG50: `sonyTG50Save`/`sonyTG50Load` write one `sonyTG50` chunk (version 1) holding a size field plus fixed state blobs of the Sony controller (ports, pressed keys, IRQ, resume flag), AD7873 (last conversion, battery/aux values; the pen is up after restore), AN32502A, AK4534 and the Memory Stick controller.
+- Deep sleep state (asleep, wake baseline) goes into a separate `pxaDeepSleep` chunk written only when deep sleep is enabled, so the shared `pxaPwrClk` chunk and E2 sessions are unchanged.
+- `main.cpp` takes the device type from the session file; TG50 ROM headers are not identified, so `--tg50` was the only way before and is now ignored for sessions.
+- Verified: save after typing a memo, restart from the session (same memo screen, typing, hard buttons and taps work); save while asleep, restart, Esc wakes to the Launcher.
+
+## Browser / WASM (2026-10-23)
+
+- `RomInfo5::GetDeviceType()` maps company `sony` + HAL `vrna` to `deviceTypeSonyTG50` and recommends 17 MiB RAM. The web build creates the device from this, so no option is needed; native `--tg50` stays as an explicit override.
+- Web device `DeviceId.pegTG50` (`'PEG-TG50'`): 320×320 frame, silkscreen height 0, uARM engine, no NAND, no slot, NR70 hard-button image, CPU shown as 200 MHz. `mapping.ts` maps it to and from `DeviceType5.deviceTypeSonyTG50` (= 3, also in `common.d.ts`).
+- Keyboard: `binding.d.ts` `KeyId` now lists the TG50 keys (11–54, same values as `keys.h`). `hardwareKeyboard.ts` maps `KeyboardEvent.code` like `SdlEventHandler.cpp`. `GenericEventHandlingService` sends raw key down/up through `AbstractEmulationService.handleHardwareKeyDown/Up` → `EngineUarm.keyDown/keyUp` → worker messages `keyDown`/`keyUp` → `Uarm.keyDown/keyUp` → `Uarm::KeyDown/KeyUp`. Auto-repeat is ignored; held keys are released on blur, unbind and when game mode is switched on. Other devices are unchanged.
+- Deployment: `.github/workflows/fork-pages.yml` (emsdk 6.0.0, `make -Csrc emscripten`, lint, tests, `build-preview` with the repo base path, `actions/deploy-pages`). The `github-pages` environment must allow the branch.
+- Verified: CI build, lint and 55 tests; type-check with `pwa/tsconfig.app.json` and `tsconfig.worker.json`; native auto-detect boot to Setup. In the browser (user test, phone): ROM import, boot, To Do opened with a hard button. PC keyboard typing in the browser is not yet reported.
+
