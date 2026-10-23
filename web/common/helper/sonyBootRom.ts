@@ -4,6 +4,7 @@
 
 const PALM_CARD_SIGNATURE = 0xfeedbeef;
 const COMPANY_ID_SONY = 0x736f6e79; // 'sony'
+const HAL_ID_SONY_TG50 = 0x76726e61; // 'vrna'
 
 export const SONY_BOOT_ROM_SIZE = 0x18000;
 
@@ -15,17 +16,25 @@ export function hasPalmCardHeaderAt(data: Uint8Array, offset: number): boolean {
     return data.length >= offset + 0x88 && read32(data, offset + 8) === PALM_CARD_SIGNATURE;
 }
 
-// A ROM that needs a boot ROM: no card header at 0x0, but one at 0x20000.
+// An NX70V ROM that needs a boot ROM: no card header at 0x0, but one at 0x20000. Callers only
+// ask for NX70V ROMs (identified by RomInfo5 as company 'sony', HAL 'crdb').
 export function needsSonyBootRom(rom: Uint8Array): boolean {
     return !hasPalmCardHeaderAt(rom, 0) && hasPalmCardHeaderAt(rom, 0x20000);
 }
 
-// A Sony NOR image with a boot ROM at 0x0 (e.g. a TG50 ROM).
+// A PEG-TG50 NOR image: card header at 0x0 with company 'sony' and HAL 'vrna'.
 export function isSonyBootRomSource(data: Uint8Array): boolean {
-    return data.length >= SONY_BOOT_ROM_SIZE && hasPalmCardHeaderAt(data, 0) && read32(data, 0x80) === COMPANY_ID_SONY;
+    return (
+        data.length >= SONY_BOOT_ROM_SIZE &&
+        hasPalmCardHeaderAt(data, 0) &&
+        read32(data, 0x80) === COMPANY_ID_SONY &&
+        read32(data, 0x84) === HAL_ID_SONY_TG50
+    );
 }
 
 export function applySonyBootRom(rom: Uint8Array, bootRomSource: Uint8Array): Uint8Array {
+    if (!isSonyBootRomSource(bootRomSource)) throw new Error('boot ROM source is not a PEG-TG50 ROM');
+
     const combined = rom.slice();
     combined.set(bootRomSource.subarray(0, SONY_BOOT_ROM_SIZE), 0);
 
