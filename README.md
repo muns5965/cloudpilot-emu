@@ -47,7 +47,7 @@ Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_har
 ## Next
 
 1. Booting borrows the TG50 boot ROM (no NX70V device is available for a new dump). A dump that includes the device's own boot ROM (header at `0x0`) is used as is, natively and in the browser.
-2. RTC alarm wake; CF network card (low priority, the slot takes no memory cards).
+2. Alarm wake check on NX70V (fixed and verified on TG50); CF network card (low priority, the slot takes no memory cards).
 3. Browser: hand test (boot, keyboard incl. Fn/Alt, sessions).
 
 ## Browser
@@ -126,7 +126,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 ## 다음 단계
 
 1. 부팅은 TG50 부트 ROM을 빌려 씀(새로 덤프할 NX70V 실기가 없음). 기기 자체 부트 ROM이 들어 있는 덤프(`0x0`에 헤더)가 있으면 네이티브·브라우저 모두 그대로 사용.
-2. 알람(RTC)으로 깨우기. CF 네트워크 카드(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음).
+2. NX70V에서 알람으로 깨우기 확인(TG50에서 수정·확인). CF 네트워크 카드(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음).
 3. 브라우저 직접 시험(부팅, Fn·Alt 포함 키보드, 세션).
 
 ## 브라우저 실행
