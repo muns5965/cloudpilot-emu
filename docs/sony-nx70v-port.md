@@ -93,12 +93,24 @@ A diagnostic region at `0x10000000`–`0x1000FFFF` that ignores writes and reads
 - No more reboot loop. **NX70V Palm OS reaches the Setup screen ("Setup 1 of 4").**
 - During boot the device is mostly read at `+0x10` (160 reads) and written at `+0x24`–`+0x44`. What the chip is remains unknown.
 - Ignoring NOR flash writes was also tested and made no difference (reverted).
-- Not checked: the window shows the TG50 size (320×320); NX70V is 320×480, so the lower part may be cut off. Touch, buttons and the virtual Graffiti area are still the TG50 setup.
+### Display: 320×480 (confirmed)
+
+The ROM programs the PXA LCD controller for 320×480 (`LCCR1` 320 pixels per line, `LCCR2` 480 lines); TG50 programs 320×320. With a scratch-only change that lets `--tg50` use the existing 320×480 display mode when `NX70V_DIAG` is set, the whole screen is visible: Setup 1 of 4 on top, and the NX70V virtual Graffiti area (Home/Menu/Calc/Find, `a`/`1` panes, brightness and keyboard icons) plus the status bar (Home, Menu, Find, a fourth icon, battery, Memory Stick, volume, clock, input-area toggle) drawn by the ROM itself at the bottom. Touch input is still the TG50 setup and has not been tested.
+
+### Device at `0x10000000` (NX70V only, identity unknown)
+
+8-bit registers with a 4-byte stride (`MSC2` at `0x48000010` is set to `0x74B4xxxx` for CS4/CS5 just before). Uses found in the code:
+
+- Sony DAL `0x209D9BD0` (boot step 2, mode 3): clears `MECR` (`0x48000014`), writes 0 to `+0x24`–`+0x44`, then ORs 3 into `+0x40`. Other modes only change `MECR`.
+- HAL idle loop near `HwrInterruptsAries.c` (`0x20032688`): sets `+0x28` bit 0 before the sleep system call and clears it after waking. Likely a power or sleep signal (inferred).
+- Read 160 times at `+0x10` during boot (probably a status register).
+
+"Aries" in HAL source names is probably the NX-series hardware codename. Which chip this is cannot be told from the code; a dummy that reads 0 and ignores writes is enough to boot.
 
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. With the local composite: check the LCD registers for 320×480, and identify the `0x10000000` device from the NX70V DAL code.
+2. With the local composite: test touch on the 320×480 screen and the virtual Graffiti area, and look for how the `0x10000000` device is used after boot (camera, power).
 
 ## 한국어
 
@@ -117,5 +129,7 @@ A diagnostic region at `0x10000000`–`0x1000FFFF` that ignores writes and reads
   - **재부팅 원인**: Sony DAL 초기화 2단계가 `0x10000000`(CS4) 장치의 1바이트 레지스터(`+0x24`~`+0x44`)에 쓰는데, 에뮬레이트된 장치가 없어 쓰기 실패 → 재부팅.
   - 주소 `0x4` NULL 쓰기 실패도 보이지만 TG50도 같은 루틴에서 한 번 똑같이 실패하고 정상 부팅 → 원인 아님.
   - `0x14000000`은 TG50과 같은 메모리스틱 컨트롤러(포트도 `0x14000000`에 매핑) → 원인 아님.
-- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기 무시·읽기 0인 진단 장치(`NX70V_DIAG` 있을 때만)를 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 그 장치가 어떤 칩인지는 미확인. 화면은 TG50 크기(320×320)라 NX70V(320×480) 아래쪽이 잘렸을 수 있음.
+- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기 무시·읽기 0인 진단 장치(`NX70V_DIAG` 있을 때만)를 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 그 장치가 어떤 칩인지는 미확인. 
 - **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 그동안 LCD 레지스터로 320×480 여부 확인, `0x10000000` 장치를 DAL 코드에서 확인.
+- **화면 320×480 확인**: ROM이 LCD를 320×480으로 설정(TG50은 320×320). 진단 빌드에서 320×480 모드로 띄우니 Setup 화면 아래에 NX70V 가상 그래피티 영역과 상태 표시줄이 ROM 자체로 그려짐. 터치는 미시험.
+- **`0x10000000` 장치**: 4바이트 간격 1바이트 레지스터. DAL 초기화 2단계가 `+0x24`~`+0x44`를 0으로 쓰고 `+0x40`에 3, HAL 절전 루프(`HwrInterruptsAries.c` 근처)가 절전 전후로 `+0x28` 비트0을 켜고 끔(전원·절전 신호로 추정). 부팅 중 `+0x10`을 160회 읽음. 칩 정체는 코드로 판단 불가.
