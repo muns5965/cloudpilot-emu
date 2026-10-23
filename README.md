@@ -37,7 +37,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | CLIÉ Launcher | **Reached; responds to taps** | — |
 | AD7873 touch controller | **Works** on the 320×320 screen | `src/uarm/uarm/sspdev_AD7873.cpp` |
 | Sony controller MMIO / 8×8 keyboard matrix | **Works**: typing in Memo Pad verified | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
-| Host keys → TG50 keys | **Works** for letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/PageDown; jog select moved to F11 | `keys.h`, `SdlEventHandler.cpp` (TG50 only), `sonyTG50HostKey()`. PC digit keys are not mapped (use Blue + top row). Very fast typing (~40 ms per key) drops some keys; original uARM does not |
+| Host keys → TG50 keys | **Works** for letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/PageDown; jog select moved to F11 | `keys.h`, `SdlEventHandler.cpp` (TG50 only), `sonyTG50HostKey()`. PC digit keys are not mapped (use Blue + top row). Fast typing (40 ms per key) works: each key is held down for at least ~100 ms |
 | Host power key (Esc) | Matrix key only; GPIO0 not driven | Driving GPIO0 as original uARM does ends in a Fatal Exception (sleep path); needs investigation |
 | Native window skin | Shows the E2 Graffiti silkscreen, which has no function on TG50 | TG50 has a QWERTY keyboard and no silkscreen; shares the E2 `mode_320x320` display configuration |
 | AN32502A power (I²C) | Ported, not individually tested | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
@@ -60,7 +60,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 | CLIÉ 런처 | **진입, 터치 반응 확인** | — |
 | AD7873 터치 컨트롤러 | 320×320 화면에서 **동작** | `src/uarm/uarm/sspdev_AD7873.cpp` |
 | Sony 컨트롤러 MMIO·8×8 키 매트릭스 | **동작**: 메모장 입력 확인 | `src/uarm/uarm/mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
-| PC 키 → TG50 키 연결 | **동작**: 글자, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue(F7), Red(F9), Home, PageUp/PageDown. 조그 선택은 F11로 이동 | `keys.h`, `SdlEventHandler.cpp`(TG50 전용), `sonyTG50HostKey()`. PC 숫자 키는 미연결(Blue + 윗줄 사용). 아주 빠른 입력(키당 약 40ms)에서 일부 누락, 원본 uARM은 누락 없음 |
+| PC 키 → TG50 키 연결 | **동작**: 글자, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, Blue(F7), Red(F9), Home, PageUp/PageDown. 조그 선택은 F11로 이동 | `keys.h`, `SdlEventHandler.cpp`(TG50 전용), `sonyTG50HostKey()`. PC 숫자 키는 미연결(Blue + 윗줄 사용). 빠른 입력(키당 40ms)도 정확: 키를 최소 약 100ms 눌린 상태로 유지 |
 | PC 전원 키(Esc) | 매트릭스 키만 전달, GPIO0은 구동 안 함 | 원본처럼 GPIO0까지 구동하면 Fatal Exception(슬립 경로) 발생, 원인 조사 필요 |
 | 네이티브 창 스킨 | E2 그래피티 실크스크린이 그려지며 TG50에서는 기능 없음 | TG50은 QWERTY 키보드가 있고 실크스크린이 없음. E2와 같은 `mode_320x320` 화면 설정을 공유 |
 | AN32502A 전원 관리(I²C) | 이식 완료, 개별 시험 안 함 | `src/uarm/uarm/i2cdev_AN32502A.cpp` |
@@ -73,7 +73,7 @@ Verified on 2026-10-23 with a native Linux SDL2 build of this branch and a TG50 
 
 ## Development order
 
-1. **Power key and sleep**: find why driving GPIO0 from the power key ends in a Fatal Exception; check fast-typing key drops against original uARM; optionally map PC digit keys to Blue + top row.
+1. **Power key and sleep**: find why driving GPIO0 from the power key ends in a Fatal Exception; optionally map PC digit keys to Blue + top row.
 2. **TG50 display configuration**: drop the E2 silkscreen (or replace it with a keyboard image) without changing the E2's shared configuration.
 3. **Savestates**: serialize TG50 device state so session files can be saved and resumed.
 4. **Optional touch translation**: a TG50-specific raw-to-screen patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) would make touch independent of calibration, as on the E2.
@@ -83,7 +83,7 @@ Detailed file-level checklist and fix history: [docs/sony-tg50-port.md](docs/son
 
 ## 개발 순서
 
-1. **전원 키·슬립:** 전원 키로 GPIO0을 구동하면 Fatal Exception이 나는 원인을 찾고, 빠른 입력 누락을 원본 uARM과 비교하며, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
+1. **전원 키·슬립:** 전원 키로 GPIO0을 구동하면 Fatal Exception이 나는 원인을 찾고, 필요하면 PC 숫자 키를 Blue + 윗줄로 연결합니다.
 2. **TG50 화면 설정:** E2와 공유하는 설정은 건드리지 않고 E2 실크스크린을 없애거나 키보드 그림으로 바꿉니다.
 3. **상태 저장:** TG50 장치 상태를 직렬화해 세션 파일 저장·재개를 지원합니다.
 4. **선택: 펜 좌표 변환:** TG50 전용 원시값→화면 변환 패치(`3200 − 10·x/y`의 역계산, X/Y 교차 배선 확인 후)를 넣으면 E2처럼 보정과 관계없이 터치가 정확해집니다.

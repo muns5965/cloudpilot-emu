@@ -23,7 +23,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 
 ## Remaining work
 
-1. **Power key and sleep:** driving GPIO0 from the power key ends in a Fatal Exception (log shows `R of 4 bytes to 0x02200000 failed!` around memory-controller writes); compare with original uARM's sleep/resume. Also compare fast-typing drops (the event queue applies one key event per 1/30 s tick).
+1. **Power key and sleep:** driving GPIO0 from the power key ends in a Fatal Exception (log shows `R of 4 bytes to 0x02200000 failed!` around memory-controller writes); compare with original uARM's sleep/resume.
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
 3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
@@ -210,7 +210,7 @@ This bypasses only the **device-type identification decision**; the image must s
 - Diagnosis: on original uARM with the same ROM, typing in Memo Pad works, so the ROM's keyboard driver reads the Sony controller matrix directly. In this port the matrix model was present, but host keys never reached it: the SDL handler mapped only F1–F4, arrows, Return (jog select) and Esc, and the common `KeyId` had 10 values.
 - Change: `keys.h` adds keyboard key IDs after `keyIdPower` (existing values unchanged). `SdlEventHandler` maps letters, Space, Return, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, F7 (Blue), F9 (Red), Home, PageUp/PageDown, End (jog back), F11 (jog select), F5 (voice) and `` ` `` (Graffiti) **only in TG50 mode**; other devices keep the old mapping. `sonyTG50HostKey()` translates the IDs to `kMatrix` keys. E2/PV keypads ignore unknown IDs.
 - Verified natively: lower/upper case, Shift, Blue+q/w/e = `123`, Red layer, comma/period, Backspace, Enter, Home back to the launcher.
-- Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped; ~40 ms presses drop some keys in this port but not in original uARM.
+- Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped. Fast-typing drops are fixed: the event queue applies one key event per 1/30 s tick, so a quick press was down for only ~33 ms while the TG50 keyboard scan needs ~60 ms; key-ups are now delayed until the key has been down for 3 ticks (~100 ms). Zero-hold a–z: 5/26 before, 26/26 after.
 
 ## Memory Stick extended-register diagnostic comparison (KOSPI)
 
