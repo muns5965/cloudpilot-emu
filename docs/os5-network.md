@@ -17,9 +17,16 @@ On Palm OS 5, 68k applications run through PACE, and every 68k system call reach
    arguments are read from the 68k stack (UInt16 and byte-sized enum arguments take 2 bytes,
    pointers and 32-bit values 4), a `MsgRequest` is sent, and the `MsgResponse` is written back
    (result in D0, pointers in A0, output structures in 68k memory).
-3. The native build runs the requests on the host network with CloudpilotEmu's network backend
-   (`src/cloudpilot/native/network-backend`, `native/NetlibNative.cpp`). The emulator waits for
-   the answer; the backend applies the call's timeout.
+3. Requests are sent asynchronously (`netlib_redirect::Configure(send, session)`); the response
+   comes back through `netlib_redirect::Deliver()`, possibly from another thread. Until it is
+   there, the trap is re-executed: the 68k PC is set back to the `trap #15` instruction and the
+   SoC idles until the next interrupt (`SoC::Sleep()`), so waiting costs no host CPU and the rest
+   of Palm OS (timers, interrupts) keeps running. When the response is there, the same trap
+   completes and writes its results. No CPU state or call stack has to be saved, which is what
+   the browser version needs (a Web Worker cannot block while its WebSocket answers).
+4. The native build runs the requests on the host network with CloudpilotEmu's network backend
+   (`src/cloudpilot/native/network-backend`, `native/NetlibNative.cpp`; the backend applies the
+   call's timeout). `NETLIB_TEST_DELAY_MS=<ms>` delays each response to test the waiting path.
 
 Redirected calls: `NetLibOpen`, `NetLibClose`, `NetLibOpenCount`, sleep/wake, `SocketOpen`,
 `SocketClose`, `SocketConnect`, `Send`, `Receive`, `GetHostByName`. Other NetLib calls go to the
@@ -38,5 +45,7 @@ ROM and are logged as "not redirected".
 `tools/palm-nettest` (68k, built with prc-tools-remix). Native TG50, `--net`, NetTest built for
 `localhost:8790` with a local `python3 -m http.server 8790`: NetLibOpen ok → DNS 127.0.0.1 →
 connected, request sent → `HTTP/1.0 200 OK` and the server's headers on screen; the server logged
-`GET / HTTP/1.0` from the emulator. Without `--net`, `NetLibOpen` shows Palm OS's "Incomplete
+`GET / HTTP/1.0` from the emulator. With `NETLIB_TEST_DELAY_MS=1500` the steps appear one by one
+and the run completes; host CPU while waiting stays at the idle level (~25 %, it was ~99 % before
+the SoC idled during the wait). Without `--net`, `NetLibOpen` shows Palm OS's "Incomplete
 setup" alert (no connection configured).

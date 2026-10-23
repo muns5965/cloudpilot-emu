@@ -7,6 +7,7 @@
 #include "audio_queue.h"
 #include "mem.h"
 #include "nand.h"
+#include "netlib_redirect.h"
 #include "pace_patch.h"
 #include "patch_dispatch.h"
 #include "sdcard.h"
@@ -28,6 +29,9 @@ SoC::SoC()
       penEventQueue(make_unique<Queue<PenEvent>>(EVENT_QUEUE_CAPACITY)),
       keyEventQueue(make_unique<Queue<KeyEvent>>(EVENT_QUEUE_CAPACITY)) {
     pacePatch = createPacePatch();
+
+    // While a redirected NetLib call waits for its response, idle until the next interrupt.
+    netlib_redirect::SetIdleHandler([this]() { Sleep(); });
     mem = memInit();
 
     patchDispatch = initPatchDispatch();
