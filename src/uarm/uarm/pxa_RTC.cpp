@@ -137,6 +137,8 @@ struct PxaRtc *pxaRtcInit(struct ArmMem *physMem, struct PxaIc *ic) {
     return rtc;
 }
 
+bool pxaRtcAlarmPending(struct PxaRtc *rtc) { return rtc->RTSR & 1; }
+
 void pxaRtcTick(struct PxaRtc *rtc) {
     pxaRtcPrvUpdateAlarm(rtc);
     pxaRtcTickHz(rtc);

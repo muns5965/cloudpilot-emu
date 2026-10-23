@@ -24,7 +24,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 ## Remaining work
 
 0. **Browser:** hand test of the on-screen keyboard and PC keyboard; session save/restore.
-1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
+1. **Sleep follow-ups:** done. A Datebook alarm wakes the device from sleep (see "Alarm wake" below).
 2. **Display configuration:** done. The native window hides the E2 silkscreen for TG50 (`graffitiHeight = 0` in `native/main.cpp` only); the browser draws the on-screen keyboard instead.
 3. **Savestates:** done for native sessions; browser save/restore not checked.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
@@ -262,3 +262,9 @@ Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard 
 - Cause: idle firmware sets port C `0x88 = 0`, `0xa8 = 0xff00` and scans with rows driven low, so a press makes the column fall. In the original uARM model `0x80` is falling and `0xa0` rising detect, which only catches releases. The registers are the other way round: `0x80`–`0x8c` rising, `0xa0`–`0xac` falling (`mmiodev_TG50uc.cpp`). Ports A/B always receive equal values in both, so they are unaffected.
 - Verified (native TG50): first F1 opens Date Book, F2 Address, F4 Memo Pad; typing incl. Blue + W → `2`; two sleep/resume cycles. NX70V: first F1 opens Date Book.
 
+## Alarm wake (2026-10-23)
+
+- Diagnosis (native TG50, Date Book): an alarm while awake shows the Reminder on time. While asleep it did not wake the device; the Reminder only came after the next power-key press.
+- Cause: before sleeping, the ROM arms the PXA RTC alarm (`RTAR` = alarm time, e.g. now + 300 s after Snooze; `RTSR.ALE` set) but sleeps with `PWER` = `0x608B` (GPIO0/1/3/7/13/14, no `WERTC` bit 31). The deep-sleep model only wakes on `PWER` sources. A test that woke the CPU on the alarm (with `PEDR` bit 31, also with GPIO13) left the ROM running with the LCD off; it does not turn the screen on for a bare wake. How the real device wakes on alarms (possibly via the Sony controller) is not known.
+- Fix: in deep sleep, a due RTC alarm (`RTSR.AL`) queues one power-key press (`soc_PXA.cpp`, `SCHEDULER_TASK_AUX_2`). The ROM wakes as on a key press, sees the alarm and shows the Reminder. Deep sleep exists only for TG50/NX70V, so E2 is unchanged. No savestate change: the request flag is only a guard against repeated presses before the wake.
+- Verified (native TG50): event with a 0-minute alarm, sleep, the device wakes at the alarm minute and shows the Reminder; after OK, sleep stays asleep (no spurious wake for 20 s); the power key wakes it again and typing works. NX70V uses the same code path; not separately checked.
