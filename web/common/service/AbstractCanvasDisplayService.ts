@@ -1,5 +1,11 @@
 import { PalmButton } from '@common/bridge/Cloudpilot';
 import { deviceDimensions, isColor } from '@common/helper/deviceProperties';
+import {
+    OnScreenKey,
+    onScreenKeyAt,
+    onScreenKeyboardHeight,
+    onScreenKeyboardLayout,
+} from '@common/helper/hardwareKeyboardLayout';
 import { PrerenderedImage } from '@common/helper/image';
 import { GRAYSCALE_PALETTE_HEX } from '@common/helper/palette';
 import { DeviceId } from '@common/model/DeviceId';
@@ -16,6 +22,11 @@ const BACKGROUND_COLOR_COLOR_DEVICE = 'white';
 const FRAME_COLOR_COLOR_DEVICE = 'white';
 const FRAME_COLOR_GRAYSCALE_DEVICE = '#ccc';
 const BACKGROUND_ACTIVE_BUTTON = 'rgba(0,0,0,0.2)';
+const BACKGROUND_KEYBOARD = '#9e9e9e';
+const BACKGROUND_KEY = '#eeeeee';
+const BACKGROUND_KEY_ACTIVE = '#bdbdbd';
+const BACKGROUND_KEY_LATCHED = '#ffd54f';
+const KEY_GAP = 1.5;
 
 interface FrameDependent {
     frameDevice: number;
@@ -43,6 +54,8 @@ interface Layout {
     buttonBottom: FrameDependent;
     radiusDpadSelect: FrameDependent;
     angleDpad: number;
+    keyboardHeight: FrameDependent;
+    keyboardTop: FrameDependent;
 }
 
 function buttonHeightForScreenSize(screenSize: ScreenSize) {
@@ -66,6 +79,7 @@ function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, p
 
     const separatorHeight = dimensions.silkscreenHeight > 0 ? dist(1) : dist(0);
     const buttonHeight = dist(buttonHeightForScreenSize(dimensions.screenSize));
+    const keyboardHeight = dist(onScreenKeyboardHeight(device));
 
     return {
         scale,
@@ -75,7 +89,8 @@ function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, p
                 dimensions.height +
                 separatorHeight.frameDevice +
                 dimensions.silkscreenHeight +
-                buttonHeight.frameDevice,
+                buttonHeight.frameDevice +
+                keyboardHeight.frameDevice,
         ),
         width: dist(2 * borderWidth.frameDevice + dimensions.width),
         screenHeight: dist(dimensions.height),
@@ -97,6 +112,10 @@ function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, p
         radiusDpadSelect: { frameCanvas: buttonHeight.frameCanvas / 5, frameDevice: buttonHeight.frameDevice / 5 },
         angleDpad:
             Math.PI / 2 - Math.atan((dimensions.width - 4 * buttonHeight.frameDevice) / buttonHeight.frameDevice),
+        keyboardHeight,
+        keyboardTop: coord(
+            dimensions.height + separatorHeight.frameDevice + dimensions.silkscreenHeight + buttonHeight.frameDevice,
+        ),
     };
 }
 
@@ -210,7 +229,8 @@ export abstract class AbstractCanvasDisplayService {
         const totalHeight =
             this.layout.screenHeight.frameDevice +
             this.layout.silkscreenHeight.frameDevice +
-            this.layout.buttonHeight.frameDevice;
+            this.layout.buttonHeight.frameDevice +
+            this.layout.keyboardHeight.frameDevice;
 
         if (clip) {
             if (x < 0) x = 0;
@@ -232,8 +252,76 @@ export abstract class AbstractCanvasDisplayService {
         return !this.isButtons(coords) && y >= this.layout.screenHeight.frameDevice;
     }
 
-    isButtons([, y]: [number, number]): boolean {
-        return y >= this.layout.screenHeight.frameDevice + this.layout.silkscreenHeight.frameDevice;
+    isButtons(coords: [number, number]): boolean {
+        const [, y] = coords;
+
+        return (
+            !this.isKeyboard(coords) &&
+            y >= this.layout.screenHeight.frameDevice + this.layout.silkscreenHeight.frameDevice
+        );
+    }
+
+    isKeyboard([, y]: [number, number]): boolean {
+        return this.layout.keyboardHeight.frameDevice > 0 && y >= this.keyboardOffset();
+    }
+
+    determineKeyboardKey([x, y]: [number, number]): OnScreenKey | undefined {
+        return onScreenKeyAt(this.keyboardKeys, x, y - this.keyboardOffset());
+    }
+
+    drawKeyboard(activeKeys: Iterable<number> = [], latchedKeys: Iterable<number> = []): void {
+        if (!this.ctx || this.layout.keyboardHeight.frameDevice === 0) return;
+        this.setupTransformation();
+
+        const active = new Set(activeKeys);
+        const latched = new Set(latchedKeys);
+        const top = this.layout.keyboardTop.frameDevice;
+        const scale = this.layout.scale;
+
+        this.fillRect(
+            0,
+            top,
+            this.layout.screenWidth.frameDevice,
+            this.layout.keyboardHeight.frameDevice,
+            BACKGROUND_KEYBOARD,
+        );
+
+        for (const k of this.keyboardKeys) {
+            const background = latched.has(k.key)
+                ? BACKGROUND_KEY_LATCHED
+                : active.has(k.key)
+                  ? BACKGROUND_KEY_ACTIVE
+                  : BACKGROUND_KEY;
+
+            this.fillRect(
+                k.x + KEY_GAP,
+                top + k.y + KEY_GAP,
+                k.width - 2 * KEY_GAP,
+                k.height - 2 * KEY_GAP,
+                background,
+            );
+
+            const cx = this.layout.borderWidth.frameCanvas + scale * (k.x + k.width / 2);
+            const cy = this.layout.borderWidth.frameCanvas + scale * (top + k.y + k.height / 2);
+            const fontSize = Math.min(k.height * 0.45, k.label.length > 2 ? 9 : 13);
+
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillStyle = k.color ?? 'black';
+            this.ctx.font = `${scale * fontSize}px sans-serif`;
+            this.ctx.fillText(k.label, cx, cy + (k.blueLabel ? scale * 2 : 0));
+
+            if (k.blueLabel) {
+                this.ctx.fillStyle = '#1565c0';
+                this.ctx.font = `${scale * 7}px sans-serif`;
+                this.ctx.textAlign = 'right';
+                this.ctx.fillText(
+                    k.blueLabel,
+                    this.layout.borderWidth.frameCanvas + scale * (k.x + k.width - 3),
+                    this.layout.borderWidth.frameCanvas + scale * (top + k.y + 7),
+                );
+            }
+        }
     }
 
     determineButton([x, y]: [number, number]): PalmButton {
@@ -310,11 +398,15 @@ export abstract class AbstractCanvasDisplayService {
             this.layout.screenHeight.frameDevice +
                 this.layout.silkscreenHeight.frameDevice +
                 this.layout.separatorHeight.frameDevice +
-                this.layout.buttonHeight.frameDevice,
+                this.layout.buttonHeight.frameDevice +
+                this.layout.keyboardHeight.frameDevice,
             this.backgroundColor(),
         );
 
+        this.keyboardKeys = onScreenKeyboardLayout(this.getDeviceId(), this.layout.screenWidth.frameDevice);
+
         this.drawEmulationCanvas();
+        this.drawKeyboard();
         await Promise.all([this.drawSilkscreen(), this.drawButtons()]);
     }
 
@@ -750,6 +842,15 @@ export abstract class AbstractCanvasDisplayService {
         }
     }
 
+    // Keyboard top in the coordinates returned by eventToPalmCoordinates (separator removed)
+    private keyboardOffset(): number {
+        return (
+            this.layout.screenHeight.frameDevice +
+            this.layout.silkscreenHeight.frameDevice +
+            this.layout.buttonHeight.frameDevice
+        );
+    }
+
     protected backgroundColor(): string {
         return isColor(this.getDeviceId()) ? BACKGROUND_COLOR_COLOR_DEVICE : BACKGROUND_COLOR_GRAYSCALE_DEVICE;
     }
@@ -762,6 +863,7 @@ export abstract class AbstractCanvasDisplayService {
     protected layout = calculateLayout(DEFAULT_DEVICE, undefined, this.pixelRatio());
     protected lastEmulationCanvas: HTMLCanvasElement | undefined;
     protected dpad = false;
+    protected keyboardKeys: Array<OnScreenKey> = [];
 
     readonly onResize = new Event<void>();
 

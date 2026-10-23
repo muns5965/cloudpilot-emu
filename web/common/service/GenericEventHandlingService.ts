@@ -7,6 +7,7 @@ const enum Area {
     screen,
     silkscreen,
     buttons,
+    keyboard,
 }
 
 interface InteractionScreen {
@@ -19,7 +20,13 @@ interface InteractionButton {
     buttonSecondary?: PalmButton;
 }
 
-type Interaction = InteractionScreen | InteractionButton;
+interface InteractionKeyboard {
+    area: Area.keyboard;
+    // Keys held by this interaction (latched modifiers first), released in reverse order
+    keys: Array<number>;
+}
+
+type Interaction = InteractionScreen | InteractionButton | InteractionKeyboard;
 
 /**
  * DOM event handler callback.
@@ -95,6 +102,13 @@ export class GenericEventHandlingService {
         }
 
         this.activeButtons.clear();
+
+        for (const key of this.activeOnScreenKeys) {
+            this.emulationService.handleHardwareKeyUp(key);
+        }
+        this.activeOnScreenKeys.clear();
+        this.latchedOnScreenKeys.clear();
+
         this.interactionsTouch.clear();
         this.interactionMouse = undefined;
 
@@ -152,7 +166,9 @@ export class GenericEventHandlingService {
 
         const area = this.determineArea(coords);
 
-        if (area === Area.buttons) {
+        if (area === Area.keyboard) {
+            this.interactionMouse = { area, keys: this.handleOnScreenKeyDown(coords) };
+        } else if (area === Area.buttons) {
             const button = this.canvasDisplayService.determineButton(coords);
             this.interactionMouse = { area, buttonPrimary: button };
 
@@ -165,7 +181,12 @@ export class GenericEventHandlingService {
 
     private handleMouseMove = (e: MouseEvent): void => {
         // tslint:disable-next-line: no-bitwise
-        if (!(e.buttons & 0x01) || !this.interactionMouse || this.interactionMouse?.area === Area.buttons) {
+        if (
+            !(e.buttons & 0x01) ||
+            !this.interactionMouse ||
+            this.interactionMouse?.area === Area.buttons ||
+            this.interactionMouse?.area === Area.keyboard
+        ) {
             return;
         }
 
@@ -184,6 +205,11 @@ export class GenericEventHandlingService {
         switch (interaction?.area) {
             case Area.buttons:
                 this.handleButtonUp(interaction.buttonPrimary);
+
+                break;
+
+            case Area.keyboard:
+                this.handleOnScreenKeyUp(interaction.keys);
 
                 break;
 
@@ -208,7 +234,9 @@ export class GenericEventHandlingService {
             handled = true;
 
             const area = this.determineArea(coords);
-            if (area === Area.buttons) {
+            if (area === Area.keyboard) {
+                this.interactionsTouch.set(touch.identifier, { area, keys: this.handleOnScreenKeyDown(coords) });
+            } else if (area === Area.buttons) {
                 const button = this.canvasDisplayService.determineButton(coords);
                 this.interactionsTouch.set(touch.identifier, { area, buttonPrimary: button });
 
@@ -298,6 +326,11 @@ export class GenericEventHandlingService {
 
                     break;
 
+                case Area.keyboard:
+                    this.handleOnScreenKeyUp(interaction.keys);
+
+                    break;
+
                 case Area.screen:
                 case Area.silkscreen:
                     this.emulationService.handlePointerUp();
@@ -380,6 +413,10 @@ export class GenericEventHandlingService {
     };
 
     private determineArea(coords: [number, number]): Area {
+        if (this.canvasDisplayService.isKeyboard(coords)) {
+            return Area.keyboard;
+        }
+
         if (this.canvasDisplayService.isButtons(coords)) {
             return Area.buttons;
         }
@@ -405,6 +442,47 @@ export class GenericEventHandlingService {
         this.activeButtons.delete(button);
         this.emulationService.handleButtonUp(button);
         void this.canvasDisplayService.drawButtons(Array.from(this.activeButtons.values()));
+    }
+
+    // On-screen keyboard: a modifier tap toggles its latch; any other key is pressed together
+    // with the latched modifiers, which are then cleared. Returns the keys now held.
+    private handleOnScreenKeyDown(coords: [number, number]): Array<number> {
+        const key = this.canvasDisplayService.determineKeyboardKey(coords);
+        if (!key) return [];
+
+        if (key.modifier) {
+            if (!this.latchedOnScreenKeys.delete(key.key)) this.latchedOnScreenKeys.add(key.key);
+            this.drawOnScreenKeyboard();
+
+            return [];
+        }
+
+        const keys = [...this.latchedOnScreenKeys, key.key];
+        this.latchedOnScreenKeys.clear();
+
+        for (const k of keys) {
+            this.activeOnScreenKeys.add(k);
+            this.emulationService.handleHardwareKeyDown(k);
+        }
+
+        this.drawOnScreenKeyboard();
+
+        return keys;
+    }
+
+    private handleOnScreenKeyUp(keys: Array<number>): void {
+        if (keys.length === 0) return;
+
+        for (const k of [...keys].reverse()) {
+            this.activeOnScreenKeys.delete(k);
+            this.emulationService.handleHardwareKeyUp(k);
+        }
+
+        this.drawOnScreenKeyboard();
+    }
+
+    private drawOnScreenKeyboard(): void {
+        this.canvasDisplayService.drawKeyboard(this.activeOnScreenKeys, this.latchedOnScreenKeys);
     }
 
     private releaseHardwareKeys = (): void => {
@@ -538,6 +616,8 @@ export class GenericEventHandlingService {
     private interactionsTouch = new Map<number, Interaction>();
     private activeButtons = new Set<PalmButton>();
     private activeHardwareKeys = new Set<number>();
+    private activeOnScreenKeys = new Set<number>();
+    private latchedOnScreenKeys = new Set<number>();
     private gameMode = false;
     private enableGamemodeHotkey = true;
 }
