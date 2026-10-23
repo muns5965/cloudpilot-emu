@@ -148,8 +148,10 @@ const EXTRA_KEYS: Array<{ key: KeyId; label: string }> = [
     { key: KeyId.keyIdJogBack, label: 'Back' },
 ];
 
-const TOGGLE_LABEL_HIDE = 'Hide ⌨';
-const TOGGLE_LABEL_SHOW = '⌨ Show keyboard';
+const TOGGLE_LABEL_HIDE = '⌨ ▼ Hide';
+const TOGGLE_LABEL_SHOW = '⌨ ▲ Show keyboard';
+// The hide key is wider than the device buttons next to it
+const TOGGLE_UNITS = 1.5;
 const COLLAPSED_HEIGHT = 22;
 
 const DEVICE_WIDTH = 320;
@@ -197,18 +199,24 @@ function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
     });
 
     const extraTop = mainHeight(spec, width) + LABEL_SPACE;
-    const extraKeys = [...EXTRA_KEYS, { key: KeyId.keyInvalid, label: TOGGLE_LABEL_HIDE, toggle: true }];
-    const extraWidth = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / extraKeys.length;
+    const extraKeys = [
+        ...EXTRA_KEYS.map((key) => ({ ...key, units: 1 })),
+        { key: KeyId.keyInvalid, label: TOGGLE_LABEL_HIDE, toggle: true, units: TOGGLE_UNITS },
+    ];
+    const unit = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / extraKeys.reduce((acc, { units }) => acc + units, 0);
 
-    extraKeys.forEach((key, i) =>
+    let x = EXTRA_ROW_LEFT_GAP;
+    for (const { units, ...key } of extraKeys) {
         keys.push({
             ...key,
-            x: EXTRA_ROW_LEFT_GAP + i * extraWidth,
+            x,
             y: extraTop,
-            width: extraWidth,
+            width: units * unit,
             height: EXTRA_ROW_HEIGHT - MARGIN,
-        }),
-    );
+        });
+
+        x += units * unit;
+    }
 
     return keys;
 }

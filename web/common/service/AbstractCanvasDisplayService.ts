@@ -26,6 +26,7 @@ const BACKGROUND_KEYBOARD = '#9e9e9e';
 const BACKGROUND_KEY = '#eeeeee';
 const BACKGROUND_KEY_ACTIVE = '#bdbdbd';
 const BACKGROUND_KEY_LATCHED = '#ffd54f';
+const BACKGROUND_KEY_TOGGLE = '#1565c0';
 const KEY_OUTLINE = '#757575';
 const KEY_BLUE_LABEL = '#1565c0';
 const KEY_ALT_LABEL = '#6a1b9a';
@@ -330,11 +331,13 @@ export abstract class AbstractCanvasDisplayService {
         const canvasY = (y: number) => this.layout.borderWidth.frameCanvas + scale * (top + y);
 
         for (const k of this.keyboardKeys) {
-            const background = latched.has(k.key)
-                ? BACKGROUND_KEY_LATCHED
-                : active.has(k.key)
-                  ? BACKGROUND_KEY_ACTIVE
-                  : BACKGROUND_KEY;
+            const background = k.toggle
+                ? BACKGROUND_KEY_TOGGLE
+                : latched.has(k.key)
+                  ? BACKGROUND_KEY_LATCHED
+                  : active.has(k.key)
+                    ? BACKGROUND_KEY_ACTIVE
+                    : BACKGROUND_KEY;
 
             this.ctx.beginPath();
             this.ctx.roundRect(
@@ -369,7 +372,7 @@ export abstract class AbstractCanvasDisplayService {
 
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillStyle = k.color ?? 'black';
+                this.ctx.fillStyle = k.toggle ? 'white' : (k.color ?? 'black');
                 this.ctx.font = `${scale * fontSize}px sans-serif`;
                 this.ctx.fillText(k.label, cx, cy);
             }
