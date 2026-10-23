@@ -162,6 +162,8 @@ class SoC {
 
     uint64_t eventQueueTicks{0};
     uint64_t eventQueueTicksAtPenDown{0};
+    KeyId lastKeyDown{keyInvalid};
+    uint64_t eventQueueTicksAtKeyDown{0};
     KeyId jammedKey{keyInvalid};
     uint64_t releaseJammedKeyAt{0};
     bool penDown{false};
