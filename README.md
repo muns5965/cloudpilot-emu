@@ -22,7 +22,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Hard buttons | **Works**: F1 Date Book, F2 Address, F3 To Do, F4 Memo (factory setting per the NX70V manual, p. 45) | The first press after boot used to be lost (shared with TG50; fixed by swapping the controller's edge-detect registers) |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
 | Power key (Esc), sleep/resume | **Works** | Shared with TG50: Esc sleeps (screen off), Esc again wakes; keyboard works after resume |
-| Browser | **Boots** (user test on a phone): Date Book, virtual Graffiti area; typing not yet reported | Device `PEG-NX70V`, TG50 ROM as boot ROM in the session settings, on-screen keyboard with the NX70V layout |
+| Browser | **Boots** (user test on a phone): Date Book, virtual Graffiti area; on-screen keyboard typing incl. Fn (`2`), Alt (`é`), Shift (`>`) | Device `PEG-NX70V`, TG50 ROM as boot ROM in the session settings, on-screen keyboard with the NX70V layout |
 | Session files | **Works** | Shared with TG50: `save-session <file>`, then start the emulator with the session file (no `--nx70v`/`--boot-rom` needed); also while asleep |
 
 ## NX70V differences in `--nx70v`
@@ -93,7 +93,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 하드 버튼 | **동작**: F1 일정(Date Book), F2 주소록, F3 할 일, F4 메모장(NX70V 매뉴얼 45쪽의 기본 설정) | 부팅 후 첫 누름이 무시되던 문제(TG50과 공통)는 마이컴 엣지 감지 레지스터를 바로잡아 해결 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
 | 전원 키(Esc), 절전·복귀 | **동작** | TG50과 공통: Esc로 절전(화면 꺼짐), 다시 Esc로 복귀. 복귀 후 키보드 정상 |
-| 브라우저 | **부팅 확인**(휴대폰 사용자 시험): 일정(Date Book), 가상 그래피티 영역. 키 입력 결과는 아직 | 기종 `PEG-NX70V`, 세션 설정에서 TG50 ROM을 부트 ROM으로 지정, NX70V 배열 화면 키보드 |
+| 브라우저 | **부팅 확인**(휴대폰 사용자 시험): 일정(Date Book), 가상 그래피티 영역. 화면 키보드 입력 확인(Fn → `2`, Alt → `é`, Shift → `>`) | 기종 `PEG-NX70V`, 세션 설정에서 TG50 ROM을 부트 ROM으로 지정, NX70V 배열 화면 키보드 |
 | 세션 파일 | **동작** | TG50과 공통: `save-session <파일>` 후 세션 파일로 실행(`--nx70v`·`--boot-rom` 불필요). 절전 중 저장도 가능 |
 
 ## `--nx70v`의 NX70V 차이
