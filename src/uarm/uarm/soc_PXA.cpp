@@ -256,6 +256,11 @@ void SocPXA::SuspendTimerInterrupts(bool suspendInterrupts) {
 
 bool SocPXA::LcdEnabled() { return pxaLcdIsEnabled(lcd); }
 
+namespace {
+    // The power-key wake takes about a second; wake this long before an RTC alarm.
+    constexpr uint32_t RTC_ALARM_WAKE_LEAD_SECONDS = 3;
+}  // namespace
+
 uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
     switch (clientType) {
         case SCHEDULER_TASK_TIMER:
@@ -287,9 +292,10 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
             PumpEventQueues();
             if (pxaPwrClkInDeepSleep(pwrClk)) {
                 // TG50/NX70V: the ROM arms the RTC alarm before sleeping but enables no RTC
-                // wake source, and a bare CPU wake leaves the screen off. A due alarm presses
-                // the power key instead; after waking, the ROM shows the alarm.
-                if (pxaRtcAlarmPending(rtc) && !rtcAlarmWakeRequested) {
+                // wake source; a bare CPU wake leaves the screen off, and the resume code
+                // clears a pending alarm without delivering it. Shortly before the alarm, press
+                // the power key: the device is awake when the alarm fires and shows it.
+                if (pxaRtcAlarmDue(rtc, RTC_ALARM_WAKE_LEAD_SECONDS) && !rtcAlarmWakeRequested) {
                     rtcAlarmWakeRequested = true;
                     KeyDown(keyIdPower);
                     KeyUp(keyIdPower);

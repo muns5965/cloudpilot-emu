@@ -13,8 +13,8 @@ struct PxaRtc* pxaRtcInit(struct ArmMem* physMem, struct PxaIc* ic);
 
 void pxaRtcTick(struct PxaRtc* rtc);
 
-// RTC alarm status (RTSR.AL) is set.
-bool pxaRtcAlarmPending(struct PxaRtc* rtc);
+// The armed RTC alarm (RTSR.ALE) fires within leadSeconds, or its status (RTSR.AL) is set.
+bool pxaRtcAlarmDue(struct PxaRtc* rtc, uint32_t leadSeconds);
 
 template <typename T>
 void pxaRtcSave(struct PxaRtc* rtc, T& savestate);
