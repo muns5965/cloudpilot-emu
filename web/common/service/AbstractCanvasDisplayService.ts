@@ -28,6 +28,7 @@ const BACKGROUND_KEY_ACTIVE = '#bdbdbd';
 const BACKGROUND_KEY_LATCHED = '#ffd54f';
 const KEY_OUTLINE = '#757575';
 const KEY_BLUE_LABEL = '#1565c0';
+const KEY_ALT_LABEL = '#6a1b9a';
 
 interface FrameDependent {
     frameDevice: number;
@@ -330,17 +331,28 @@ export abstract class AbstractCanvasDisplayService {
 
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillStyle = 'black';
+                this.ctx.fillStyle = k.color ?? 'black';
                 this.ctx.font = `${scale * fontSize}px sans-serif`;
                 this.ctx.fillText(k.label, cx, cy);
             }
 
-            if (k.blueLabel) {
+            this.ctx.font = `${scale * 6.5}px sans-serif`;
+            this.ctx.textBaseline = 'top';
+
+            if (k.fnLabel) {
                 this.ctx.fillStyle = KEY_BLUE_LABEL;
-                this.ctx.font = `${scale * 6.5}px sans-serif`;
+                this.ctx.textAlign = k.altLabel ? 'left' : 'center';
+                this.ctx.fillText(
+                    k.fnLabel,
+                    canvasX(k.altLabel ? k.x + 1 : k.x + k.width / 2),
+                    canvasY(k.y + k.height + 0.5),
+                );
+            }
+
+            if (k.altLabel) {
+                this.ctx.fillStyle = KEY_ALT_LABEL;
                 this.ctx.textAlign = 'right';
-                this.ctx.textBaseline = 'top';
-                this.ctx.fillText(k.blueLabel, canvasX(k.x + k.width + 1.5), canvasY(k.y + k.height + 0.5));
+                this.ctx.fillText(k.altLabel, canvasX(k.x + k.width - 1), canvasY(k.y + k.height + 0.5));
             }
         }
     }
@@ -778,6 +790,7 @@ export abstract class AbstractCanvasDisplayService {
 
             case DeviceId.pegNR70:
             case DeviceId.pegTG50:
+            case DeviceId.pegNX70V:
                 return SkinElement.HARD_BUTTONS_PEG_NR70;
 
             case DeviceId.pegN700c:

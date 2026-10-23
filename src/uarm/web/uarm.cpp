@@ -38,6 +38,11 @@ Uarm& Uarm::SetDisplayMode(unsigned int displayMode) {
     return *this;
 }
 
+Uarm& Uarm::SetDeviceType(int deviceType) {
+    requestedDeviceType = static_cast<DeviceType5>(deviceType);
+    return *this;
+}
+
 Uarm& Uarm::SetNand(unsigned int size, void* data) {
     nandSize = size;
     nandData = static_cast<uint8_t*>(data);
@@ -84,7 +89,7 @@ bool Uarm::Launch(unsigned int romSize, void* romData) {
         cerr << "invalid NOR" << endl;
         return false;
     }
-    deviceType = romInfo.GetDeviceType();
+    deviceType = requestedDeviceType.value_or(romInfo.GetDeviceType());
 
     if (sdSize > 0) sdCardInitializeWithData(sdSize / SD_SECTOR_SIZE, sdData, sdId.c_str());
 

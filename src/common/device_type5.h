@@ -6,7 +6,7 @@ enum DeviceType5 {
     deviceTypeFrankenE2 = 1,
     deviceTypePV = 2,
     deviceTypeSonyTG50 = 3,  // native --tg50; web/native auto-detected (sony/vrna)
-    deviceTypeSonyNX70V = 4,  // experimental: native --nx70v only, shares the TG50 peripherals
+    deviceTypeSonyNX70V = 4,  // experimental, shares the TG50 peripherals; needs a TG50 boot ROM
     deviceTypeInvalid = -1
 };
 

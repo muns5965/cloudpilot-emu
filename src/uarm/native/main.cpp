@@ -217,7 +217,8 @@ namespace {
 
             ramSize = 0;
 
-            if (options.forceNx70v &&
+            if ((options.forceNx70v ||
+                 romInfo.GetDeviceType() == DeviceType5::deviceTypeSonyNX70V) &&
                 !applyNx70vBootRom(options, norOrSessionData.get(), norOrSessionLen))
                 return false;
 
@@ -252,7 +253,8 @@ namespace {
         cerr << romInfo;
 
         if (!romInfo.IsValid()) return false;
-        // A session records its device type; TG50 ROMs (sony/vrna) are also identified from their header.
+        // A session records its device type; TG50 (sony/vrna) and NX70V (sony/crdb) ROMs are also
+        // identified from their header.
         const DeviceType5 deviceType = sessionDeviceType      ? *sessionDeviceType
                                        : options.forceNx70v ? DeviceType5::deviceTypeSonyNX70V
                                        : options.forceTg50  ? DeviceType5::deviceTypeSonyTG50

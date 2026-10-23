@@ -1,5 +1,6 @@
 # Builds the WASM core and the PWA and deploys it to this fork's GitHub Pages
 # (https://<owner>.github.io/<repo>/). No ROM is included; ROMs are loaded in the browser.
+# Deployed from feature/sony-nx70v, which carries all TG50 changes plus the NX70V device.
 #
 # One-time setup: Settings → Pages → Source = "GitHub Actions", and allow the branch you
 # deploy from under Settings → Environments → github-pages → Deployment branches.
@@ -7,7 +8,7 @@ name: Fork Pages (WASM + PWA)
 on:
   workflow_dispatch:
   push:
-    branches: [feature/sony-tg50]
+    branches: [feature/sony-nx70v]
 env:
   EM_VERSION: 6.0.0
   NODE_VERSION: 24
