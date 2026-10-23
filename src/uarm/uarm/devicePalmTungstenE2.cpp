@@ -133,13 +133,13 @@ struct Device *deviceSetup(enum DeviceType5 type, struct SocPeriphs *sp,
                            struct Keypad *kp, struct VSD *vsd, uint8_t *nandContent,
                            size_t nandSize, const struct MemoryBuffer *pageBuffer) {
     // TG50 is a distinct hardware configuration, never initialize its E2 NAND/AC97.
-    if (type == DeviceType5::deviceTypeSonyTG50) {
+    if (type == DeviceType5::deviceTypeSonyTG50 || type == DeviceType5::deviceTypeSonyNX70V) {
         auto *dev = static_cast<Device *>(calloc(1, sizeof(Device)));
         if (!dev) ERR("cannot allocate TG50 device");
         dev->type = type;
         dev->gpio = sp->gpio;
         dev->reschedule = reschedule;
-        dev->tg50 = sonyTG50Initialize(sp);
+        dev->tg50 = sonyTG50Initialize(sp, type == DeviceType5::deviceTypeSonyNX70V);
         if (!dev->tg50) ERR("could not initialize TG50 peripherals");
         sp->nand = nullptr; // TG50 ROM is NOR; no E2 NAND device.
         return dev;

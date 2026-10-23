@@ -843,6 +843,7 @@ export abstract class AbstractCanvasDisplayService {
 
             case DeviceId.pegNR70:
             case DeviceId.pegTG50:
+            case DeviceId.pegNX70V:
                 return SkinElement.HARD_BUTTONS_PEG_NR70;
 
             case DeviceId.pegN700c:

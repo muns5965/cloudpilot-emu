@@ -229,7 +229,7 @@ export class EngineUarmImpl implements EngineUarm {
         if (
             !(await this.rpcHost.call(
                 'openSession',
-                { rom, screenSize: this.dimensions.screenSize, ramSize, nand, memory, state, card },
+                { rom, device, screenSize: this.dimensions.screenSize, ramSize, nand, memory, state, card },
                 [
                     rom.buffer,
                     nand?.buffer,

@@ -71,9 +71,9 @@ NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloud
 
 ## Notes
 
-- Branch: `feature/sony-tg50`; `master` keeps the upstream code at the fork point, with a short landing README for this fork. This is an independent experimental fork, **not an official CloudpilotEmu release**. Upstream documentation and licensing: [doc/README-upstream.md](doc/README-upstream.md).
+- Branch: `feature/sony-tg50`; `master` is the integration branch (TG50 + NX70V). This is an independent experimental fork, **not an official CloudpilotEmu release**. Upstream documentation and licensing: [doc/README-upstream.md](doc/README-upstream.md).
 - Never commit or publish ROM files or session files.
-- Browser deployment: the Pages site is built from [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v), which carries all TG50 changes plus the NX70V device (`.github/workflows/fork-pages.yml`; manual runs only on this branch). One-time setup: Settings → Pages → Source = GitHub Actions; Settings → Environments → github-pages must allow the branch.
+- Branches: TG50 work and tests happen on this branch; finished changes are merged into [`master`](https://github.com/muns5965/cloudpilot-emu), which deploys the browser version (`.github/workflows/fork-pages.yml`). Shared fixes go to `master` first and are merged back here. One-time setup: Settings → Pages → Source = GitHub Actions; Settings → Environments → github-pages must allow the branch.
 
 ---
 
@@ -148,6 +148,6 @@ NX70V 작업은 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-em
 
 ## 참고
 
-- 개발 브랜치는 `feature/sony-tg50`, `master`는 포크 시점의 원본 코드 그대로이며, README만 이 포크 안내로 바꿨습니다. **공식 CloudpilotEmu 배포판이 아닌 독립 실험용 포크**입니다. 원본 문서와 라이선스: [doc/README-upstream.md](doc/README-upstream.md).
+- 개발 브랜치는 `feature/sony-tg50`, `master`는 통합 브랜치(TG50 + NX70V)입니다. **공식 CloudpilotEmu 배포판이 아닌 독립 실험용 포크**입니다. 원본 문서와 라이선스: [doc/README-upstream.md](doc/README-upstream.md).
 - ROM 파일과 세션 파일은 절대 커밋·공개하지 않습니다.
-- 브라우저 배포: Pages는 TG50 변경을 모두 포함하고 NX70V 기종이 더해진 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v)에서 빌드합니다(`.github/workflows/fork-pages.yml`, 이 브랜치에서는 수동 실행만). 처음 한 번 설정: Settings → Pages → Source = GitHub Actions, Settings → Environments → github-pages에서 이 브랜치 허용.
+- 브랜치: TG50 작업과 시험은 이 브랜치에서 하고, 마친 변경은 브라우저 버전을 배포하는 [`master`](https://github.com/muns5965/cloudpilot-emu)로 합칩니다(`.github/workflows/fork-pages.yml`). 공통 수정은 `master`에서 먼저 하고 이 브랜치로 받아 옵니다. 처음 한 번 설정: Settings → Pages → Source = GitHub Actions, Settings → Environments → github-pages에서 이 브랜치 허용.

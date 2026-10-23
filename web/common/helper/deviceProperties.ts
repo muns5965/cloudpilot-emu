@@ -123,8 +123,10 @@ export function deviceDimensions(deviceId: DeviceId, screenSize?: ScreenSize): D
                 silkscreenHeight: 120,
             };
 
+        // The NX70V ROM draws its own Graffiti area on the 320x480 screen
         case DeviceId.pegNR70:
         case DeviceId.frankene2:
+        case DeviceId.pegNX70V:
             return {
                 ...dimensionsForScreenSize(ScreenSize.screen320x480),
                 silkscreenHeight: 0,
@@ -242,6 +244,7 @@ export function cpuClock(deviceId: DeviceId): number {
             return 100;
 
         case DeviceId.pegTG50:
+        case DeviceId.pegNX70V:
             return 200;
     }
 }
@@ -365,6 +368,9 @@ export function deviceName(deviceId: DeviceId): string {
         case DeviceId.pegTG50:
             return 'Sony PEG-TG50';
 
+        case DeviceId.pegNX70V:
+            return 'Sony PEG-NX70V';
+
         default:
             throw new Error('bad device ID');
     }
@@ -392,6 +398,7 @@ export function quirkNoHotsync(deviceId: DeviceId) {
         case DeviceId.te2:
         case DeviceId.repalmPV:
         case DeviceId.pegTG50:
+        case DeviceId.pegNX70V:
             return true;
 
         default:
@@ -439,6 +446,7 @@ export function engineType(deviceId: DeviceId): EngineType {
         case DeviceId.frankene2:
         case DeviceId.repalmPV:
         case DeviceId.pegTG50:
+        case DeviceId.pegNX70V:
             return 'uarm';
 
         default:
@@ -495,5 +503,5 @@ export function selectableRamSizes(deviceId: DeviceId): Array<number> | undefine
 }
 
 export function hasHardwareKeyboard(deviceId: DeviceId): boolean {
-    return deviceId === DeviceId.pegTG50;
+    return deviceId === DeviceId.pegTG50 || deviceId === DeviceId.pegNX70V;
 }

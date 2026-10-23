@@ -78,6 +78,7 @@ export const enum DisplayMode {
 export interface Uarm {
     SetRamSize(size: number): Uarm;
     SetDisplayMode(mode: DisplayMode): Uarm;
+    SetDeviceType(deviceType: number): Uarm;
     SetNand(size: number, data: VoidPtr): Uarm;
     SetMemory(size: number, data: VoidPtr): Uarm;
     SetSavestate(size: number, data: VoidPtr): Uarm;

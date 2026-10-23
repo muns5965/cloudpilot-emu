@@ -71,6 +71,35 @@
             </ion-item>
         }
 
+        @if (isUarm && selectBootRom) {
+            <ion-item lines="none" class="boot-rom" [class.boot-rom-missing]="!formControlBootRom.value">
+                <div class="boot-rom-container">
+                    <div class="nand-container">
+                        <ion-input
+                            class="input-nand"
+                            [label]="
+                                formControlBootRom.value ? 'Boot ROM (TG50 ROM)' : 'Boot ROM (TG50 ROM) — required'
+                            "
+                            labelPlacement="stacked"
+                            placeholder="Tap to choose the TG50 ROM"
+                            formControlName="bootRom"
+                            [readonly]="true"
+                            tabindex="-1"
+                            (click)="onBootRomClick()"
+                        ></ion-input>
+                        @if (formControlBootRom.value) {
+                            <ion-button (click)="onBootRomClearClick()"> Clear </ion-button>
+                        } @else {
+                            <ion-button color="danger" (click)="onBootRomClick()"> Select </ion-button>
+                        }
+                    </div>
+                    <div class="boot-rom-hint">
+                        The NX70V dump has no boot ROM; the TG50 ROM supplies it (stays in this browser).
+                    </div>
+                </div>
+            </ion-item>
+        }
+
         @if (isUarm) {
             <h1>Performance</h1>
 

@@ -12,6 +12,7 @@ import { Router } from '@angular/router';
 import helpUrl from '@assets/doc/sessions.md';
 import { isIOS, isIOSNative } from '@common/helper/browser';
 import { deviceDimensions, nandSize, selectableRamSizes, selectableScreenSizes } from '@common/helper/deviceProperties';
+import { applySonyBootRom, needsSonyBootRom } from '@common/helper/sonyBootRom';
 import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
 import { SessionMetadata } from '@common/model/SessionMetadata';
@@ -415,6 +416,7 @@ export class SessionsPage implements DragDropClient, OnInit {
             const ramSizes = selectableRamSizes(romInfo.supportedDevices[0]);
             const ramSize = await this.nativeSupportService.ramSizeForDevice(romInfo.supportedDevices[0], content);
             const defaultDevice = romInfo.supportedDevices[0];
+            const selectBootRom = defaultDevice === DeviceId.pegNX70V && needsSonyBootRom(content);
 
             const editSettingsResult = await this.editSettings(
                 settings,
@@ -426,13 +428,14 @@ export class SessionsPage implements DragDropClient, OnInit {
                 ramSizes,
                 nandSize(defaultDevice),
                 romInfo.engine === 'uarm' ? romInfo.needsNand : false,
+                selectBootRom,
             );
 
             if (editSettingsResult !== undefined) {
-                const [device, screenSize, ramSizeMB, nand] = editSettingsResult;
+                const [device, screenSize, ramSizeMB, nand, bootRom] = editSettingsResult;
 
                 const session = await this.sessionService.addSessionFromRom(
-                    content,
+                    bootRom ? applySonyBootRom(content, bootRom) : content,
                     device,
                     screenSize,
                     ramSizeMB,
@@ -455,7 +458,8 @@ export class SessionsPage implements DragDropClient, OnInit {
         availableRamSizes?: Array<number>,
         selectNandSize?: number,
         needsNand = false,
-    ): Promise<[DeviceId, ScreenSize | undefined, number, Uint8Array | undefined] | undefined> {
+        selectBootRom = false,
+    ): Promise<[DeviceId, ScreenSize | undefined, number, Uint8Array | undefined, Uint8Array | undefined] | undefined> {
         return new Promise((resolve) => {
             let modal: HTMLIonModalElement;
 
@@ -468,6 +472,7 @@ export class SessionsPage implements DragDropClient, OnInit {
                         availableDevices,
                         device,
                         selectNandSize,
+                        selectBootRom,
                         availableScreenSizes,
                         screenSize,
                         availableRamSizes,
@@ -477,6 +482,7 @@ export class SessionsPage implements DragDropClient, OnInit {
                             screenSize: ScreenSize | undefined,
                             ramSizeMB: number,
                             nand: Uint8Array | undefined,
+                            bootRom: Uint8Array | undefined,
                         ) => {
                             if (
                                 needsNand &&
@@ -487,8 +493,12 @@ export class SessionsPage implements DragDropClient, OnInit {
                                 return;
                             }
 
+                            if (selectBootRom && !bootRom && !(await this.continueWithoutBootRom())) {
+                                return;
+                            }
+
                             void modal.dismiss();
-                            resolve([device, screenSize, ramSizeMB, nand]);
+                            resolve([device, screenSize, ramSizeMB, nand, bootRom]);
                         },
                         onCancel: () => {
                             void modal.dismiss();
@@ -512,6 +522,27 @@ export class SessionsPage implements DragDropClient, OnInit {
                 You are creating a session from an original Palm ROM. This requires and additional NAND
                 image for proper operation. You can continue without it, but PalmOS is known to be
                 buggy in this configuration.
+            `,
+            {
+                Cancel: () => {
+                    doContinue = false;
+                },
+            },
+            'Continue',
+        );
+
+        return doContinue;
+    }
+
+    private async continueWithoutBootRom(): Promise<boolean> {
+        let doContinue = true;
+
+        await this.alertService.message(
+            'Boot ROM required',
+            `
+                This ROM has no boot ROM at its start (the known PEG-NX70V dump holds device data there).
+                Select a PEG-TG50 ROM as boot ROM; its first 96 kB are copied over the start of this ROM,
+                in this browser only. Without it the device does not boot.
             `,
             {
                 Cancel: () => {
