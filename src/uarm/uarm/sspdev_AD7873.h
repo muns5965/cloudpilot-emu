@@ -1,5 +1,5 @@
 // Sony PEG-TG50 AD7873 touchscreen model, ported from uARM-Palm/uARM.
-// Not yet instantiated: TG50 device registration is pending.
+// Used by the PEG-TG50 and PEG-NX70V devices.
 #ifndef _SSPDEV_AD7873_H_
 #define _SSPDEV_AD7873_H_
 #include <cstddef>

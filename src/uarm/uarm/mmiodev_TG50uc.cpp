@@ -1,4 +1,4 @@
-// Ported from uARM-Palm/uARM mmiodev_TG50uc.c; not yet wired into any device.
+// Ported from uARM-Palm/uARM mmiodev_TG50uc.c; used by the PEG-TG50 and PEG-NX70V devices.
 //(c) uARM project    https://github.com/uARM-Palm/uARM    uARM@dmitry.gr
 
 #include "mmiodev_TG50uc.h"
