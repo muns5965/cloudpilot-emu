@@ -26,7 +26,8 @@ const BACKGROUND_KEYBOARD = '#9e9e9e';
 const BACKGROUND_KEY = '#eeeeee';
 const BACKGROUND_KEY_ACTIVE = '#bdbdbd';
 const BACKGROUND_KEY_LATCHED = '#ffd54f';
-const KEY_GAP = 1.5;
+const KEY_OUTLINE = '#757575';
+const KEY_BLUE_LABEL = '#1565c0';
 
 interface FrameDependent {
     frameDevice: number;
@@ -286,6 +287,9 @@ export abstract class AbstractCanvasDisplayService {
             BACKGROUND_KEYBOARD,
         );
 
+        const canvasX = (x: number) => this.layout.borderWidth.frameCanvas + scale * x;
+        const canvasY = (y: number) => this.layout.borderWidth.frameCanvas + scale * (top + y);
+
         for (const k of this.keyboardKeys) {
             const background = latched.has(k.key)
                 ? BACKGROUND_KEY_LATCHED
@@ -293,33 +297,50 @@ export abstract class AbstractCanvasDisplayService {
                   ? BACKGROUND_KEY_ACTIVE
                   : BACKGROUND_KEY;
 
-            this.fillRect(
-                k.x + KEY_GAP,
-                top + k.y + KEY_GAP,
-                k.width - 2 * KEY_GAP,
-                k.height - 2 * KEY_GAP,
-                background,
+            this.ctx.beginPath();
+            this.ctx.roundRect(
+                canvasX(k.x),
+                canvasY(k.y),
+                scale * k.width,
+                scale * k.height,
+                scale * Math.min(k.height, k.width) * 0.3,
             );
+            this.ctx.fillStyle = background;
+            this.ctx.fill();
+            this.ctx.lineWidth = scale * 0.6;
+            this.ctx.strokeStyle = KEY_OUTLINE;
+            this.ctx.stroke();
 
-            const cx = this.layout.borderWidth.frameCanvas + scale * (k.x + k.width / 2);
-            const cy = this.layout.borderWidth.frameCanvas + scale * (top + k.y + k.height / 2);
-            const fontSize = Math.min(k.height * 0.45, k.label.length > 2 ? 9 : 13);
+            const cx = canvasX(k.x + k.width / 2);
+            const cy = canvasY(k.y + k.height / 2);
 
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = k.color ?? 'black';
-            this.ctx.font = `${scale * fontSize}px sans-serif`;
-            this.ctx.fillText(k.label, cx, cy + (k.blueLabel ? scale * 2 : 0));
+            if (k.bar) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(
+                    canvasX(k.x + k.width * 0.25),
+                    cy - scale * 1.5,
+                    scale * k.width * 0.5,
+                    scale * 3,
+                    scale * 1.5,
+                );
+                this.ctx.fillStyle = k.bar;
+                this.ctx.fill();
+            } else {
+                const fontSize = Math.min(k.height * 0.55, k.label.length > 2 ? 8 : 11);
+
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillStyle = 'black';
+                this.ctx.font = `${scale * fontSize}px sans-serif`;
+                this.ctx.fillText(k.label, cx, cy);
+            }
 
             if (k.blueLabel) {
-                this.ctx.fillStyle = '#1565c0';
-                this.ctx.font = `${scale * 7}px sans-serif`;
+                this.ctx.fillStyle = KEY_BLUE_LABEL;
+                this.ctx.font = `${scale * 6.5}px sans-serif`;
                 this.ctx.textAlign = 'right';
-                this.ctx.fillText(
-                    k.blueLabel,
-                    this.layout.borderWidth.frameCanvas + scale * (k.x + k.width - 3),
-                    this.layout.borderWidth.frameCanvas + scale * (top + k.y + 7),
-                );
+                this.ctx.textBaseline = 'top';
+                this.ctx.fillText(k.blueLabel, canvasX(k.x + k.width + 1.5), canvasY(k.y + k.height + 0.5));
             }
         }
     }
