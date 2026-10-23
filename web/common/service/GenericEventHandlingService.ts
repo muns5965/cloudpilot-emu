@@ -450,6 +450,12 @@ export class GenericEventHandlingService {
         const key = this.canvasDisplayService.determineKeyboardKey(coords);
         if (!key) return [];
 
+        if (key.toggle) {
+            this.handleOnScreenKeyboardToggle();
+
+            return [];
+        }
+
         if (key.modifier) {
             if (!this.latchedOnScreenKeys.delete(key.key)) this.latchedOnScreenKeys.add(key.key);
             this.drawOnScreenKeyboard();
@@ -468,6 +474,16 @@ export class GenericEventHandlingService {
         this.drawOnScreenKeyboard();
 
         return keys;
+    }
+
+    private handleOnScreenKeyboardToggle(): void {
+        for (const key of this.activeOnScreenKeys) {
+            this.emulationService.handleHardwareKeyUp(key);
+        }
+        this.activeOnScreenKeys.clear();
+        this.latchedOnScreenKeys.clear();
+
+        void this.canvasDisplayService.toggleKeyboard();
     }
 
     private handleOnScreenKeyUp(keys: Array<number>): void {

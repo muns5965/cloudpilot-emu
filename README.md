@@ -19,7 +19,7 @@ Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c�
 | Hard buttons, jog dial keys | **Works** | |
 | Power key, sleep/resume | **Works** | Sleep turns the screen off; the next press resumes. RTC alarm wake not checked |
 | Session files | **Works** (native) | Also while asleep. Browser save/restore not checked |
-| Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons | PC keyboard and the on-screen keyboard are new and not yet tested by hand |
+| Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons, on-screen keyboard | PC keyboard in the browser not yet tested by hand |
 | Native window | Works | Still draws the E2 Graffiti silkscreen, which does nothing on TG50 |
 | Audio (AK4534), Memory Stick | Register models only | No sound, no media |
 | CI | **Passing** | Native build, controller compile check, browser build and deployment |
@@ -30,7 +30,7 @@ Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c�
 2. **Sessions → +**, choose the TG50 NOR ROM. The device shows as **Sony PEG-TG50**, 17 MB RAM.
 3. Start the session. Setup 1–2: tap anywhere. Calibration: tap the center of each target. Setup 3: **Next**, Setup 4: **Done**.
 
-**On-screen keyboard** (below the hard buttons, layout after the TG50 manual): tap **Shift**, **Blue**, **Red** or **Ctrl** to latch it (yellow) for the next key, e.g. Blue then W types `2`. The TG50 ROM only applies these keys while they are held, so the on-screen keyboard holds them together with the next key. The bottom row has Home, Graffiti, Voice, the jog dial (▲ ● ▼) and Back.
+**On-screen keyboard** (below the hard buttons, layout after the TG50 manual): tap **Shift**, **Blue**, **Red** or **Ctrl** to latch it (yellow) for the next key, e.g. Blue then W types `2`. The TG50 ROM only applies these keys while they are held, so the on-screen keyboard holds them together with the next key. The bottom row has Home, Graffiti, Voice, the jog dial (▲ ● ▼), Back, **⏻ Power** (sleep/wake, like Esc) and the blue **⌨ ▼ Hide** key, which folds the keyboard away so the screen gets larger (**⌨ ▲ Show keyboard** brings it back).
 
 **PC keyboard** (same as native):
 
@@ -96,7 +96,7 @@ uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했�
 | 하드 버튼, 조그 다이얼 키 | **동작** | |
 | 전원 키, 절전·복귀 | **동작** | 절전하면 화면이 꺼지고 다시 누르면 복귀. 알람(RTC)으로 깨우기는 미확인 |
 | 세션 파일 | **동작**(네이티브) | 절전 중 저장도 가능. 브라우저 저장·복원은 미확인 |
-| 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼 | PC 키보드와 화면 키보드는 새로 넣었고 아직 직접 시험 전 |
+| 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼, 화면 키보드 | 브라우저에서 PC 키보드는 아직 직접 시험 전 |
 | 네이티브 창 | 동작 | E2 그래피티 실크스크린이 아직 그려지며 TG50에서는 기능 없음 |
 | 오디오(AK4534), Memory Stick | 레지스터 모델만 | 소리·카드 없음 |
 | CI | **통과** | 네이티브 빌드, 마이컴 컴파일 검사, 브라우저 빌드·배포 |
@@ -107,7 +107,7 @@ uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했�
 2. **Sessions → +** 에서 TG50 NOR ROM을 고릅니다. 기종 **Sony PEG-TG50**, RAM 17MB로 표시됩니다.
 3. 세션을 실행합니다. Setup 1~2는 아무 곳이나 누르고, 펜 보정은 표적 중심을 누르고, Setup 3은 **Next**, Setup 4는 **Done**을 누릅니다.
 
-**화면 키보드**(하드 버튼 아래, TG50 매뉴얼 배열): **Shift**, **Blue**, **Red**, **Ctrl**을 탭하면 노란색으로 켜지고 다음 키 한 번에 적용됩니다. 예: Blue 다음 W → `2`. TG50 ROM은 이 키들을 누른 채로 있을 때만 적용하므로, 화면 키보드가 다음 키와 함께 눌린 상태로 보냅니다. 맨 아래 줄은 Home, Graffiti, Voice, 조그 다이얼(▲ ● ▼), Back입니다.
+**화면 키보드**(하드 버튼 아래, TG50 매뉴얼 배열): **Shift**, **Blue**, **Red**, **Ctrl**을 탭하면 노란색으로 켜지고 다음 키 한 번에 적용됩니다. 예: Blue 다음 W → `2`. TG50 ROM은 이 키들을 누른 채로 있을 때만 적용하므로, 화면 키보드가 다음 키와 함께 눌린 상태로 보냅니다. 맨 아래 줄은 Home, Graffiti, Voice, 조그 다이얼(▲ ● ▼), Back, **⏻ Power**(Esc처럼 절전·복귀), 파란 **⌨ ▼ Hide** 키입니다. Hide로 키보드를 접으면 화면이 커지고, **⌨ ▲ Show keyboard**로 다시 폅니다.
 
 **PC 키보드**(네이티브와 같음):
 
