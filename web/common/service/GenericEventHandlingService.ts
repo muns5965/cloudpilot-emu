@@ -363,8 +363,8 @@ export class GenericEventHandlingService {
             e.preventDefault();
 
             if (!this.activeHardwareKeys.has(e.code)) {
+                this.pressDeviceKeys(keys);
                 this.activeHardwareKeys.set(e.code, keys);
-                keys.forEach((key) => this.emulationService.handleHardwareKeyDown(key));
             }
 
             return;
@@ -470,10 +470,8 @@ export class GenericEventHandlingService {
         const keys = [...this.latchedOnScreenKeys, key.key];
         this.latchedOnScreenKeys.clear();
 
-        for (const k of keys) {
-            this.activeOnScreenKeys.add(k);
-            this.emulationService.handleHardwareKeyDown(k);
-        }
+        this.pressDeviceKeys(keys);
+        for (const k of keys) this.activeOnScreenKeys.add(k);
 
         this.drawOnScreenKeyboard();
 
@@ -508,6 +506,14 @@ export class GenericEventHandlingService {
 
         for (const keys of chords) this.releaseDeviceKeys(keys);
     };
+
+    // Presses device keys in order, except keys another host key or on-screen key already holds.
+    // Call before recording the keys as held.
+    private pressDeviceKeys(keys: Array<number>): void {
+        for (const k of keys) {
+            if (!this.isDeviceKeyHeld(k)) this.emulationService.handleHardwareKeyDown(k);
+        }
+    }
 
     // Releases device keys in reverse order, except keys still held by another host key or an
     // on-screen key (e.g. Blue held with F7 while a digit chord Blue + Q is released).

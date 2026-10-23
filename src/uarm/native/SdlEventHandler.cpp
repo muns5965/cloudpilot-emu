@@ -161,15 +161,19 @@ void SdlEventHandler::HandleEvents() {
                     hardwareKeyboard ? mapDigitKey(event.key.keysym.sym) : keyInvalid;
                 if (digit) {
                     if (!event.key.repeat) {
+                        if (!blueKeyHeld && digitChordsHeld == 0) soc->KeyDown(keyIdKbdBlue);
                         digitChordsHeld++;
-                        soc->KeyDown(keyIdKbdBlue);
                         soc->KeyDown(digit);
                     }
                     break;
                 }
 
                 enum KeyId key = mapKey(event.key.keysym.sym, hardwareKeyboard);
-                if (key == keyIdKbdBlue) blueKeyHeld = true;
+                if (key == keyIdKbdBlue) {
+                    if (event.key.repeat) break;
+                    blueKeyHeld = true;
+                    if (digitChordsHeld > 0) break;  // already down for a digit chord
+                }
                 if (key) soc->KeyDown(key);
                 break;
             }
