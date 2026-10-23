@@ -30,8 +30,8 @@
 	@0x020 is direction (1 = out)
 	@0x040 is w1 "set hi" reg
 	@0x060 is w1 "set lo" reg
-	@0x080 is falling edge detect
-	@0x0a0 is rising edge detect
+	@0x080 is rising edge detect (original uARM: falling)
+	@0x0a0 is falling edge detect (original uARM: rising)
 	@0x0c0 is accumulates triggered edges, w1c
 	@0x120 is whether triggered edges interrupt the main cpu!
 */
@@ -221,24 +221,26 @@ static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, 
 				}
 				break;
 			
-			case 0x80:	//GPIOA fallingEdgeDetect (RW)
-			case 0x84:	//GPIOA fallingEdgeDetect (RW)
-			case 0x88:	//GPIOA fallingEdgeDetect (RW)
-			case 0x8c:	//GPIOA fallingEdgeDetect (RW)
-				if (write)
-					uc->port[(pa >> 2) & 3].detectFall = val;
-				else
-					val = uc->port[(pa >> 2) & 3].detectFall;
-				break;
-			
-			case 0xa0:	//GPIOA risingEdgeDetect (RW)
-			case 0xa4:	//GPIOA risingEdgeDetect (RW)
-			case 0xa8:	//GPIOA risingEdgeDetect (RW)
-			case 0xac:	//GPIOA risingEdgeDetect (RW)
+			// Swapped versus original uARM (0x80 = falling there). Idle TG50 firmware sets port C
+			// 0x88 = 0, 0xa8 = 0xff00 to catch key presses (columns go low); see docs/sony-tg50-port.md
+			case 0x80:	//GPIOA risingEdgeDetect (RW)
+			case 0x84:	//GPIOB risingEdgeDetect (RW)
+			case 0x88:	//GPIOC risingEdgeDetect (RW)
+			case 0x8c:	//GPIOD risingEdgeDetect (RW)
 				if (write)
 					uc->port[(pa >> 2) & 3].detectRise = val;
 				else
 					val = uc->port[(pa >> 2) & 3].detectRise;
+				break;
+			
+			case 0xa0:	//GPIOA fallingEdgeDetect (RW)
+			case 0xa4:	//GPIOB fallingEdgeDetect (RW)
+			case 0xa8:	//GPIOC fallingEdgeDetect (RW)
+			case 0xac:	//GPIOD fallingEdgeDetect (RW)
+				if (write)
+					uc->port[(pa >> 2) & 3].detectFall = val;
+				else
+					val = uc->port[(pa >> 2) & 3].detectFall;
 				break;
 			
 			case 0xc0:	//GPIOA edgesDetected (R, w1c)
