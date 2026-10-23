@@ -25,6 +25,9 @@ class SdlEventHandler {
    private:
     SoC* soc;
     bool hardwareKeyboard{false};
+    // Blue is shared by F7 and the digit chords: release it only when neither holds it.
+    bool blueKeyHeld{false};
+    int digitChordsHeld{0};
 
     bool penDown{false};
     int scale{1};
