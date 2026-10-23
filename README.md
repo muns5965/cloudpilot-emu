@@ -6,14 +6,14 @@
 
 ## Try it in the browser
 
-**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50. Open **Sessions → +** and choose your TG50 NOR ROM; the device is detected as **Sony PEG-TG50**. The ROM file stays in your browser.
+**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50 and PEG-NX70V. Open **Sessions → +** and choose your ROM; the device is detected from it. For the NX70V, the settings dialog also asks for a TG50 ROM, which supplies the missing boot ROM. ROM files stay in your browser.
 
 ## Branches
 
 | Branch | Device | Runs in | Status |
 | --- | --- | --- | --- |
 | [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50 (Palm OS 5.0, 320×320, QWERTY keyboard) | Browser and native Linux | Setup, Launcher, apps, keyboard (PC and on-screen), sleep/resume, sessions (native). No sound, no Memory Stick media |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V (Palm OS 5.0, 320×480) | Native Linux only | Setup, Launcher, apps, keyboard, sleep/resume, sessions. The known dump lacks the small boot ROM, so a TG50 ROM supplies it at run time (`--boot-rom`) |
+| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V (Palm OS 5.0, 320×480) | Browser and native Linux | Setup, Launcher, apps, keyboard (PC and on-screen), sleep/resume, sessions (native). Browser not yet tried by hand. The known dump lacks the small boot ROM, so a TG50 ROM supplies it at run time (`--boot-rom`) |
 | `master` | — | — | Upstream code at the fork point; only this README differs |
 
 Each branch README has the details, keys and build steps.
@@ -31,14 +31,14 @@ Each branch README has the details, keys and build steps.
 
 ## 브라우저에서 실행
 
-**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50. **Sessions → +** 에서 TG50 NOR ROM을 고르면 기종이 **Sony PEG-TG50**으로 인식됩니다. ROM 파일은 브라우저 안에서만 쓰입니다.
+**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50, PEG-NX70V. **Sessions → +** 에서 ROM을 고르면 기종이 자동으로 인식됩니다. NX70V는 설정 창에서 빠진 부트 ROM을 채울 TG50 ROM을 하나 더 고릅니다. ROM 파일은 브라우저 안에서만 쓰입니다.
 
 ## 브랜치
 
 | 브랜치 | 기종 | 실행 환경 | 현황 |
 | --- | --- | --- | --- |
 | [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50(Palm OS 5.0, 320×320, QWERTY 키보드) | 브라우저, Linux 네이티브 | Setup, 런처, 앱, 키보드(PC·화면 키보드), 절전·복귀, 세션(네이티브). 소리·Memory Stick 카드 없음 |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V(Palm OS 5.0, 320×480) | Linux 네이티브만 | Setup, 런처, 앱, 키보드, 절전·복귀, 세션. 알려진 덤프에 작은 부트 ROM이 없어 실행 때 TG50 ROM에서 빌려 씀(`--boot-rom`) |
+| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V(Palm OS 5.0, 320×480) | 브라우저, Linux 네이티브 | Setup, 런처, 앱, 키보드(PC·화면 키보드), 절전·복귀, 세션(네이티브). 브라우저는 직접 시험 전. 알려진 덤프에 작은 부트 ROM이 없어 실행 때 TG50 ROM에서 빌려 씀(`--boot-rom`) |
 | `master` | — | — | 포크 시점의 원본 코드 그대로, 이 README만 다름 |
 
 자세한 내용, 키 연결, 빌드 방법은 각 브랜치 README에 있습니다.
