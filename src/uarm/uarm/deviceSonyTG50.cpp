@@ -8,6 +8,10 @@
 #include "sspdev_AD7873.h"
 #include <cstdlib>
 #include <cstring>
+#include <vector>
+
+#include "cputil.h"
+#include "savestate/savestateAll.h"
 
 struct SonyTG50 {
     TG50uc* controller;
@@ -169,3 +173,65 @@ void sonyTG50HostKey(SonyTG50* dev, KeyId key, bool pressed) {
 void sonyTG50SleepWakeup(SonyTG50* dev) {
     if (dev) tg50ucIgnoreNextReset(dev->controller);
 }
+
+namespace {
+constexpr uint32_t SONY_TG50_SAVESTATE_VERSION = 1;
+
+size_t sonyTG50StateSize() {
+    return tg50ucStateSize() + ad7873StateSize() + an32502aStateSize() + ak4534StateSize() +
+           msCtrlrStateSize();
+}
+}  // namespace
+
+template <typename T>
+void sonyTG50Save(SonyTG50* dev, T& savestate) {
+    auto chunk = savestate.GetChunk(ChunkType::sonyTG50, SONY_TG50_SAVESTATE_VERSION);
+    if (!chunk) ERR("unable to allocate chunk");
+
+    std::vector<uint8_t> blob(sonyTG50StateSize());
+    uint8_t* p = blob.data();
+    tg50ucGetState(dev->controller, p);
+    p += tg50ucStateSize();
+    ad7873GetState(dev->touch, p);
+    p += ad7873StateSize();
+    an32502aGetState(dev->power, p);
+    p += an32502aStateSize();
+    ak4534GetState(dev->codec, p);
+    p += ak4534StateSize();
+    msCtrlrGetState(dev->stick, p);
+
+    SaveChunkHelper helper(*chunk);
+    helper.Do32(static_cast<uint32_t>(blob.size())).DoBuffer(blob.data(), blob.size());
+}
+
+template <typename T>
+void sonyTG50Load(SonyTG50* dev, T& loader) {
+    auto chunk = loader.GetChunkOrFail(ChunkType::sonyTG50, SONY_TG50_SAVESTATE_VERSION, "sonyTG50");
+    if (!chunk) return;
+
+    LoadChunkHelper helper(*chunk);
+    uint32_t size = 0;
+    helper.Do32(size);
+    if (size != sonyTG50StateSize()) {
+        loader.NotifyError();
+        return;
+    }
+
+    std::vector<uint8_t> blob(size);
+    helper.DoBuffer(blob.data(), blob.size());
+
+    const uint8_t* p = blob.data();
+    tg50ucSetState(dev->controller, p);
+    p += tg50ucStateSize();
+    ad7873SetState(dev->touch, p);
+    p += ad7873StateSize();
+    an32502aSetState(dev->power, p);
+    p += an32502aStateSize();
+    ak4534SetState(dev->codec, p);
+    p += ak4534StateSize();
+    msCtrlrSetState(dev->stick, p);
+}
+
+template void sonyTG50Save<Savestate<ChunkType>>(SonyTG50*, Savestate<ChunkType>&);
+template void sonyTG50Save<SavestateProbe<ChunkType>>(SonyTG50*, SavestateProbe<ChunkType>&);
+template void sonyTG50Load<SavestateLoader<ChunkType>>(SonyTG50*, SavestateLoader<ChunkType>&);

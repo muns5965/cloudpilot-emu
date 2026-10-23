@@ -24,6 +24,8 @@ enum class ChunkType : uint32_t {
     pxa255udc = 0x0130,
     wm9712L = 0x0140,
     bcm2035 = 0x0150,
+    sonyTG50 = 0x0160,      // TG50/NX70V peripherals (controller, touch, codec, power, Memory Stick)
+    pxaDeepSleep = 0x0170,  // PXA deep sleep state (TG50/NX70V only)
 
     pvIc = 0x1000,
     pvTimer = 0x1010,

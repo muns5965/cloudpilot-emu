@@ -3,6 +3,7 @@
 // Only I2C register emulation is implemented; no PCM output path yet.
 #include "i2sdev_AK4534.h"
 #include <cstdlib>
+#include <cstring>
 #include <cstdint>
 
 struct AK4534 {
@@ -71,3 +72,10 @@ AK4534* ak4534Init(PxaI2c* i2c, PxaI2s* /*i2s*/, PxaGpio* /*gpio*/) {
     }
     return ak;
 }
+
+// The model holds plain register state only, so the whole struct is the savestate blob.
+size_t ak4534StateSize() { return sizeof(AK4534); }
+
+void ak4534GetState(AK4534* ak, void* out) { std::memcpy(out, ak, sizeof(AK4534)); }
+
+void ak4534SetState(AK4534* ak, const void* in) { std::memcpy(ak, in, sizeof(AK4534)); }

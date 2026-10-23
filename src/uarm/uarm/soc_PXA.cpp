@@ -370,6 +370,7 @@ void SocPXA::OnLoad(SavestateLoader<ChunkType> &loader) {
     pxaIcLoad(ic, loader);
     pxaMemCtrlrLoad(memCtrl, loader);
     pxaPwrClkLoad(pwrClk, loader);
+    if (tg50Mode) pxaPwrClkLoadDeepSleep(pwrClk, loader);
     if (socRev == 2) pxaI2cLoad(pwrI2c, loader, 1);
 
     pxaPwmLoad(pwm[0], loader, 0);
@@ -420,6 +421,7 @@ void SocPXA::OnSave(T &savestate) {
     pxaIcSave(ic, savestate);
     pxaMemCtrlrSave(memCtrl, savestate);
     pxaPwrClkSave(pwrClk, savestate);
+    if (tg50Mode) pxaPwrClkSaveDeepSleep(pwrClk, savestate);
     if (socRev == 2) pxaI2cSave(pwrI2c, savestate, 1);
 
     pxaPwmSave(pwm[0], savestate, 0);

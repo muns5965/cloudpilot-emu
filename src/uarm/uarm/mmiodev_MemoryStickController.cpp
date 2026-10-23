@@ -83,3 +83,10 @@ MemoryStickController* msCtrlrInit(ArmMem* mem, uint32_t base) {
     }
     return m;
 }
+
+// The model holds plain register state only, so the whole struct is the savestate blob.
+size_t msCtrlrStateSize() { return sizeof(MemoryStickController); }
+
+void msCtrlrGetState(MemoryStickController* m, void* out) { std::memcpy(out, m, sizeof(MemoryStickController)); }
+
+void msCtrlrSetState(MemoryStickController* m, const void* in) { std::memcpy(m, in, sizeof(MemoryStickController)); }

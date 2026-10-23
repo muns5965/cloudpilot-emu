@@ -4,6 +4,7 @@
 #include "i2cdev_AN32502A.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <cstdint>
 
 struct An32502A {
@@ -75,3 +76,10 @@ An32502A* an32502aInit(PxaI2c* i2c) {
     }
     return an;
 }
+
+// The model holds plain register state only, so the whole struct is the savestate blob.
+size_t an32502aStateSize() { return sizeof(An32502A); }
+
+void an32502aGetState(An32502A* an, void* out) { std::memcpy(out, an, sizeof(An32502A)); }
+
+void an32502aSetState(An32502A* an, const void* in) { std::memcpy(an, in, sizeof(An32502A)); }

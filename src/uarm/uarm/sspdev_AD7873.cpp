@@ -4,6 +4,7 @@
 // TG50 X/Y ADC wiring is reversed in the original hardware model.
 #include "sspdev_AD7873.h"
 #include <cstdlib>
+#include <cstring>
 
 struct Ad7873 {
     PxaGpio* gpio;
@@ -63,4 +64,27 @@ void ad7873SetVbatt(Ad7873* ad, uint16_t mV) {
 
 void ad7873SetVaux(Ad7873* ad, uint16_t mV) {
     if (ad) ad->vAuxAdcVal = static_cast<uint16_t>((static_cast<uint32_t>(mV) * 4096) / 2500);
+}
+
+namespace {
+struct Ad7873State {
+    uint16_t prevVal, vBattAdcVal, vAuxAdcVal;
+};
+}  // namespace
+
+size_t ad7873StateSize() { return sizeof(Ad7873State); }
+
+void ad7873GetState(Ad7873* ad, void* out) {
+    Ad7873State s{ad->prevVal, ad->vBattAdcVal, ad->vAuxAdcVal};
+    std::memcpy(out, &s, sizeof(s));
+}
+
+void ad7873SetState(Ad7873* ad, const void* in) {
+    Ad7873State s;
+    std::memcpy(&s, in, sizeof(s));
+    ad->prevVal = s.prevVal;
+    ad->vBattAdcVal = s.vBattAdcVal;
+    ad->vAuxAdcVal = s.vAuxAdcVal;
+    ad7873PenInput(ad, -1, -1);  // the host pen is up after a restore
+    ad7873Periodic(ad);
 }

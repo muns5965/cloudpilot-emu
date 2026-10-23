@@ -21,6 +21,12 @@ bool pxaPwrClkInDeepSleep(struct PxaPwrClk* pc);
 // Feed the current GPIO0-31 pin levels. Returns true if an enabled edge on GPIO0-15 woke the CPU.
 bool pxaPwrClkCheckWake(struct PxaPwrClk* pc, uint32_t gpioLevels);
 
+// Deep sleep savestate (separate chunk, written only when deep sleep is enabled).
+template <typename T>
+void pxaPwrClkSaveDeepSleep(struct PxaPwrClk* pc, T& savestate);
+template <typename T>
+void pxaPwrClkLoadDeepSleep(struct PxaPwrClk* pc, T& loader);
+
 template <typename T>
 void pxaPwrClkSave(struct PxaPwrClk* pc, T& savestate);
 

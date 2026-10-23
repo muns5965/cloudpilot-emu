@@ -169,7 +169,7 @@ namespace {
 
     bool readSession(const Options& options, Buffer& nor, Buffer& nand, Buffer& ram,
                      Buffer& savestate, uint32_t& ramSize, RomInfo5& romInfo,
-                     optional<DisplayMode>& displayMode) {
+                     optional<DisplayMode>& displayMode, optional<DeviceType5>& sessionDeviceType) {
         SessionFile5 sessionFile;
 
         size_t norOrSessionLen{0};
@@ -178,14 +178,14 @@ namespace {
 
         if (SessionFile5::IsSessionFile(norOrSessionLen, norOrSessionData.get()) &&
             sessionFile.Deserialize(norOrSessionLen, norOrSessionData.get())) {
-            if (options.forceTg50 || options.forceNx70v) {
-                cerr << "--tg50/--nx70v accept a raw NOR ROM, not a saved session" << endl;
-                return false;
-            }
+            if (options.forceTg50 || options.forceNx70v)
+                cerr << "--tg50/--nx70v ignored: the session file records its device type" << endl;
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
             }
+
+            sessionDeviceType = static_cast<DeviceType5>(sessionFile.GetDeviceType());
 
             ramSize = sessionFile.GetRamSize();
             if (ramSize == 0) ramSize = ramSizeFromMemorySize(sessionFile.GetMemorySize());
@@ -243,17 +243,22 @@ namespace {
         Buffer nor, nand, memory, savestate;
         RomInfo5 romInfo;
         optional<DisplayMode> displayMode = nullopt;
+        optional<DeviceType5> sessionDeviceType = nullopt;
         uint32_t ramSize{0};
 
-        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode))
+        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode,
+                         sessionDeviceType))
             return false;
         cerr << romInfo;
 
         if (!romInfo.IsValid()) return false;
-        const bool sonyDevice = options.forceTg50 || options.forceNx70v;
-        const DeviceType5 deviceType = options.forceNx70v ? DeviceType5::deviceTypeSonyNX70V
-                                       : options.forceTg50 ? DeviceType5::deviceTypeSonyTG50
-                                                           : romInfo.GetDeviceType();
+        // A session records its device type (Sony ROM headers are not identified).
+        const DeviceType5 deviceType = sessionDeviceType      ? *sessionDeviceType
+                                       : options.forceNx70v ? DeviceType5::deviceTypeSonyNX70V
+                                       : options.forceTg50  ? DeviceType5::deviceTypeSonyTG50
+                                                            : romInfo.GetDeviceType();
+        const bool sonyDevice = deviceType == DeviceType5::deviceTypeSonyTG50 ||
+                                deviceType == DeviceType5::deviceTypeSonyNX70V;
         if (deviceType == DeviceType5::deviceTypeInvalid) return false;
         if (sonyDevice && options.nand) {
             cerr << "TG50/NX70V have no E2-style NAND; omit --nand" << endl;

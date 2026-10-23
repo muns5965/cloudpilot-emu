@@ -406,3 +406,35 @@ void tg50ucSetKeyPressed(struct TG50uc *uc, uint32_t key, bool pressed)
 	if (changed)
 		tg50ucPrvRecalcKeypadMatrix(uc);
 }
+
+namespace {
+struct TG50ucState {
+	struct TG50ucGpioPort port[4];
+	bool keys[8][8];
+	bool irqAsserted;
+	bool ignoreNextReset;
+};
+}
+
+size_t tg50ucStateSize() { return sizeof(TG50ucState); }
+
+void tg50ucGetState(struct TG50uc *uc, void *out)
+{
+	TG50ucState s;
+	memset(&s, 0, sizeof(s));
+	memcpy(s.port, uc->port, sizeof(s.port));
+	memcpy(s.keys, uc->keys, sizeof(s.keys));
+	s.irqAsserted = uc->irqAsserted;
+	s.ignoreNextReset = uc->ignoreNextReset;
+	memcpy(out, &s, sizeof(s));
+}
+
+void tg50ucSetState(struct TG50uc *uc, const void *in)
+{
+	TG50ucState s;
+	memcpy(&s, in, sizeof(s));
+	memcpy(uc->port, s.port, sizeof(s.port));
+	memcpy(uc->keys, s.keys, sizeof(s.keys));
+	uc->irqAsserted = s.irqAsserted;
+	uc->ignoreNextReset = s.ignoreNextReset;
+}
