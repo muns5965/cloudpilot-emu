@@ -21,7 +21,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Keyboard | **Works** | Same key table as TG50; fast typing (40 ms per key, repeated letters) is correct since keys are held for at least ~100 ms. PC digit keys are not mapped (Blue + top row) |
 | Hard buttons | F2 Address, F3 To Do, F4 Memo work | F1 does nothing visible; the NX70V meaning of button 1 is not checked |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
-| Power key (Esc) | No effect (no sleep) | Same as TG50: wired to the controller matrix only |
+| Power key (Esc), sleep/resume | **Works** | Shared with TG50: Esc sleeps (screen off), Esc again wakes; keyboard works after resume |
 
 ## NX70V differences in `--nx70v`
 
@@ -32,12 +32,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | 3 | Sony microcontroller port A | Bit `0x10` (HOLD switch) cleared |
 | 4 | Pen coordinates | X and Y inverted versus TG50; 480 lines scaled into the TG50 raw range |
 
-Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself, sleep/resume, savestates, the flip and HOLD switches as user controls.
+Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself, savestates, the flip and HOLD switches as user controls.
 
 ## Next
 
 1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
-2. Sleep/resume, savestates, CF cards.
+2. Savestates, CF cards, RTC alarm wake.
 
 ## Running
 
@@ -78,7 +78,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 키보드 | **동작** | 키 표가 TG50과 같음. 키를 최소 약 100ms 눌린 상태로 유지하도록 고쳐 빠른 입력(키당 40ms, 반복 글자)도 정확. PC 숫자 키 미연결(Blue + 윗줄) |
 | 하드 버튼 | F2 주소록, F3 할 일, F4 메모장 동작 | F1은 화면 변화 없음. NX70V 1번 버튼의 기능은 미확인 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
-| 전원 키(Esc) | 변화 없음(절전 안 됨) | TG50과 같음. 마이컴 매트릭스에만 연결 |
+| 전원 키(Esc), 절전·복귀 | **동작** | TG50과 공통: Esc로 절전(화면 꺼짐), 다시 Esc로 복귀. 복귀 후 키보드 정상 |
 
 ## `--nx70v`의 NX70V 차이
 
@@ -89,12 +89,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 3 | Sony 마이컴 포트 A | 비트 `0x10`(HOLD 스위치) 끄기 |
 | 4 | 펜 좌표 | TG50 대비 X·Y 반전, 480줄을 TG50 원시값 범위로 축소 |
 
-`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체, 절전·복귀, 상태 저장, 접힘·HOLD 스위치 조작.
+`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체, 상태 저장, 접힘·HOLD 스위치 조작.
 
 ## 다음 단계
 
 1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
-2. 절전·복귀, 상태 저장, CF 카드.
+2. 상태 저장, CF 카드, 알람(RTC)으로 깨우기.
 
 ## 실행
 
