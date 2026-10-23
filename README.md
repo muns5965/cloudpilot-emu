@@ -11,6 +11,52 @@
 
 [**TG50 상세 이식 계획(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**원본 uARM TG50 코드**](https://github.com/uARM-Palm/uARM/blob/master/deviceSonyTG50.c)
 
+---
+
+## This branch: `feature/sony-nx70v` (PEG-NX70V investigation)
+
+> **Investigation only. There is no NX70V device in the code yet.** Everything below was seen in a local diagnostic build that is not committed. The TG50 work above is unchanged and still the base of this branch. Details: [**NX70V notes**](docs/sony-nx70v-port.md).
+
+Status on 2026-10-23 (NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB; not included):
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| ROM header | **Parsed** | Header at `0x20000`. `tools/probe-nx70v-rom.py` checks it |
+| ROM as dumped | **Does not boot** | `0x0`–`0x1FFFF` is device data (with a serial-like value), not the small boot ROM that TG50 has at `0x0`. The main ROM's own loader copy then calls code that was never copied and loops |
+| Local composite image (TG50 small ROM + NX70V main ROM) | **Boots to Setup 1 of 4** | Local file only, never committed. Needs a dummy device at `0x10000000` |
+| `0x10000000` (CS4) | **CF slot controller** (Sony CfSlot Library) | Unemulated writes caused the reboot loop. A dummy that reads 0 ("no card") is enough |
+| `0x14000000` | Same Memory Stick controller as TG50 | |
+| Sony microcontroller | Same as TG50 (ID `0x4741`) | |
+| Display | **320×480** (TG50: 320×320) | With a diagnostic 320×480 mode, the ROM draws its own virtual Graffiti area and status bar |
+| Touch | **Not working** | Same AD7873 chip as TG50, but GPIO9 (TG50 pen interrupt) is the remote-control interrupt on NX70V. The NX70V pen interrupt line is not found yet (GPIO 5, 10, 21 tried) |
+
+Next: find the pen interrupt path, then decide whether to add a real NX70V device type. The best fix for booting is a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`).
+
+**Never commit or publish** NX70V or TG50 ROM files, the composite image, or the device data area at `0x18000`.
+
+## 이 브랜치: `feature/sony-nx70v` (PEG-NX70V 조사)
+
+> **조사 단계입니다. 코드에는 아직 NX70V 기종이 없습니다.** 아래 내용은 커밋하지 않은 로컬 진단 빌드에서 확인한 결과입니다. 위의 TG50 작업은 그대로이며 이 브랜치의 바탕입니다. 상세: [**NX70V 조사 기록(영문·한국어)**](docs/sony-nx70v-port.md).
+
+2026-10-23 기준(NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB, 저장소에 없음):
+
+| 항목 | 상태 | 비고 |
+| --- | --- | --- |
+| ROM 헤더 | **인식** | `0x20000`에 헤더. `tools/probe-nx70v-rom.py`로 확인 |
+| 덤프 그대로 | **부팅 안 됨** | `0x0`~`0x1FFFF`가 기기 데이터(일련번호 성격 값 포함)이고, TG50의 `0x0`에 있는 작은 부트 ROM이 없음. 본 ROM 안의 부트 사본이 복사되지 않은 코드를 불러 무한 반복 |
+| 로컬 조합 이미지(TG50 작은 ROM + NX70V 본 ROM) | **Setup 1/4까지 부팅** | 로컬 파일만, 커밋 안 함. `0x10000000` 가짜 장치 필요 |
+| `0x10000000`(CS4) | **CF 슬롯 컨트롤러**(Sony CfSlot Library) | 에뮬레이트되지 않은 쓰기가 재부팅 반복의 원인. 읽기 0("카드 없음")을 돌려주는 가짜 장치로 충분 |
+| `0x14000000` | TG50과 같은 메모리스틱 컨트롤러 | |
+| Sony 마이컴 | TG50과 같음(ID `0x4741`) | |
+| 화면 | **320×480**(TG50은 320×320) | 진단용 320×480 모드에서 ROM이 가상 그래피티 영역과 상태 표시줄을 직접 그림 |
+| 터치 | **안 됨** | TG50과 같은 AD7873 칩이지만, TG50의 펜 인터럽트인 GPIO9가 NX70V에서는 리모컨 인터럽트. NX70V 펜 인터럽트 선은 아직 못 찾음(GPIO 5·10·21 시도) |
+
+다음: 펜 인터럽트 경로를 찾은 뒤 NX70V 기종을 코드에 추가할지 정합니다. 부팅 문제의 가장 확실한 해결은 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프하는 것입니다.
+
+NX70V·TG50 ROM 파일, 조합 이미지, `0x18000`의 기기 데이터 영역은 **절대 커밋·공개하지 않습니다.**
+
+---
+
 
 
 ## Goal
