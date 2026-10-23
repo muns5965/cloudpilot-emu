@@ -18,6 +18,7 @@
 #include "FileUtil.h"
 #include "Logging.h"
 #include "MainLoop.h"
+#include "NetlibNative.h"
 #include "Rotation.h"
 #include "SdlAudioDriver.h"
 #include "SdlEventHandler.h"
@@ -52,6 +53,7 @@ struct Options {
     bool forceNx70v;
     optional<string> bootRom;
     optional<DisplayMode> displayMode;
+    bool network;
 };
 
 namespace {
@@ -499,6 +501,11 @@ int main(int argc, char** argv) {
         .scan<'u', unsigned int>()
         .default_value(100u);
 
+    program.add_argument("--net")
+        .help("experimental: redirect 68k NetLib calls to the host network")
+        .default_value(false)
+        .implicit_value(true);
+
     program.add_argument("--small-window")
         .help("use small window")
         .default_value(false)
@@ -550,7 +557,8 @@ int main(int argc, char** argv) {
                        .forceTg50 = program.get<bool>("--tg50"),
                        .forceNx70v = program.get<bool>("--nx70v"),
                        .bootRom = program.present("--boot-rom"),
-                       .displayMode = program.present<DisplayMode>("--display")};
+                       .displayMode = program.present<DisplayMode>("--display"),
+                       .network = program.get<bool>("--net")};
 
     if (options.forceTg50 && options.forceNx70v) {
         cerr << "--tg50 and --nx70v are mutually exclusive" << endl;
@@ -562,6 +570,8 @@ int main(int argc, char** argv) {
     }
 
     logEnable();
+
+    if (options.network) netlibNativeEnable();
 
     if (!run(options)) exit(1);
 
