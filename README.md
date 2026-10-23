@@ -19,7 +19,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Display | **320×480** (TG50: 320×320) | The ROM draws its own virtual Graffiti area and status bar |
 | Touch | **Works** | Same AD7873 chip and pen interrupt (GPIO9) as TG50. It was blocked because the TG50 microcontroller model reports the NX70V HOLD switch (port A bit `0x10`) as on. X and Y are inverted versus TG50 |
 | Keyboard | **Works** | Same key table as TG50; fast typing (40 ms per key, repeated letters) is correct since keys are held for at least ~100 ms. PC digit keys are not mapped (Blue + top row) |
-| Hard buttons | F2 Address, F3 To Do, F4 Memo work | F1 does nothing visible; the NX70V meaning of button 1 is not checked |
+| Hard buttons | **Works**: F1 Date Book, F2 Address, F3 To Do, F4 Memo (factory setting per the NX70V manual, p. 45) | The first press after boot used to be lost (shared with TG50; fixed by swapping the controller's edge-detect registers) |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
 | Power key (Esc), sleep/resume | **Works** | Shared with TG50: Esc sleeps (screen off), Esc again wakes; keyboard works after resume |
 | Session files | **Works** | Shared with TG50: `save-session <file>`, then start the emulator with the session file (no `--nx70v`/`--boot-rom` needed); also while asleep |
@@ -33,12 +33,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | 3 | Sony microcontroller port A | Bit `0x10` (HOLD switch) cleared |
 | 4 | Pen coordinates | X and Y inverted versus TG50; 480 lines scaled into the TG50 raw range |
 
-Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself, the flip and HOLD switches as user controls.
+Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_hardware.h` and `device_configuration.cpp`. Not yet emulated: the CF card itself (per the manual the slot only takes a CF network card such as PEGA-WL100; a dummy card ships in it), the flip and HOLD switches as user controls.
 
 ## Next
 
 1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
-2. CF cards, RTC alarm wake.
+2. RTC alarm wake; CF network card (low priority, the slot takes no memory cards).
 3. Browser (WASM): TG50 already runs in the browser from the TG50 branch ([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)); NX70V needs `crdb` detection, the 320×480 screen and a second file for the boot ROM.
 
 ## Running
@@ -78,7 +78,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 화면 | **320×480**(TG50은 320×320) | ROM이 가상 그래피티 영역과 상태 표시줄을 직접 그림 |
 | 터치 | **동작** | 터치 칩(AD7873)과 펜 인터럽트(GPIO9) 모두 TG50과 같음. TG50 마이컴 모델이 NX70V HOLD 스위치(포트 A 비트 `0x10`)를 켜짐으로 알려 막혀 있었음. X·Y가 TG50과 반대 |
 | 키보드 | **동작** | 키 표가 TG50과 같음. 키를 최소 약 100ms 눌린 상태로 유지하도록 고쳐 빠른 입력(키당 40ms, 반복 글자)도 정확. PC 숫자 키 미연결(Blue + 윗줄) |
-| 하드 버튼 | F2 주소록, F3 할 일, F4 메모장 동작 | F1은 화면 변화 없음. NX70V 1번 버튼의 기능은 미확인 |
+| 하드 버튼 | **동작**: F1 일정(Date Book), F2 주소록, F3 할 일, F4 메모장(NX70V 매뉴얼 45쪽의 기본 설정) | 부팅 후 첫 누름이 무시되던 문제(TG50과 공통)는 마이컴 엣지 감지 레지스터를 바로잡아 해결 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
 | 전원 키(Esc), 절전·복귀 | **동작** | TG50과 공통: Esc로 절전(화면 꺼짐), 다시 Esc로 복귀. 복귀 후 키보드 정상 |
 | 세션 파일 | **동작** | TG50과 공통: `save-session <파일>` 후 세션 파일로 실행(`--nx70v`·`--boot-rom` 불필요). 절전 중 저장도 가능 |
@@ -92,12 +92,12 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 3 | Sony 마이컴 포트 A | 비트 `0x10`(HOLD 스위치) 끄기 |
 | 4 | 펜 좌표 | TG50 대비 X·Y 반전, 480줄을 TG50 원시값 범위로 축소 |
 
-`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체, 접힘·HOLD 스위치 조작.
+`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체(매뉴얼상 이 슬롯은 PEGA-WL100 같은 CF 네트워크 카드 전용이고 출고 때 빈 보호 카드가 꽂혀 있음), 접힘·HOLD 스위치 조작.
 
 ## 다음 단계
 
 1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
-2. CF 카드, 알람(RTC)으로 깨우기.
+2. 알람(RTC)으로 깨우기. CF 네트워크 카드(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음).
 3. 브라우저(WASM): TG50은 TG50 브랜치에서 이미 브라우저로 실행됨([muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)). NX70V는 `crdb` 인식, 320×480 화면, 부트 ROM용 두 번째 파일 입력이 필요.
 
 ## 실행

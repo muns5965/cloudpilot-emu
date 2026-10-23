@@ -160,7 +160,7 @@ Session files work (shared TG50 change): saved after typing a memo and resumed w
 
 | Item | Result |
 | --- | --- |
-| Hard buttons | F2 Address, F3 To Do, F4 Memo launch; F1 shows no change (NX70V button 1 not checked) |
+| Hard buttons | F1 Date Book, F2 Address, F3 To Do, F4 Memo (manual p. 45). F1 "no change" earlier was the lost first press after boot, fixed with the controller edge-detect swap |
 | Keyboard | ROM key table equals TG50's (only `,`/`;` positions differ); a–z correct in Memo Pad. Fast typing used to drop keys (held < ~60 ms, as on TG50); fixed by keeping each key down for at least 3 event ticks (~100 ms), verified with 40 ms per key and repeated letters |
 | Apps | CLIÉ Album ("No Album"), Calculator (`1 + 3 =` by taps → 4), Memo Pad |
 | Power key (Esc) | Sleep and wake work (shared TG50 fix, see the TG50 notes "Sleep and resume"); two cycles, then Memo Pad typing |
@@ -203,3 +203,12 @@ Session files work (shared TG50 change): saved after typing a memo and resumed w
 - **절전·복귀**: TG50과 공통 수정으로 동작(Esc로 절전·복귀 2회, 복귀 후 메모장 입력 확인).
 - **세션 파일**: TG50과 공통 수정으로 동작(메모 입력 후 저장·재개, 절전 중 저장 후 Esc로 복귀). NX70V 세션에는 TG50 부트 ROM이 들어간 ROM 이미지가 저장되므로 공유 금지.
 - **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. CF 카드, 알람(RTC)으로 깨우기.
+
+## Manual and device photos (2026-10-23)
+
+Sources: Sony "PEG-NX70V/NX60 Read This First" (4-667-217-11) and photos of a US and a Japanese NX70V (not committed).
+
+- Application buttons: Date Book, Address, To Do List, Memo Pad (p. 45) → F1–F4. Scroll button up/down between them.
+- Wireless communication slot (p. 38): CF network cards only (PEGA-WL100); a protect card is inserted at the factory. The minimal "no card" model is enough for now.
+- Hardware keyboard (p. 37 commands; layout from p. 45 and the photos): rows Q–P, A–L, Tab Z–M BS, Ctrl Fn Alt `<,` `>.` `:;` ▲PgUp ↵, Shift Space ← ▼PgDn → Caps. Rows 1–3 match the TG50; blue (Fn) characters differ (row 2 in the US manual: `~ ! % " ' ( ) \ -`). Fn = Blue and Alt = Red are assumed from the key positions and must be checked in the emulator.
+- 매뉴얼·실기 사진 요약: 하드 버튼은 F1 일정, F2 주소록, F3 할 일, F4 메모장. CF 슬롯은 네트워크 카드 전용. 키보드 1~3줄은 TG50과 같고 4~5줄과 파란 글자(Fn)가 다름. Fn=Blue, Alt=Red 대응은 에뮬레이터에서 확인 필요.

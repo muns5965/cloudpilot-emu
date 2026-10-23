@@ -254,3 +254,11 @@ Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard 
 - Deployment: `.github/workflows/fork-pages.yml` (emsdk 6.0.0, `make -Csrc emscripten`, lint, tests, `build-preview` with the repo base path, `actions/deploy-pages`). The `github-pages` environment must allow the branch.
 - Verified: CI build, lint and 55 tests; type-check with `pwa/tsconfig.app.json` and `tsconfig.worker.json`; native auto-detect boot to Setup. In the browser (user test, phone): ROM import, boot, To Do opened with a hard button. PC keyboard typing in the browser is not yet reported.
 - On-screen keyboard (TG50 only): `hardwareKeyboardLayout.ts` defines the keys after the manual's keyboard drawing (p. 94), plus a row for Home, Graffiti, Voice, jog and Back; `AbstractCanvasDisplayService` adds a keyboard area below the hard buttons (layout, drawing, hit test) and `GenericEventHandlingService` sends the keys. A native test showed the ROM applies Shift and Blue only while held (Blue tap, then Q → `q`; Blue held + W → `2`), so Shift, Blue, Red and Ctrl latch on the on-screen keyboard and are held down together with the next key.
+
+## First key press after boot (2026-10-23)
+
+- Symptom: right after boot the first hard button or key did nothing; the second press worked (TG50 and NX70V).
+- Trace: the first press raised no controller interrupt; the handler ran only after release and read an empty matrix (`0xff00`). From then on both edges were enabled, so later presses worked.
+- Cause: idle firmware sets port C `0x88 = 0`, `0xa8 = 0xff00` and scans with rows driven low, so a press makes the column fall. In the original uARM model `0x80` is falling and `0xa0` rising detect, which only catches releases. The registers are the other way round: `0x80`–`0x8c` rising, `0xa0`–`0xac` falling (`mmiodev_TG50uc.cpp`). Ports A/B always receive equal values in both, so they are unaffected.
+- Verified (native TG50): first F1 opens Date Book, F2 Address, F4 Memo Pad; typing incl. Blue + W → `2`; two sleep/resume cycles. NX70V: first F1 opens Date Book.
+
