@@ -18,7 +18,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | Sony microcontroller | Same as TG50 (ID `0x4741`) | |
 | Display | **320×480** (TG50: 320×320) | The ROM draws its own virtual Graffiti area and status bar |
 | Touch | **Works** | Same AD7873 chip and pen interrupt (GPIO9) as TG50. It was blocked because the TG50 microcontroller model reports the NX70V HOLD switch (port A bit `0x10`) as on. X and Y are inverted versus TG50 |
-| Keyboard | **Works** | Same key table as TG50; letters typed slowly are all correct. Very fast typing drops keys (same as TG50). PC digit keys are not mapped (Blue + top row) |
+| Keyboard | **Works** | Same key table as TG50; fast typing (40 ms per key, repeated letters) is correct since keys are held for at least ~100 ms. PC digit keys are not mapped (Blue + top row) |
 | Hard buttons | F2 Address, F3 To Do, F4 Memo work | F1 does nothing visible; the NX70V meaning of button 1 is not checked |
 | Apps | CLIÉ Album, Calculator, Memo Pad tested | Calculator `1 + 3 =` by taps gives 4 |
 | Power key (Esc) | No effect (no sleep) | Same as TG50: wired to the controller matrix only |
@@ -37,7 +37,7 @@ Implemented in `src/uarm/uarm/deviceSonyTG50.cpp` (variant flag), `sony_tg50_har
 ## Next
 
 1. Best fix for booting: a dump of the device's own small boot ROM (flash `0x0`–`0x1FFFF`). `--nx70v` uses it automatically when the ROM has a header at `0x0`.
-2. Sleep/resume, fast-typing drops (shared with TG50), savestates, CF cards.
+2. Sleep/resume, savestates, CF cards.
 
 ## Running
 
@@ -75,7 +75,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | Sony 마이컴 | TG50과 같음(ID `0x4741`) | |
 | 화면 | **320×480**(TG50은 320×320) | ROM이 가상 그래피티 영역과 상태 표시줄을 직접 그림 |
 | 터치 | **동작** | 터치 칩(AD7873)과 펜 인터럽트(GPIO9) 모두 TG50과 같음. TG50 마이컴 모델이 NX70V HOLD 스위치(포트 A 비트 `0x10`)를 켜짐으로 알려 막혀 있었음. X·Y가 TG50과 반대 |
-| 키보드 | **동작** | 키 표가 TG50과 같음. 천천히 입력하면 a~z 모두 정확. 아주 빠른 입력에서 누락(TG50과 같음). PC 숫자 키 미연결(Blue + 윗줄) |
+| 키보드 | **동작** | 키 표가 TG50과 같음. 키를 최소 약 100ms 눌린 상태로 유지하도록 고쳐 빠른 입력(키당 40ms, 반복 글자)도 정확. PC 숫자 키 미연결(Blue + 윗줄) |
 | 하드 버튼 | F2 주소록, F3 할 일, F4 메모장 동작 | F1은 화면 변화 없음. NX70V 1번 버튼의 기능은 미확인 |
 | 앱 | CLIÉ 앨범, 계산기, 메모장 시험 | 계산기에서 탭으로 `1 + 3 =` → 4 |
 | 전원 키(Esc) | 변화 없음(절전 안 됨) | TG50과 같음. 마이컴 매트릭스에만 연결 |
@@ -94,7 +94,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 ## 다음 단계
 
 1. 부팅 문제의 가장 확실한 해결: 실기에서 작은 부트 ROM(플래시 `0x0`~`0x1FFFF`)을 다시 덤프. ROM의 `0x0`에 헤더가 있으면 `--nx70v`가 그대로 사용.
-2. 절전·복귀, 빠른 입력 누락(TG50과 공통), 상태 저장, CF 카드.
+2. 절전·복귀, 상태 저장, CF 카드.
 
 ## 실행
 
