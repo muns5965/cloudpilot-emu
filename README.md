@@ -25,7 +25,7 @@ Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c�
 | Touch (AD7873) | **Works** | Calibrated by Palm OS itself |
 | QWERTY keyboard (Sony controller matrix) | **Works** | Typing in Memo Pad; fast typing (40 ms per key) is correct |
 | Hard buttons, jog dial keys | **Works** | |
-| Power key, sleep/resume | **Works** | Sleep turns the screen off; the next press resumes. RTC alarm wake not checked |
+| Power key, sleep/resume | **Works** | Sleep turns the screen off; the next press resumes. A Date Book alarm wakes it and shows the Reminder (native) |
 | Session files | **Works** | Native: also while asleep. Browser: state is resumed after closing and reopening (tested in Chromium) |
 | Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons, on-screen keyboard | PC keyboard in the browser tested in Chromium (letters, Shift, digits, key repeat, release on focus loss) |
 | Native window | Works | Screen only (320×320), no silkscreen |
@@ -71,8 +71,7 @@ The ROM is identified automatically; `--tg50` forces TG50. Type `save-session <f
 ## Next
 
 1. Phone check of browser session resume.
-2. RTC alarm wake.
-3. Audio and Memory Stick.
+2. Audio and Memory Stick.
 
 NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) (native only so far).
 
@@ -109,7 +108,7 @@ uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했�
 | 터치(AD7873) | **동작** | Palm OS 자체 보정 사용 |
 | QWERTY 키보드(Sony 마이컴 매트릭스) | **동작** | 메모장 입력 확인, 빠른 입력(키당 40ms)도 정확 |
 | 하드 버튼, 조그 다이얼 키 | **동작** | |
-| 전원 키, 절전·복귀 | **동작** | 절전하면 화면이 꺼지고 다시 누르면 복귀. 알람(RTC)으로 깨우기는 미확인 |
+| 전원 키, 절전·복귀 | **동작** | 절전하면 화면이 꺼지고 다시 누르면 복귀. Date Book 알람 시각에 저절로 켜져 알림 표시(네이티브) |
 | 세션 파일 | **동작** | 네이티브: 절전 중 저장도 가능. 브라우저: 닫았다 다시 열면 이어서 실행(Chromium 확인) |
 | 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼, 화면 키보드 | 브라우저 PC 키보드는 Chromium에서 시험(글자, Shift, 숫자, 키 반복, 포커스 잃을 때 키 해제) |
 | 네이티브 창 | 동작 | 화면만 표시(320×320), 실크스크린 없음 |
@@ -155,8 +154,7 @@ ROM은 자동 인식되며 `--tg50`으로 강제할 수도 있습니다. 터미�
 ## 다음 단계
 
 1. 휴대폰에서 브라우저 세션 이어하기 확인.
-2. 알람(RTC)으로 깨우기.
-3. 오디오와 Memory Stick.
+2. 오디오와 Memory Stick.
 
 NX70V 작업은 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v)에서 진행합니다(아직 네이티브 전용).
 
