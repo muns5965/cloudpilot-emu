@@ -13,7 +13,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12 MiB. Not included in this reposi
 | ROM header | **Parsed** | Header at `0x20000`; checked by `tools/probe-nx70v-rom.py` |
 | ROM as dumped | **Does not boot** | `0x0`–`0x1FFFF` is device data (with a serial-like value), not the small boot ROM that TG50 has at `0x0`. The main ROM's own loader copy then calls code that was never copied and loops |
 | Local composite image (TG50 small ROM + NX70V main ROM) | **Boots to Setup 1 of 4** | Local file only, never committed. Needs a dummy device at `0x10000000` |
-| `0x10000000` (CS4) | **CF slot controller** (Sony CfSlot Library) | Unemulated writes caused the reboot loop. A dummy that reads 0 ("no card") is enough |
+| `0x10000000` (CS4) | **CF slot controller** (Sony CfSlot Library) | Unemulated writes caused the reboot loop. A dummy whose status register `+0x10` returns `0xC0` ("no card") is enough |
 | `0x14000000` | Same Memory Stick controller as TG50 | |
 | Sony microcontroller | Same as TG50 (ID `0x4741`) | |
 | Display | **320×480** (TG50: 320×320) | With a diagnostic 320×480 mode, the ROM draws its own virtual Graffiti area and status bar |
@@ -54,7 +54,7 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | ROM 헤더 | **인식** | `0x20000`에 헤더. `tools/probe-nx70v-rom.py`로 확인 |
 | 덤프 그대로 | **부팅 안 됨** | `0x0`~`0x1FFFF`가 기기 데이터(일련번호 성격 값 포함)이고, TG50의 `0x0`에 있는 작은 부트 ROM이 없음. 본 ROM 안의 부트 사본이 복사되지 않은 코드를 불러 무한 반복 |
 | 로컬 조합 이미지(TG50 작은 ROM + NX70V 본 ROM) | **Setup 1/4까지 부팅** | 로컬 파일만, 커밋 안 함. `0x10000000` 가짜 장치 필요 |
-| `0x10000000`(CS4) | **CF 슬롯 컨트롤러**(Sony CfSlot Library) | 에뮬레이트되지 않은 쓰기가 재부팅 반복의 원인. 읽기 0("카드 없음")을 돌려주는 가짜 장치로 충분 |
+| `0x10000000`(CS4) | **CF 슬롯 컨트롤러**(Sony CfSlot Library) | 에뮬레이트되지 않은 쓰기가 재부팅 반복의 원인. 상태 레지스터 `+0x10`이 `0xC0`("카드 없음")을 돌려주는 가짜 장치로 충분 |
 | `0x14000000` | TG50과 같은 메모리스틱 컨트롤러 | |
 | Sony 마이컴 | TG50과 같음(ID `0x4741`) | |
 | 화면 | **320×480**(TG50은 320×320) | 진단용 320×480 모드에서 ROM이 가상 그래피티 영역과 상태 표시줄을 직접 그림 |

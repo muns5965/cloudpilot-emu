@@ -88,29 +88,59 @@ Composite image, local only: TG50 `0x0`–`0x17FFF` + NX70V `0x18000`– (the or
 
 ### Local test: dummy device at `0x10000000` (scratch build only, not committed)
 
-A diagnostic region at `0x10000000`–`0x1000FFFF` that ignores writes and reads 0 (enabled only with `NX70V_DIAG`, so TG50 runs are unchanged):
+A diagnostic region at `0x10000000`–`0x1000FFFF` that accepts writes (enabled only with `NX70V_DIAG`, so TG50 runs are unchanged):
 
 - No more reboot loop. **NX70V Palm OS reaches the Setup screen ("Setup 1 of 4").**
-- During boot the device is mostly read at `+0x10` (160 reads) and written at `+0x24`–`+0x44`. What the chip is remains unknown.
 - Ignoring NOR flash writes was also tested and made no difference (reverted).
+
 ### Display: 320×480 (confirmed)
 
-The ROM programs the PXA LCD controller for 320×480 (`LCCR1` 320 pixels per line, `LCCR2` 480 lines); TG50 programs 320×320. With a scratch-only change that lets `--tg50` use the existing 320×480 display mode when `NX70V_DIAG` is set, the whole screen is visible: Setup 1 of 4 on top, and the NX70V virtual Graffiti area (Home/Menu/Calc/Find, `a`/`1` panes, brightness and keyboard icons) plus the status bar (Home, Menu, Find, a fourth icon, battery, Memory Stick, volume, clock, input-area toggle) drawn by the ROM itself at the bottom. Touch input is still the TG50 setup and has not been tested.
+The ROM programs the PXA LCD controller for 320×480; TG50 programs 320×320 (writes logged in the scratch build):
 
-### Device at `0x10000000` (NX70V only, identity unknown)
+| ROM | `LCCR1` | Pixels per line | `LCCR2` | Lines |
+| --- | --- | --- | --- | --- |
+| NX70V | `0x1F070D3F` | 320 | `0x080801DF` | 480 |
+| TG50 | `0x1B070D3F` | 320 | `0x0808013F` | 320 |
 
-8-bit registers with a 4-byte stride (`MSC2` at `0x48000010` is set to `0x74B4xxxx` for CS4/CS5 just before). Uses found in the code:
+With a scratch-only change that lets `--tg50` use the existing 320×480 display mode when `NX70V_DIAG` is set, the whole screen is visible: Setup 1 of 4 on top, and the NX70V virtual Graffiti area (Home/Menu/Calc/Find, `a`/`1` panes, brightness and keyboard icons) plus the status bar drawn by the ROM itself at the bottom.
 
-- Sony DAL `0x209D9BD0` (boot step 2, mode 3): clears `MECR` (`0x48000014`), writes 0 to `+0x24`–`+0x44`, then ORs 3 into `+0x40`. Other modes only change `MECR`.
-- HAL idle loop near `HwrInterruptsAries.c` (`0x20032688`): sets `+0x28` bit 0 before the sleep system call and clears it after waking. Likely a power or sleep signal (inferred).
-- Read 160 times at `+0x10` during boot (probably a status register).
+### `0x10000000`: CF slot controller
 
-"Aries" in HAL source names is probably the NX-series hardware codename. Which chip this is cannot be told from the code; a dummy that reads 0 and ignores writes is enough to boot.
+The code that accesses it (`0x209A05xx`–`0x209A0Dxx`) is in the "Sony CfSlot Library" module (`CFSlot.c`, `CFLib.c`, "CF+ Card", "Comm Slot"). The base address comes from a configuration table; the driver handles up to 2 sockets. The DAL boot step that clears `MECR` (`0x48000014`, PXA expansion memory: CF/PCMCIA) fits this.
+
+Register map inferred from the bit handling (8-bit registers, 4-byte stride):
+
+| Offset | Use |
+| --- | --- |
+| `+0x10` | **Status (read).** Either bit of `0xC0` set = no card; both clear = card present. Bits 0–4 are passed on as separate status flags (likely ready, write-protect, battery; not confirmed) |
+| `+0x24` | Control A: bit `0x80` power-on step, `0x20`/`0x10` socket option flags, `0x08` init |
+| `+0x28` | Control B: bit `0x02` power-on step. The HAL idle loop (`0x20032688`, near `HwrInterruptsAries.c`) sets bit `0x01` before sleep and clears it after waking |
+| `+0x2C` | Probably the interrupt mask (separate set/clear functions) |
+| `+0x30`, `+0x34` | Bit set/clear control registers |
+| `+0x38` | Bits are only ever set (interrupt-acknowledge style) |
+| `+0x3C` | Bit `0x08` init, `0x10` socket mode switch |
+
+Power-on (`0x209A0A1C`) for a 3.3 V setting (`0x21`): set `+0x28` bit `0x02`, wait 150 ms, set `+0x24` bit `0x80`, wait 50 ms. Power-off reverses this and waits 300 ms. The DAL boot step 2 (`0x209D9BD0`, mode 3) writes 0 to `+0x24`–`+0x44` and ORs 3 into `+0x40`.
+
+Effect of the status value in the dummy device:
+
+| `+0x10` returns | `+0x10` reads | `+0x24` writes | `+0x28` writes | Result |
+| --- | --- | --- | --- | --- |
+| `0x00` | 300 | 11 | 4 | Driver treats it as a card present and runs power-on; boots to Setup |
+| `0xC0` | 2 | 2 | 1 | "No card" path; boots to Setup, same screen |
+
+So a minimal model is: `+0x10` returns `0xC0`, other registers accept writes.
+
+### Touch: not working yet
+
+- The digitizer is the same AD7873 as TG50: boot sends the same SSP commands (`A6` battery, `B8` pressure, `E6` aux).
+- On TG50 the pen interrupt is GPIO9. On NX70V, GPIO9 is configured by the "Sony Rmc Library" module (headphone remote control, `0x20964564`) and its edge interrupts are turned off at the end of boot, so taps on the screen are never noticed.
+- Feeding the pen signal to GPIO 5, 10 or 21, or inverting its polarity, produced no X/Y commands (`93`/`D3`). The NX70V pen interrupt path (another GPIO, or through the Sony microcontroller) is still unknown.
 
 ### Next
 
 1. Best: obtain the real NX70V small boot ROM (dump flash `0x0`–`0x1FFFF` again from the device).
-2. With the local composite: test touch on the 320×480 screen and the virtual Graffiti area, and look for how the `0x10000000` device is used after boot (camera, power).
+2. Find the NX70V pen interrupt path by comparing the HAL pen code with TG50.
 
 ## 한국어
 
@@ -129,7 +159,12 @@ The ROM programs the PXA LCD controller for 320×480 (`LCCR1` 320 pixels per lin
   - **재부팅 원인**: Sony DAL 초기화 2단계가 `0x10000000`(CS4) 장치의 1바이트 레지스터(`+0x24`~`+0x44`)에 쓰는데, 에뮬레이트된 장치가 없어 쓰기 실패 → 재부팅.
   - 주소 `0x4` NULL 쓰기 실패도 보이지만 TG50도 같은 루틴에서 한 번 똑같이 실패하고 정상 부팅 → 원인 아님.
   - `0x14000000`은 TG50과 같은 메모리스틱 컨트롤러(포트도 `0x14000000`에 매핑) → 원인 아님.
-- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기 무시·읽기 0인 진단 장치(`NX70V_DIAG` 있을 때만)를 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 그 장치가 어떤 칩인지는 미확인. 
-- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 그동안 LCD 레지스터로 320×480 여부 확인, `0x10000000` 장치를 DAL 코드에서 확인.
-- **화면 320×480 확인**: ROM이 LCD를 320×480으로 설정(TG50은 320×320). 진단 빌드에서 320×480 모드로 띄우니 Setup 화면 아래에 NX70V 가상 그래피티 영역과 상태 표시줄이 ROM 자체로 그려짐. 터치는 미시험.
-- **`0x10000000` 장치**: 4바이트 간격 1바이트 레지스터. DAL 초기화 2단계가 `+0x24`~`+0x44`를 0으로 쓰고 `+0x40`에 3, HAL 절전 루프(`HwrInterruptsAries.c` 근처)가 절전 전후로 `+0x28` 비트0을 켜고 끔(전원·절전 신호로 추정). 부팅 중 `+0x10`을 160회 읽음. 칩 정체는 코드로 판단 불가.
+- **로컬 시험(진단 빌드, 커밋 안 함)**: `0x10000000`에 쓰기를 받아 주는 진단 장치(`NX70V_DIAG` 있을 때만)를 두자 재부팅이 사라지고 **NX70V Palm OS가 Setup 화면(1 of 4)까지 부팅**. 플래시 쓰기 무시도 시험했으나 영향 없어 되돌림.
+- **화면 320×480 확인**: ROM이 LCD를 320×480으로 설정(`LCCR1` `0x1F070D3F` = 320, `LCCR2` `0x080801DF` = 480). TG50은 320×320(`0x0808013F`). 진단 빌드에서 320×480 모드로 띄우니 Setup 화면 아래에 NX70V 가상 그래피티 영역과 상태 표시줄이 ROM 자체로 그려짐.
+- **`0x10000000` = CF 슬롯 컨트롤러**: 접근 코드가 "Sony CfSlot Library" 모듈(`CFSlot.c`, `CFLib.c`) 안에 있음. 슬롯 최대 2개.
+  - `+0x10` 상태(읽기): `0xC0` 비트 중 하나라도 1이면 카드 없음. 비트 0~4는 별도 상태 플래그(준비·쓰기 금지·배터리로 추정).
+  - `+0x24`·`+0x28` 전원 제어: 3.3V 켜기 = `+0x28` 비트 `0x02` → 150ms → `+0x24` 비트 `0x80` → 50ms. 끄기는 반대 순서 후 300ms. HAL 절전 루프가 절전 전후로 `+0x28` 비트 `0x01`을 켜고 끔.
+  - `+0x2C` 인터럽트 마스크 추정, `+0x30`·`+0x34`·`+0x38`·`+0x3C` 제어(상세는 영문 표).
+  - 진단 장치의 `+0x10` 값 비교: `0x00`이면 카드 있음으로 보고 전원 켜기 진행(`+0x10` 300회 읽기), `0xC0`이면 카드 없음 경로(2회 읽기). 둘 다 Setup까지 부팅. **최소 모델은 `+0x10` = `0xC0`, 나머지 쓰기 수용.**
+- **터치 안 됨**: 터치 칩은 TG50과 같은 AD7873(같은 SSP 명령). 하지만 TG50의 펜 인터럽트인 GPIO9가 NX70V에서는 "Sony Rmc Library"(이어폰 리모컨)가 쓰는 핀이고, 부팅 끝에 인터럽트가 꺼짐. 펜 신호를 GPIO 5·10·21에 연결하거나 극성을 뒤집어도 좌표 명령(`93`/`D3`) 없음. 펜 인터럽트 경로는 미확인.
+- **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. 그동안 HAL 펜 코드를 TG50과 비교해 펜 인터럽트 경로를 찾음.
