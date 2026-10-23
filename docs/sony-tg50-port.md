@@ -15,7 +15,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Launcher, on-screen touch (AD7873) | Works | Calibrated by Palm OS itself |
 | Sony controller keyboard matrix | Works (typing in Memo Pad) | `mmiodev_TG50uc.cpp`, `sony_tg50_hardware.h` |
 | Host key mapping | Works: letters, Space, Enter, Backspace, Shift, Ctrl, Tab, Caps, `,` `.` `-`, Blue (F7), Red (F9), Home, PageUp/Down, End (jog back), F11 (jog select), F5 (voice), `` ` `` (Graffiti) | New `KeyId` values in `keys.h`; SDL mapping only in TG50 mode. PC digits unmapped. ~40 ms key presses drop some keys (original uARM does not) |
-| Host power key → GPIO0 | Not driven | Driving it (as original uARM does) ends in a Fatal Exception via the sleep path; Esc reaches the matrix only |
+| Host power key, sleep/resume | Works | Esc sleeps and wakes; see "Sleep and resume" below |
 | Display configuration / skin | Uses E2 `mode_320x320` incl. a 120 px Graffiti silkscreen | TG50 has a QWERTY keyboard and **no silkscreen**; the drawn silkscreen does nothing |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
 | Savestates / sessions | Not implemented for TG50 | `--tg50` rejects session files |
@@ -23,7 +23,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 
 ## Remaining work
 
-1. **Power key and sleep:** driving GPIO0 from the power key ends in a Fatal Exception (log shows `R of 4 bytes to 0x02200000 failed!` around memory-controller writes); compare with original uARM's sleep/resume.
+1. **Sleep follow-ups:** RTC alarm wake is not checked (the ROM's sleep PWER has no RTC bit).
 2. **Display configuration:** a TG50 display mode without the E2 silkscreen (or with a keyboard image), without changing E2's shared configuration.
 3. **Savestates:** serialize Sony controller, AD7873, AN32502A, AK4534 and Memory Stick state.
 4. **Optional:** a TG50-specific touch-translation patch (inverse of `3200 − 10·x/y`, after verifying the X/Y cross-wiring) to make touch independent of calibration, as on the E2.
@@ -192,7 +192,7 @@ This bypasses only the **device-type identification decision**; the image must s
 - Cause: original `deviceSetup()` calls `keypadAddGpioKey(kp, SDLK_ESCAPE, 0, false)`, registering the power key on GPIO0 as active low and thereby driving the line high (released). The port omitted it, so GPIO0 stayed low and the firmware waited for the power key to be released.
 - Fix: `sonyTG50Initialize()` sets GPIO0 high (released).
 - Verified natively (Linux, SDL2): the TG50 ROM now boots to the **Setup 1 of 4** screen, and controller keypad accesses continue as in the original.
-- Still open: host power key handling should also drive GPIO0 low while pressed (the original wires the same key both to the controller matrix and to GPIO0).
+- Done later: the host power key now also drives GPIO0 low while pressed (see "Sleep and resume").
 
 
 ## Setup blocker fixed: pen calibration (E2 touch translation patch)
@@ -210,7 +210,7 @@ This bypasses only the **device-type identification decision**; the image must s
 - Diagnosis: on original uARM with the same ROM, typing in Memo Pad works, so the ROM's keyboard driver reads the Sony controller matrix directly. In this port the matrix model was present, but host keys never reached it: the SDL handler mapped only F1–F4, arrows, Return (jog select) and Esc, and the common `KeyId` had 10 values.
 - Change: `keys.h` adds keyboard key IDs after `keyIdPower` (existing values unchanged). `SdlEventHandler` maps letters, Space, Return, Backspace, Shift, Ctrl, Tab, Caps Lock, `,` `.` `-`, F7 (Blue), F9 (Red), Home, PageUp/PageDown, End (jog back), F11 (jog select), F5 (voice) and `` ` `` (Graffiti) **only in TG50 mode**; other devices keep the old mapping. `sonyTG50HostKey()` translates the IDs to `kMatrix` keys. E2/PV keypads ignore unknown IDs.
 - Verified natively: lower/upper case, Shift, Blue+q/w/e = `123`, Red layer, comma/period, Backspace, Enter, Home back to the launcher.
-- Open: the power key is sent to the matrix only (see current status); PC digit keys are not mapped. Fast-typing drops are fixed: the event queue applies one key event per 1/30 s tick, so a quick press was down for only ~33 ms while the TG50 keyboard scan needs ~60 ms; key-ups are now delayed until the key has been down for 3 ticks (~100 ms). Zero-hold a–z: 5/26 before, 26/26 after.
+- Open: PC digit keys are not mapped. Fast-typing drops are fixed: the event queue applies one key event per 1/30 s tick, so a quick press was down for only ~33 ms while the TG50 keyboard scan needs ~60 ms; key-ups are now delayed until the key has been down for 3 ticks (~100 ms). Zero-hold a–z: 5/26 before, 26/26 after.
 
 ## Memory Stick extended-register diagnostic comparison (KOSPI)
 
@@ -223,3 +223,18 @@ The controller now reserves `0x1400` bytes, while **the default build rejects al
 - Optional `-DTG50_MS_TRACE` prints zero-mode accesses; diagnostics are off by default.
 
 Build each variant separately; compare clean boot, KOSPI installation and reset, memo text persistence, and boot without KOSPI. If both modes boot, this alone does **not** prove that the hardware uses aliases. The observed null-address writes under KOSPI require a separate PC-level investigation. No actual A/B boot run is claimed in this commit.
+
+## Sleep and resume (2026-10-23)
+
+Previously the power key reached only the controller matrix, and driving GPIO0 ended in a Fatal Exception. Five causes were found with a diagnostic build:
+
+| # | Problem | Cause | Fix |
+| --- | --- | --- | --- |
+| 1 | No sleep state | `PWRMODE 3` (PXA sleep) reset the CPU at once ("pretend we woke up") | Deep sleep for TG50/NX70V only (`pxaPwrClkSetDeepSleepEnabled`): the CPU stays halted, interrupts do not wake it, and every 1/30 s `pxaPwrClkCheckWake()` compares GPIO0–15 with `PWER`/`PRER`/`PFER`; on a match it sets `PEDR`, `RCSR` bit 2 and resets the CPU. E2 keeps the old behavior |
+| 2 | Woke and slept again | The ROM sleeps with `PWER` = GPIO0 rising (power-key release), then with `0x608B` (GPIO0/1/3/7/13/14 falling). A GPIO0 wake only counts the press (`0x200323C8`) and sleeps again; a full wake needs GPIO13 | The power key also pulls GPIO13 low; a press while asleep is kept off GPIO0 but still reaches the matrix (the ROM turns the screen on) |
+| 3 | Fatal Exception after wake (`R of 4 bytes to 0x02200000`) | On resume the ROM bit-bangs a 64-word serial EEPROM on GPIO4–6 (`0x20033268`); data out GPIO5 read 0, so the record walker (`0x20033A00`) never met its `0xFFFF` end and ran off memory | GPIO5 idles high (erased EEPROM) |
+| 4 | Keyboard dead after wake | The boot code writes the controller reset command (`0x210` = `0xFF`) on resume; the model reset all port/IRQ configuration, which the ROM does not reprogram on resume | `tg50ucIgnoreNextReset()` after each wake |
+| 5 | Device pointer missing | `SocPeriphs.soc` was never set, so the device could not see the sleep state | `soc_PXA.cpp` sets `sp.soc = this` |
+
+Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard buttons and fast typing after resume, Setup and pen calibration unchanged.
+
