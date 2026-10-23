@@ -1,6 +1,6 @@
 // Sony CLIÉ TG50 AN32502A power management I2C model.
 // Adapted from https://github.com/uARM-Palm/uARM/blob/master/i2cdev_AN32502A.c
-// Initial port only: not yet instantiated by a TG50 device.
+// Used by the PEG-TG50 and PEG-NX70V devices.
 #include "i2cdev_AN32502A.h"
 
 #include <cstdlib>

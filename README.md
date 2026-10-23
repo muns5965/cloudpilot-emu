@@ -1,6 +1,6 @@
 # CloudpilotEmu fork — Sony CLIÉ (Palm OS 5)
 
-> **Experimental, unofficial fork** of [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu) that adds Sony CLIÉ handhelds (PEG-TG50, PEG-NX70V) to its Palm OS 5 (uARM) engine. This is **not an official CloudpilotEmu release**. No ROM is included; bring your own.
+> **Experimental, unofficial fork** of [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu): the Sony PEG-TG50 hardware model from the original [uARM](https://github.com/uARM-Palm/uARM), ported and adapted to CloudpilotEmu's Palm OS 5 (uARM) engine, plus PEG-NX70V support, which the original uARM does not have. This is **not an official CloudpilotEmu release**. No ROM is included; bring your own.
 
 [한국어](#cloudpilotemu-포크--sony-clié-palm-os-5)
 
@@ -35,7 +35,7 @@ Workflow: device-specific work and tests happen on the feature branches; finishe
 
 # CloudpilotEmu 포크 — Sony CLIÉ (Palm OS 5)
 
-> [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)의 Palm OS 5(uARM) 엔진에 Sony CLIÉ 기종(PEG-TG50, PEG-NX70V)을 추가하는 **실험용 비공식 포크**입니다. **공식 CloudpilotEmu 배포판이 아닙니다.** ROM은 포함하지 않으므로 직접 준비해야 합니다.
+> 원본 [uARM](https://github.com/uARM-Palm/uARM)의 Sony PEG-TG50 하드웨어 모델을 [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)의 Palm OS 5(uARM) 엔진에 이식해 맞추고, 원본 uARM에 없는 PEG-NX70V 지원을 더한 **실험용 비공식 포크**입니다. **공식 CloudpilotEmu 배포판이 아닙니다.** ROM은 포함하지 않으므로 직접 준비해야 합니다.
 
 ## 브라우저에서 실행
 
