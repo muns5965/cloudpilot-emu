@@ -29,10 +29,13 @@ namespace {
     // NetMgr.h: netLibTrap* = sysLibTrapCustom + n
     constexpr uint16_t NET_TRAP_SOCKET_OPEN = SYS_LIB_TRAP_CUSTOM + 2;
     constexpr uint16_t NET_TRAP_SOCKET_CLOSE = SYS_LIB_TRAP_CUSTOM + 3;
+    constexpr uint16_t NET_TRAP_SOCKET_OPTION_SET = SYS_LIB_TRAP_CUSTOM + 4;
+    constexpr uint16_t NET_TRAP_SOCKET_BIND = SYS_LIB_TRAP_CUSTOM + 6;
     constexpr uint16_t NET_TRAP_SOCKET_CONNECT = SYS_LIB_TRAP_CUSTOM + 7;
     constexpr uint16_t NET_TRAP_SEND = SYS_LIB_TRAP_CUSTOM + 12;
     constexpr uint16_t NET_TRAP_RECEIVE = SYS_LIB_TRAP_CUSTOM + 14;
     constexpr uint16_t NET_TRAP_GET_HOST_BY_NAME = SYS_LIB_TRAP_CUSTOM + 22;
+    constexpr uint16_t NET_TRAP_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 23;
     constexpr uint16_t NET_TRAP_IF_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 28;
     constexpr uint16_t NET_TRAP_IF_UP = SYS_LIB_TRAP_CUSTOM + 30;
     constexpr uint16_t NET_TRAP_FINISH_CLOSE_WAIT = SYS_LIB_TRAP_CUSTOM + 37;
@@ -45,12 +48,33 @@ namespace {
     constexpr uint16_t netErrorClass = 0x1200;
     constexpr uint16_t netErrNotOpen = netErrorClass | 2;
     constexpr uint16_t netErrParamErr = netErrorClass | 4;
+    constexpr uint16_t netErrBufTooSmall = netErrorClass | 13;
+    constexpr uint16_t netErrUnimplemented = netErrorClass | 14;
     constexpr uint16_t netErrInternal = netErrorClass | 17;
     constexpr uint16_t netErrSocketClosedByRemote = netErrorClass | 20;
 
     constexpr uint8_t netSocketAddrINET = 2;
 
     constexpr uint16_t netIFSettingUp = 1;
+
+    // NetSettingEnum
+    constexpr uint16_t netSettingPrimaryDNS = 1;
+    constexpr uint16_t netSettingSecondaryDNS = 2;
+    constexpr uint16_t netSettingHostName = 6;
+    constexpr uint16_t netSettingRTPrimaryDNS = 0x1004;
+    constexpr uint16_t netSettingRTSecondaryDNS = 0x1005;
+
+    // Socket options (NetSocketOptLevelEnum, NetSocketOptEnum)
+    constexpr uint16_t netSocketOptLevelIP = 0;
+    constexpr uint16_t netSocketOptLevelTCP = 6;
+    constexpr uint16_t netSocketOptLevelSocket = 0xffff;
+    constexpr uint16_t netSocketOptTCPNoDelay = 1;
+    constexpr uint16_t netSocketOptSockLinger = 0x0080;
+    constexpr uint16_t netSocketOptSockSndBufSize = 0x1001;
+    constexpr uint16_t netSocketOptSockSocketType = 0x1008;
+    constexpr uint16_t netSocketOptSockRequireErrClear = 0x2001;
+    constexpr uint16_t netSocketOptSockMultiPktAddr = 0x2002;
+    constexpr size_t SOCKET_OPTION_BUF_MAX = 40;  // networking.options: bufval max_size
 
     // NetHostInfoBufType (68k layout)
     constexpr uint32_t HOSTBUF_NAME = 16;
@@ -313,6 +337,207 @@ namespace {
         paceSet16(valueLenP, 1);
         setResult(0);
 
+        return true;
+    }
+
+    // Int16 NetLibSocketBind(UInt16 libRefNum, NetSocketRef socket, NetSocketAddrType *sockAddrP,
+    //     Int16 addrLen, Int32 timeout, Err *errP)
+    void netLibSocketBind(const Args& args) {
+        const uint32_t errP = args.u32(14);
+
+        MsgRequest request = newRequest(MsgRequest_socketBindRequest_tag);
+        request.payload.socketBindRequest.handle = args.i16(2);
+        request.payload.socketBindRequest.timeout = convertTimeout(args.i32(10));
+
+        if (args.i16(8) < 8 || !readAddress(args.u32(4), request.payload.socketBindRequest.address)) {
+            putErr(errP, netErrParamErr);
+            return setResult(-1);
+        }
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
+            putErr(errP, netErrInternal);
+            return setResult(-1);
+        }
+
+        putErr(errP, response.payload.socketBindResponse.err);
+        setResult(response.payload.socketBindResponse.err ? -1 : 0);
+    }
+
+    // Int16 NetLibSocketOptionSet(UInt16 libRefNum, NetSocketRef socket, UInt16 level,
+    //     UInt16 option, void *optValueP, UInt16 optValueLen, Int32 timeout, Err *errP)
+    // Value encoding as in the OS 4 integration (NetworkProxy::SocketOptionSet).
+    void netLibSocketOptionSet(const Args& args) {
+        const uint16_t level = args.u16(4);
+        const uint16_t option = args.u16(6);
+        const uint32_t valueP = args.u32(8);
+        const uint16_t len = args.u16(12);
+        const uint32_t errP = args.u32(18);
+
+        auto fail = [&](uint16_t err) {
+            putErr(errP, err);
+            setResult(-1);
+        };
+
+        if (level == netSocketOptLevelSocket && option == netSocketOptSockMultiPktAddr)
+            return fail(netErrUnimplemented);
+
+        if (level == netSocketOptLevelSocket && option == netSocketOptSockRequireErrClear) {
+            putErr(errP, 0);
+            return setResult(0);
+        }
+
+        MsgRequest request = newRequest(MsgRequest_socketOptionSetRequest_tag);
+        auto& r = request.payload.socketOptionSetRequest;
+        r.handle = args.i16(2);
+        r.level = level;
+        r.option = option;
+        r.timeout = convertTimeout(args.i32(14));
+
+        if (!valueP) return fail(netErrParamErr);
+
+        const bool isLinger = level == netSocketOptLevelSocket && option == netSocketOptSockLinger;
+        const bool isBuffer = level == netSocketOptLevelIP;
+        const bool isInt = (level == netSocketOptLevelTCP && option != netSocketOptTCPNoDelay) ||
+                           (level == netSocketOptLevelSocket && option >= netSocketOptSockSndBufSize &&
+                            option <= netSocketOptSockSocketType);
+
+        if (isLinger) {
+            if (len != 4) return fail(netErrParamErr);
+
+            r.which_value = MsgSocketOptionSetRequest_intval_tag;
+            r.value.intval = paceGet16(valueP) | (paceGet16(valueP + 2) << 16);
+        } else if (isBuffer) {
+            if (len > SOCKET_OPTION_BUF_MAX) return fail(netErrParamErr);
+
+            r.which_value = MsgSocketOptionSetRequest_bufval_tag;
+            copyFrom68k(r.value.bufval.bytes, valueP, len);
+            r.value.bufval.size = len;
+        } else {
+            int32_t value;
+            switch (len) {
+                case 1:
+                    value = paceGet8(valueP);
+                    break;
+
+                case 2:
+                    value = paceGet16(valueP);
+                    break;
+
+                case 4:
+                    value = static_cast<int32_t>(paceGet32(valueP));
+                    break;
+
+                default:
+                    return fail(netErrParamErr);
+            }
+
+            if (!isInt) value = value != 0 ? 1 : 0;
+            if (isInt && len == 1) return fail(netErrParamErr);
+
+            r.which_value = MsgSocketOptionSetRequest_intval_tag;
+            r.value.intval = value;
+        }
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) return fail(netErrInternal);
+
+        const int32_t err = response.payload.socketOptionSetResponse.err;
+        putErr(errP, err);
+        setResult(err ? -1 : 0);
+    }
+
+    // Err NetLibSettingGet(UInt16 libRefNum, UInt16 setting, void *valueP, UInt16 *valueLenP)
+    // Only the host name and the DNS servers are answered by the host (as in the OS 4
+    // integration); other settings go to the ROM.
+    bool netLibSettingGet(const Args& args) {
+        const uint16_t setting = args.u16(2);
+
+        switch (setting) {
+            case netSettingHostName:
+            case netSettingPrimaryDNS:
+            case netSettingSecondaryDNS:
+            case netSettingRTPrimaryDNS:
+            case netSettingRTSecondaryDNS:
+                break;
+
+            default:
+                return false;
+        }
+
+        const uint32_t valueP = args.u32(4);
+        const uint32_t valueLenP = args.u32(8);
+        if (!valueP || !valueLenP) {
+            setResult(netErrParamErr);
+            return true;
+        }
+
+        MsgRequest request = newRequest(MsgRequest_settingGetRequest_tag);
+        request.payload.settingGetRequest.setting = setting;
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return true;
+        if (result == CallResult::failed) {
+            setResult(openCount ? netErrInternal : netErrNotOpen);
+            return true;
+        }
+
+        const auto& r = response.payload.settingGetResponse;
+        if (r.err) {
+            setResult(r.err);
+            return true;
+        }
+
+        const uint16_t valueLen = paceGet16(valueLenP);
+
+        switch (r.which_value) {
+            case MsgSettingGetResponse_strval_tag: {
+                const size_t len = strnlen(r.value.strval, sizeof(r.value.strval));
+                if (len == sizeof(r.value.strval)) {
+                    setResult(netErrInternal);
+                    return true;
+                }
+                if (len >= valueLen) {
+                    setResult(netErrBufTooSmall);
+                    return true;
+                }
+
+                copyTo68k(valueP, reinterpret_cast<const uint8_t*>(r.value.strval), len + 1);
+                paceSet16(valueLenP, static_cast<uint16_t>(len));
+                break;
+            }
+
+            case MsgSettingGetResponse_uint32val_tag:
+                if (valueLen < 4) {
+                    setResult(netErrBufTooSmall);
+                    return true;
+                }
+
+                paceSet32(valueP, r.value.uint32val);
+                paceSet16(valueLenP, 4);
+                break;
+
+            case MsgSettingGetResponse_uint8val_tag:
+                if (valueLen == 0) {
+                    setResult(netErrBufTooSmall);
+                    return true;
+                }
+
+                paceSet8(valueP, static_cast<uint8_t>(r.value.uint8val));
+                paceSet16(valueLenP, 1);
+                break;
+
+            default:
+                setResult(netErrInternal);
+                return true;
+        }
+
+        setResult(0);
         return true;
     }
 
@@ -611,6 +836,20 @@ namespace {
             case NET_TRAP_SOCKET_CONNECT:
                 netLibSocketConnect(args);
                 return true;
+
+            case NET_TRAP_SOCKET_BIND:
+                netLibSocketBind(args);
+                return true;
+
+            case NET_TRAP_SOCKET_OPTION_SET:
+                netLibSocketOptionSet(args);
+                return true;
+
+            case NET_TRAP_SETTING_GET:
+                if (netLibSettingGet(args)) return true;
+
+                fprintf(stderr, "netlib: SettingGet setting %#06x not redirected\n", args.u16(2));
+                return false;
 
             case NET_TRAP_SEND:
                 netLibSend(args);
