@@ -1,5 +1,6 @@
 import { Cloudpilot, PwmUpdate } from '@common/bridge/Cloudpilot';
-import { Engine, StorageCardProvider } from '@common/engine/Engine';
+import { NetlibEvent, NetlibEventType } from '@common/bridge/Uarm';
+import { Engine, EngineUarm, StorageCardProvider } from '@common/engine/Engine';
 import { EngineSettings } from '@common/engine/EngineSettings';
 import { SnapshotContainer } from '@common/engine/Snapshot';
 import { EngineCloudpilotImpl } from '@common/engine/cloudpilot/EngineCloudpilot';
@@ -198,6 +199,12 @@ export abstract class AbstractEmulationService {
 
     protected abstract handlePalmosStateChange(): void;
 
+    // NetLib redirection on OS 5 (uARM). Without a network backend the calls are left unanswered,
+    // so the default fails every request.
+    protected handleNetlibEvent(event: NetlibEvent, engine: EngineUarm): void {
+        if (event.type === NetlibEventType.request) engine.deliverNetlibResponse(new Uint8Array(0));
+    }
+
     protected processTimesliceNow(): void {
         this.engine?.processTimesliceNow();
     }
@@ -367,6 +374,10 @@ export abstract class AbstractEmulationService {
 
     private onFatalError = (error: Error) => this.handleFatalInNativeCode(error);
 
+    private onNetlibEvent = (event: NetlibEvent) => {
+        if (this.engine?.type === 'uarm') this.handleNetlibEvent(event, this.engine);
+    };
+
     private bindEngineHandlers(engine?: Engine) {
         if (!engine) return;
 
@@ -384,6 +395,7 @@ export abstract class AbstractEmulationService {
 
             case 'uarm':
                 engine.fatalError.addHandler(this.onFatalError);
+                engine.netlibEvent.addHandler(this.onNetlibEvent);
                 break;
 
             default:
@@ -408,6 +420,8 @@ export abstract class AbstractEmulationService {
 
             case 'uarm':
                 engine.fatalError.removeHandler(this.onFatalError);
+                engine.netlibEvent.removeHandler(this.onNetlibEvent);
+                this.handleNetlibEvent({ type: NetlibEventType.close }, engine);
                 break;
 
             default:

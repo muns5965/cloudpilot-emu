@@ -4,6 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
+#include <vector>
+#include <deque>
 #include <optional>
 #include <string>
 
@@ -109,6 +112,14 @@ class Uarm {
     bool LaunchAppByName(const char* name);
     bool LaunchAppByDbHeader(void* header, int len);
 
+    // NetLib redirection (68k NetLib calls answered by the host, see uarm/netlib_redirect.h).
+    // Events for the host: 0 none, 1 session open, 2 session close, 3 request (data below).
+    void SetNetlibEnabled(bool enabled);
+    int NetlibTakeEvent();
+    uint32_t NetlibGetRequestSize();
+    void* NetlibGetRequestData();
+    void NetlibDeliver(void* data, int size);
+
    private:
     size_t ramSize{0};
 
@@ -139,6 +150,9 @@ class Uarm {
     AudioQueue* audioQueue{nullptr};
 
     std::unique_ptr<MainLoop> mainLoop;
+
+    std::deque<std::pair<int, std::vector<uint8_t>>> netlibEvents;
+    std::vector<uint8_t> netlibRequest;
 
    private:
     Uarm(const Uarm&) = delete;

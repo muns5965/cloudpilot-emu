@@ -118,6 +118,16 @@ function guard(): MethodDecorator {
     };
 }
 
+export const enum NetlibEventType {
+    open = 1,
+    close = 2,
+    request = 3,
+}
+
+export type NetlibEvent =
+    | { type: NetlibEventType.open | NetlibEventType.close }
+    | { type: NetlibEventType.request; data: Uint8Array };
+
 export class Uarm {
     private constructor(private module: Module) {
         this.uarm = new module.Uarm();
@@ -518,6 +528,41 @@ export class Uarm {
         this.bridge.Free(headerPtr);
 
         return result;
+    }
+
+    @guard()
+    setNetlibEnabled(enabled: boolean): void {
+        this.uarm.SetNetlibEnabled(enabled);
+    }
+
+    // Next NetLib redirection event of the core, or undefined. The request data is copied.
+    @guard()
+    takeNetlibEvent(): NetlibEvent | undefined {
+        const type = this.uarm.NetlibTakeEvent();
+
+        switch (type) {
+            case NetlibEventType.open:
+            case NetlibEventType.close:
+                return { type };
+
+            case NetlibEventType.request: {
+                const size = this.uarm.NetlibGetRequestSize();
+                const ptr = this.module.getPointer(this.uarm.NetlibGetRequestData());
+
+                return { type, data: this.module.HEAPU8.slice(ptr, ptr + size) };
+            }
+
+            default:
+                return undefined;
+        }
+    }
+
+    // Response to the request in flight; an empty buffer makes the call fail.
+    @guard()
+    deliverNetlibResponse(data: Uint8Array): void {
+        const ptr = this.copyIn(data.length > 0 ? data : new Uint8Array(1));
+        this.uarm.NetlibDeliver(ptr, data.length);
+        this.bridge.Free(ptr);
     }
 
     dead(): boolean {

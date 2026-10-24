@@ -1,4 +1,5 @@
 import { PwmUpdate } from '@common/bridge/Cloudpilot';
+import { NetlibEvent } from '@common/bridge/Uarm';
 import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
 import { EmulationStatisticsCloudpilot, EmulationStatisticsUarm } from '@common/model/EmulationStatistics';
@@ -127,6 +128,11 @@ export interface EngineUarm extends EngineCommon {
     // Raw device keys (KeyId) for devices with a hardware keyboard
     keyDown(key: number): void;
     keyUp(key: number): void;
+
+    // NetLib redirection (68k NetLib calls on OS 5): events of the core and the responses to
+    // its requests (an empty buffer makes the call fail).
+    readonly netlibEvent: EventInterface<NetlibEvent>;
+    deliverNetlibResponse(data: Uint8Array): void;
 }
 
 export type Engine = EngineCloudpilot | EngineUarm;

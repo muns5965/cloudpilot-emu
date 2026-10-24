@@ -1,3 +1,5 @@
+import { NetlibEvent } from '@common/bridge/Uarm';
+
 import { UarmSnapshot } from './Snapshot';
 import { RpcError, RpcResponse } from './rpc';
 
@@ -9,6 +11,7 @@ export const enum ClientMessageType {
     fatalError = 'fatalError',
     snapshot = 'snapshot',
     systemStateChanged = 'systemStateChanged',
+    netlib = 'netlib',
 }
 
 export interface ClientMessageReady {
@@ -52,6 +55,11 @@ export interface ClientMessageSystemStateChanged {
     osVersion: number | undefined;
 }
 
+export interface ClientMessageNetlib {
+    type: ClientMessageType.netlib;
+    event: NetlibEvent;
+}
+
 export type ClientMessage =
     | ClientMessageReady
     | ClientMessageRpcError
@@ -59,4 +67,5 @@ export type ClientMessage =
     | ClientMessageTimeslice
     | ClientMessageFatalError
     | ClientMessageSnapshot
-    | ClientMessageSystemStateChanged;
+    | ClientMessageSystemStateChanged
+    | ClientMessageNetlib;
