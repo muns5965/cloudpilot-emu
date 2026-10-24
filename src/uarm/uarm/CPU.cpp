@@ -17,6 +17,7 @@
 #include "gdbstub.h"
 #include "icache.h"
 #include "mem.h"
+#include "netlib_redirect.h"
 #include "memcpy.h"
 #include "pace.h"
 #include "patch68k.h"
@@ -3771,6 +3772,11 @@ void cpuSave(ArmCpu *cpu, T &savestate) {
 
     patchDispatchSave(cpu->patchDispatch, savestate);
 
+    auto netlibChunk = savestate.GetChunk(ChunkType::netlib, 1);
+    if (!netlibChunk) ERR("unable to allocate chunk");
+    netlibChunk->Put32(static_cast<uint32_t>(netlib_redirect::GetRefNum()));
+    netlibChunk->Put32(netlib_redirect::GetOpenCount());
+
     auto chunk = savestate.GetChunk(ChunkType::cpu, SAVESTATE_VERSION);
     if (!chunk) ERR("unable to allocate chunk");
 
@@ -3792,6 +3798,15 @@ void cpuLoad(ArmCpu *cpu, T &loader) {
         cp15MPULoad(cpu->cp15.cp15mpu, loader);
     }
     patchDispatchLoad(cpu->patchDispatch, loader);
+
+    // Optional chunk: savestates from before NetLib redirection do not have it.
+    int32_t netRefNum = -1;
+    uint32_t netOpenCount = 0;
+    if (auto netlibChunk = loader.GetChunk(ChunkType::netlib); netlibChunk && netlibChunk->Get32() == 1) {
+        netRefNum = static_cast<int32_t>(netlibChunk->Get32());
+        netOpenCount = netlibChunk->Get32();
+    }
+    netlib_redirect::RestoreState(netRefNum, netOpenCount);
 
     uint32_t version;
     auto chunk = loader.GetChunkOrFail(ChunkType::cpu, SAVESTATE_VERSION, "cpu", version);

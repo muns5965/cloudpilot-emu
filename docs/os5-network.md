@@ -33,8 +33,15 @@ On Palm OS 5, 68k applications run through PACE, and every 68k system call reach
    responses go back through the worker. An empty response makes the call fail.
 
 Redirected calls: `NetLibOpen`, `NetLibClose`, `NetLibOpenCount`, sleep/wake, `SocketOpen`,
-`SocketClose`, `SocketConnect`, `Send`, `Receive`, `GetHostByName`. Other NetLib calls go to the
-ROM and are logged as "not redirected".
+`SocketClose`, `SocketConnect`, `Send`, `Receive`, `GetHostByName`, and the connection state
+calls that browsers make before connecting (as in the OS 4 integration): `OpenIfCloseWait`,
+`ConnectionRefresh`, `IFUp`, `IFSettingGet` (only "interface up"), `FinishCloseWait`,
+`HandlePowerOff`. Other NetLib calls go to the ROM and are logged as "not redirected".
+
+Session state: the NetLib reference number (from `SysLibFind`) and the open count are saved in
+the session (`netlib` savestate chunk, optional for older sessions). An application that is
+running when the session is saved stays redirected after it is restored; if NetLib was open, a
+new host session is opened (sockets of the old one are gone).
 
 ## Limits
 
@@ -42,6 +49,10 @@ ROM and are logged as "not redirected".
   needs a hook on the ARM side (`patches.cpp` / `patch_dispatch`), a later step.
 - No `NetLibSelect`, `SocketBind`/`Listen`/`Accept`, `SocketOptionSet/Get`, `SettingGet`,
   `GetServByName`, `SendPB`/`ReceivePB` yet; applications that need them fail at that call.
+  EudoraWeb 2.1 needs `SocketOptionSet`, `SocketBind` and `SettingGet` (it resolves names
+  itself over UDP).
+- Xiino 3.4 contacts its vendor's server (`pds.mobirus.com`) first; that server no longer exists,
+  so it reports "Could not find host" even though the network calls work.
 - HTTPS depends on the Palm application's own TLS.
 
 ## Test
