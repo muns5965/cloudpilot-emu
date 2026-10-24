@@ -34,6 +34,7 @@ namespace {
     constexpr uint16_t NET_TRAP_SOCKET_CONNECT = SYS_LIB_TRAP_CUSTOM + 7;
     constexpr uint16_t NET_TRAP_SEND = SYS_LIB_TRAP_CUSTOM + 12;
     constexpr uint16_t NET_TRAP_RECEIVE = SYS_LIB_TRAP_CUSTOM + 14;
+    constexpr uint16_t NET_TRAP_SELECT = SYS_LIB_TRAP_CUSTOM + 16;
     constexpr uint16_t NET_TRAP_GET_HOST_BY_NAME = SYS_LIB_TRAP_CUSTOM + 22;
     constexpr uint16_t NET_TRAP_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 23;
     constexpr uint16_t NET_TRAP_IF_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 28;
@@ -451,6 +452,53 @@ namespace {
         setResult(err ? -1 : 0);
     }
 
+    int16_t countFDs(uint32_t fdSet) {
+        int16_t count = 0;
+        for (; fdSet; fdSet &= fdSet - 1) count++;
+
+        return count;
+    }
+
+    // Int16 NetLibSelect(UInt16 libRefNum, UInt16 width, NetFDSetType *readFDs,
+    //     NetFDSetType *writeFDs, NetFDSetType *exceptFDs, Int32 timeout, Err *errP)
+    // As in the OS 4 integration: the sets go to the host as they are (the host ignores
+    // sysFileDescStdIn, there is no socket for it).
+    void netLibSelect(const Args& args) {
+        const uint32_t readFDsP = args.u32(4);
+        const uint32_t writeFDsP = args.u32(8);
+        const uint32_t exceptFDsP = args.u32(12);
+        const uint32_t errP = args.u32(20);
+
+        MsgRequest request = newRequest(MsgRequest_selectRequest_tag);
+        auto& r = request.payload.selectRequest;
+        r.width = args.u16(2) > 32 ? 32 : args.u16(2);
+        r.readFDs = readFDsP ? paceGet32(readFDsP) : 0;
+        r.writeFDs = writeFDsP ? paceGet32(writeFDsP) : 0;
+        r.exceptFDs = exceptFDsP ? paceGet32(exceptFDsP) : 0;
+        r.timeout = convertTimeout(args.i32(16));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
+            return setResult(-1);
+        }
+
+        const auto& resp = response.payload.selectResponse;
+        if (resp.err) {
+            putErr(errP, resp.err);
+            return setResult(-1);
+        }
+
+        if (readFDsP) paceSet32(readFDsP, resp.readFDs);
+        if (writeFDsP) paceSet32(writeFDsP, resp.writeFDs);
+        if (exceptFDsP) paceSet32(exceptFDsP, resp.exceptFDs);
+
+        putErr(errP, 0);
+        setResult(countFDs(resp.readFDs) + countFDs(resp.writeFDs) + countFDs(resp.exceptFDs));
+    }
+
     // Err NetLibSettingGet(UInt16 libRefNum, UInt16 setting, void *valueP, UInt16 *valueLenP)
     // Only the host name and the DNS servers are answered by the host (as in the OS 4
     // integration); other settings go to the ROM.
@@ -839,6 +887,10 @@ namespace {
 
             case NET_TRAP_SOCKET_BIND:
                 netLibSocketBind(args);
+                return true;
+
+            case NET_TRAP_SELECT:
+                netLibSelect(args);
                 return true;
 
             case NET_TRAP_SOCKET_OPTION_SET:

@@ -33,7 +33,7 @@ On Palm OS 5, 68k applications run through PACE, and every 68k system call reach
    responses go back through the worker. An empty response makes the call fail.
 
 Redirected calls: `NetLibOpen`, `NetLibClose`, `NetLibOpenCount`, sleep/wake, `SocketOpen`,
-`SocketClose`, `SocketConnect`, `SocketBind`, `SocketOptionSet`, `Send`, `Receive` (with the peer
+`SocketClose`, `SocketConnect`, `SocketBind`, `SocketOptionSet`, `Select`, `Send`, `Receive` (with the peer
 address for UDP), `GetHostByName`, `SettingGet` (host name and DNS servers, as in the OS 4
 integration; other settings go to the ROM), and the connection state
 calls that browsers make before connecting (as in the OS 4 integration): `OpenIfCloseWait`,
@@ -49,10 +49,9 @@ new host session is opened (sockets of the old one are gone).
 
 - Only 68k callers pass through PACE. ARM-native code that calls NetLib directly is not seen; that
   needs a hook on the ARM side (`patches.cpp` / `patch_dispatch`), a later step.
-- No `NetLibSelect`, `SocketListen`/`Accept`, `SocketOptionGet`, `GetServByName`,
-  `SendPB`/`ReceivePB` yet; applications that need them fail at that call. EudoraWeb 2.1 resolves
-  names itself over UDP (DNS server from `SettingGet`) and waits for the answer with
-  `NetLibSelect`.
+- No `SocketListen`/`Accept`, `SocketOptionGet`, `GetServByName`, `SendPB`/`ReceivePB` yet;
+  applications that need them fail at that call. `IFGet` goes to the ROM (it is polled often and
+  logged as "not redirected"; nothing seen depends on it so far).
 - Xiino 3.4 contacts its vendor's server (`pds.mobirus.com`) first; that server no longer exists,
   so it reports "Could not find host" even though the network calls work.
 - HTTPS depends on the Palm application's own TLS.
@@ -66,6 +65,10 @@ connected, request sent → `HTTP/1.0 200 OK` and the server's headers on screen
 and the run completes; host CPU while waiting stays at the idle level (~25 %, it was ~99 % before
 the SoC idled during the wait). Without `--net`, `NetLibOpen` shows Palm OS's "Incomplete
 setup" alert (no connection configured).
+
+EudoraWeb 2.1 (native TG50, `--net`): it resolves names itself over UDP (DNS server from
+`SettingGet`, answer awaited with `Select`). With a local test DNS server answering `localhost`, it
+opened `http://localhost` (a local test page) and followed a link to a second page.
 
 Browser (PWA build of the same commit, Chromium via Playwright): TG50 session, "Network
 redirection" on, local proxy (`server/cloudpilot-server.py serve --insecure`), the same NetTest:
