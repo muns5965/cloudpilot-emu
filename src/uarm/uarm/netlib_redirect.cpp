@@ -33,7 +33,13 @@ namespace {
     constexpr uint16_t NET_TRAP_SEND = SYS_LIB_TRAP_CUSTOM + 12;
     constexpr uint16_t NET_TRAP_RECEIVE = SYS_LIB_TRAP_CUSTOM + 14;
     constexpr uint16_t NET_TRAP_GET_HOST_BY_NAME = SYS_LIB_TRAP_CUSTOM + 22;
+    constexpr uint16_t NET_TRAP_IF_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 28;
+    constexpr uint16_t NET_TRAP_IF_UP = SYS_LIB_TRAP_CUSTOM + 30;
+    constexpr uint16_t NET_TRAP_FINISH_CLOSE_WAIT = SYS_LIB_TRAP_CUSTOM + 37;
     constexpr uint16_t NET_TRAP_OPEN_COUNT = SYS_LIB_TRAP_CUSTOM + 41;
+    constexpr uint16_t NET_TRAP_OPEN_IF_CLOSE_WAIT = SYS_LIB_TRAP_CUSTOM + 44;
+    constexpr uint16_t NET_TRAP_HANDLE_POWER_OFF = SYS_LIB_TRAP_CUSTOM + 45;
+    constexpr uint16_t NET_TRAP_CONNECTION_REFRESH = SYS_LIB_TRAP_CUSTOM + 46;
     constexpr uint16_t NET_TRAP_LAST = SYS_LIB_TRAP_CUSTOM + 64;
 
     constexpr uint16_t netErrorClass = 0x1200;
@@ -43,6 +49,8 @@ namespace {
     constexpr uint16_t netErrSocketClosedByRemote = netErrorClass | 20;
 
     constexpr uint8_t netSocketAddrINET = 2;
+
+    constexpr uint16_t netIFSettingUp = 1;
 
     // NetHostInfoBufType (68k layout)
     constexpr uint32_t HOSTBUF_NAME = 16;
@@ -270,6 +278,42 @@ namespace {
     void netLibOpenCount(const Args& args) {
         if (args.u32(2)) paceSet16(args.u32(2), static_cast<uint16_t>(openCount));
         setResult(0);
+    }
+
+    // NetLibOpenIfCloseWait(UInt16 libRefnum): reopens a library that is waiting to close. The
+    // host session closes immediately, so it is open only while openCount > 0.
+    void netLibOpenIfCloseWait(const Args&) {
+        if (openCount == 0) return setResult(netErrNotOpen);
+
+        openCount++;
+        setResult(0);
+    }
+
+    // NetLibConnectionRefresh(UInt16 refNum, Boolean refresh, UInt8 *allInterfacesUpP,
+    //     UInt16 *netIFErrP): the host connection is always up while the library is open.
+    void netLibConnectionRefresh(const Args& args) {
+        if (openCount == 0) return setResult(netErrNotOpen);
+
+        if (args.u32(4)) paceSet8(args.u32(4), 1);
+        if (args.u32(8)) paceSet16(args.u32(8), 0);
+        setResult(0);
+    }
+
+    // NetLibIFSettingGet(UInt16 libRefNum, UInt32 ifCreator, UInt16 ifInstance, UInt16 setting,
+    //     void *valueP, UInt16 *valueLenP): only "interface up" is answered (like the OS 4
+    //     integration); other settings go to the ROM.
+    bool netLibIFSettingGet(const Args& args) {
+        const uint32_t valueP = args.u32(10);
+        const uint32_t valueLenP = args.u32(14);
+
+        if (args.u16(8) != netIFSettingUp || !valueP || !valueLenP || paceGet16(valueLenP) == 0)
+            return false;
+
+        paceSet8(valueP, 1);
+        paceSet16(valueLenP, 1);
+        setResult(0);
+
+        return true;
     }
 
     // NetSocketRef NetLibSocketOpen(UInt16 libRefnum, NetSocketAddrEnum domain,
@@ -535,6 +579,27 @@ namespace {
                 netLibOpenCount(args);
                 return true;
 
+            case NET_TRAP_OPEN_IF_CLOSE_WAIT:
+                netLibOpenIfCloseWait(args);
+                return true;
+
+            case NET_TRAP_CONNECTION_REFRESH:
+                netLibConnectionRefresh(args);
+                return true;
+
+            case NET_TRAP_IF_SETTING_GET:
+                if (netLibIFSettingGet(args)) return true;
+
+                fprintf(stderr, "netlib: IFSettingGet setting %u not redirected\n", args.u16(8));
+                return false;
+
+            // The host connection is always up; there is no close wait or power state to handle.
+            case NET_TRAP_IF_UP:
+            case NET_TRAP_FINISH_CLOSE_WAIT:
+            case NET_TRAP_HANDLE_POWER_OFF:
+                setResult(0);
+                return true;
+
             case NET_TRAP_SOCKET_OPEN:
                 netLibSocketOpen(args);
                 return true;
@@ -572,7 +637,15 @@ namespace netlib_redirect {
         send = std::move(newSend);
         session = std::move(newSession);
 
-        Reset();
+        // Keep the library state (it may come from a restored session); only a call in flight
+        // is dropped. An open library gets a host session.
+        pending.active = false;
+        {
+            std::lock_guard lock(responseMutex);
+            responseReady = false;
+        }
+
+        if (send && openCount > 0 && session) session(true);
     }
 
     bool IsEnabled() { return static_cast<bool>(send); }
@@ -598,6 +671,19 @@ namespace netlib_redirect {
 
         std::lock_guard lock(responseMutex);
         responseReady = false;
+    }
+
+    int32_t GetRefNum() { return netRefNum; }
+
+    uint32_t GetOpenCount() { return openCount; }
+
+    void RestoreState(int32_t refNum, uint32_t count) {
+        Reset();
+
+        netRefNum = refNum;
+        openCount = refNum >= 0 ? count : 0;
+
+        if (openCount > 0 && session) session(true);
     }
 
     bool HandleTrap(uint16_t trapWord) {

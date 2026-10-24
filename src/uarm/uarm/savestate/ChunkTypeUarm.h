@@ -46,6 +46,7 @@ enum class ChunkType : uint32_t {
     systemState = 0x10080,
     mpu = 0x10090,
     cp15mpu = 0x100a0,
+    netlib = 0x100b0,  // NetLib redirection (optional: older savestates do not have it)
 };
 
 inline ChunkType operator+(ChunkType chunkType, uint32_t index) {
