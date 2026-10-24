@@ -19,7 +19,8 @@ namespace netlib_redirect {
     // Session handling of the host backend (one session while NetLib is open).
     using SessionT = std::function<void(bool open)>;
 
-    // Enables redirection. Pass empty functions to disable.
+    // Enables redirection. Pass empty functions to disable (call Reset() first to close an open
+    // session). The library state is kept.
     void Configure(SendT send, SessionT session);
 
     bool IsEnabled();
@@ -39,6 +40,14 @@ namespace netlib_redirect {
 
     // Forget library state (after a reset or a session load).
     void Reset();
+
+    // Savestate: the NetLib reference number that 68k applications got from SysLibFind and the
+    // open count. They are kept so that a running application stays redirected after a session
+    // is restored; if the library was open, a new host session is opened (sockets of the old
+    // one are gone, the calls on them fail).
+    int32_t GetRefNum();
+    uint32_t GetOpenCount();
+    void RestoreState(int32_t refNum, uint32_t openCount);
 }  // namespace netlib_redirect
 
 #endif  // _NETLIB_REDIRECT_H_
