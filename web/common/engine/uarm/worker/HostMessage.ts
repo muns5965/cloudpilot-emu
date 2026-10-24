@@ -16,6 +16,7 @@ export const enum HostMessageType {
     returnFrame = 'returnFrame',
     returnSnapshot = 'returnSnapshot',
     setBackgrounded = 'setBackgrounded',
+    netlibResponse = 'netlibResponse',
     reset = 'reset',
 }
 
@@ -74,6 +75,11 @@ export interface HostMessageSetBackgrounded {
     backgrounded: boolean;
 }
 
+export interface HostMessageNetlibResponse {
+    type: HostMessageType.netlibResponse;
+    data: Uint8Array;
+}
+
 export type HostMessage =
     | HostMessageRpcCall
     | HostMessageUpdateSettings
@@ -85,4 +91,5 @@ export type HostMessage =
     | HostMessagePenDown
     | HostMessageReturnFrame
     | HostMessageReturnSnapshot
-    | HostMessageSetBackgrounded;
+    | HostMessageSetBackgrounded
+    | HostMessageNetlibResponse;

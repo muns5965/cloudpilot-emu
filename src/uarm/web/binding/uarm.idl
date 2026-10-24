@@ -89,6 +89,12 @@ interface Uarm {
 
     boolean LaunchAppByName([Const] DOMString name);
     boolean LaunchAppByDbHeader(VoidPtr buffer, long len);
+
+    void SetNetlibEnabled(boolean enabled);
+    long NetlibTakeEvent();
+    unsigned long NetlibGetRequestSize();
+    VoidPtr NetlibGetRequestData();
+    void NetlibDeliver(VoidPtr data, long size);
 };
 
 interface DbBackup {

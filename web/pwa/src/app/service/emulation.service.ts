@@ -1,6 +1,7 @@
 import { Inject, Injectable, NgZone } from '@angular/core';
 import { Cloudpilot } from '@common/bridge/Cloudpilot';
-import { StorageCardProvider } from '@common/engine/Engine';
+import { NetlibEvent } from '@common/bridge/Uarm';
+import { EngineUarm, StorageCardProvider } from '@common/engine/Engine';
 import { EngineSettings } from '@common/engine/EngineSettings';
 import { SnapshotContainer } from '@common/engine/Snapshot';
 import { LoaderHandle } from '@common/helper/Loader';
@@ -32,6 +33,7 @@ import { SnapshotService } from './snapshot.service';
 import { CardOwner, StorageCardContext } from './storage-card-context';
 import { StorageService } from './storage.service';
 import { TOKEN_CLOUDPILOT_INSTANCE, TOKEN_EMULATOR_LOCK, TOKEN_UARM_MODULE } from './token';
+import { UarmNetworkService } from './uarm-network.service';
 
 // TODO: Get rid of cloudpilot service
 
@@ -50,6 +52,7 @@ export class EmulationService extends AbstractEmulationService {
         private clipboardService: ClipboardService,
         private kvsService: KvsService,
         private networkService: NetworkService,
+        private uarmNetworkService: UarmNetworkService,
         private buttonService: ButtonService,
         private bootstrapService: BootstrapService,
         private storageCardService: StorageCardService,
@@ -195,6 +198,10 @@ export class EmulationService extends AbstractEmulationService {
         }
     }
 
+    protected override handleNetlibEvent(event: NetlibEvent, engine: EngineUarm): void {
+        this.uarmNetworkService.handleEvent(event, (data) => engine.deliverNetlibResponse(data));
+    }
+
     protected override handleSuspend(): void {
         if (!this.cloudpilotInstance) return;
 
@@ -281,9 +288,14 @@ export class EmulationService extends AbstractEmulationService {
                       warnSlowdownThreshold: session.warnSlowdownThreshold,
                       maxHostLoad: session.maxHostLoad,
                       runInBackground: this.kvsService.kvs.runHidden,
+
+                      networkIntegration: this.kvsService.kvs.networkRedirection,
                   };
 
-        if (settings.networkIntegration !== this.engineSettings.networkIntegration) this.networkService.reset();
+        if (settings.networkIntegration !== this.engineSettings.networkIntegration) {
+            this.networkService.reset();
+            this.uarmNetworkService.reset();
+        }
 
         this.updateEngineSettings({
             ...settings,

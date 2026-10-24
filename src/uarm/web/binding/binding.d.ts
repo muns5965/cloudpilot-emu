@@ -164,6 +164,12 @@ export interface Uarm {
 
     LaunchAppByName(name: string): boolean;
     LaunchAppByDbHeader(buffer: VoidPtr, len: number): boolean;
+
+    SetNetlibEnabled(enabled: boolean): void;
+    NetlibTakeEvent(): number;
+    NetlibGetRequestSize(): number;
+    NetlibGetRequestData(): VoidPtr;
+    NetlibDeliver(data: VoidPtr, size: number): void;
 }
 
 export interface DbBackup {
