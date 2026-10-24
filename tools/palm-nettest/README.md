@@ -2,8 +2,14 @@
 
 A tiny Palm OS application that calls NetLib step by step and prints each result:
 `SysLibFind("Net.lib")` → `NetLibOpen` → `NetLibGetHostByName` → `NetLibSocketOpen` →
-`NetLibSocketConnect` → `NetLibSend` (HTTP GET) → `NetLibReceive` → close. Tap the screen to run
-it again. It is used to test NetLib redirection on Palm OS 5 ([docs/os5-network.md](../../docs/os5-network.md)).
+`NetLibSocketConnect` → `NetLibSend` (HTTP GET) → `NetLibReceive` → close.
+
+Tap for page 2: `NetLibGetServByName("http")`, `NetLibSocketAddr`, `NetLibSocketOptionGet`
+(socket type), the HTTP request again with `NetLibSendPB` (two pieces) and `NetLibReceivePB` (two
+buffers), `NetLibSocketShutdown`, and `Bind`/`Listen`/`Accept` with a connection to itself on
+127.0.0.1. Tap again to go back to page 1.
+
+It is used to test NetLib redirection on Palm OS 5 ([docs/os5-network.md](../../docs/os5-network.md)).
 
 ## Build
 

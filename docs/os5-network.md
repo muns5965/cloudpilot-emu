@@ -33,12 +33,14 @@ On Palm OS 5, 68k applications run through PACE, and every 68k system call reach
    responses go back through the worker. An empty response makes the call fail.
 
 Redirected calls: `NetLibOpen`, `NetLibClose`, `NetLibOpenCount`, sleep/wake, `SocketOpen`,
-`SocketClose`, `SocketConnect`, `SocketBind`, `SocketOptionSet`, `Select`, `Send`, `Receive` (with the peer
-address for UDP), `GetHostByName`, `SettingGet` (host name and DNS servers, as in the OS 4
-integration; other settings go to the ROM), and the connection state
+`SocketClose`, `SocketConnect`, `SocketBind`, `SocketListen`, `SocketAccept`, `SocketShutdown`,
+`SocketAddr`, `SocketOptionSet`, `SocketOptionGet`, `Select`, `Send`, `Receive` (with the peer
+address for UDP), `SendPB`, `ReceivePB`, `GetHostByName`, `GetServByName`, `SettingGet` (host
+name and DNS servers, as in the OS 4 integration; other settings go to the ROM), and the
+connection state
 calls that browsers make before connecting (as in the OS 4 integration): `OpenIfCloseWait`,
 `ConnectionRefresh`, `IFUp`, `IFSettingGet` (only "interface up"), `FinishCloseWait`,
-`HandlePowerOff`. Other NetLib calls go to the ROM and are logged as "not redirected".
+`HandlePowerOff`. Other NetLib calls go to the ROM and are logged once each as "not redirected".
 
 Session state: the NetLib reference number (from `SysLibFind`) and the open count are saved in
 the session (`netlib` savestate chunk, optional for older sessions). An application that is
@@ -49,9 +51,10 @@ new host session is opened (sockets of the old one are gone).
 
 - Only 68k callers pass through PACE. ARM-native code that calls NetLib directly is not seen; that
   needs a hook on the ARM side (`patches.cpp` / `patch_dispatch`), a later step.
-- No `SocketListen`/`Accept`, `SocketOptionGet`, `GetServByName`, `SendPB`/`ReceivePB` yet;
-  applications that need them fail at that call. `IFGet` goes to the ROM (it is polled often and
-  logged as "not redirected"; nothing seen depends on it so far).
+- `NetLibDmReceive` (receive straight into a database record) is not redirected: the record is in
+  write-protected storage memory, which the host cannot write through PACE (tried: the write
+  faults and the application crashes afterwards). It goes to the ROM and fails.
+- `IFGet` goes to the ROM (polled often; nothing seen depends on it so far).
 - Xiino 3.4 contacts its vendor's server (`pds.mobirus.com`) first; that server no longer exists,
   so it reports "Could not find host" even though the network calls work.
 - HTTPS depends on the Palm application's own TLS.
@@ -65,6 +68,11 @@ connected, request sent → `HTTP/1.0 200 OK` and the server's headers on screen
 and the run completes; host CPU while waiting stays at the idle level (~25 %, it was ~99 % before
 the SoC idled during the wait). Without `--net`, `NetLibOpen` shows Palm OS's "Incomplete
 setup" alert (no connection configured).
+
+NetTest page 2 (native TG50, `--net`): `GetServByName("http")` → 80, `SocketAddr` → remote
+127.0.0.1:8790, `SocketOptionGet` (socket type) → 1, `SendPB` (2 pieces) → 35 bytes, `ReceivePB`
+(2 buffers) → 110 bytes, `Shutdown` ok, `Bind`/`Listen`/`Accept` on 127.0.0.1 with a connection to
+itself → "ping" received.
 
 EudoraWeb 2.1 (native TG50, `--net`): it resolves names itself over UDP (DNS server from
 `SettingGet`, answer awaited with `Select`). With a local test DNS server answering `localhost`, it

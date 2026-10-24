@@ -1,9 +1,11 @@
 #include "netlib_redirect.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -30,15 +32,23 @@ namespace {
     constexpr uint16_t NET_TRAP_SOCKET_OPEN = SYS_LIB_TRAP_CUSTOM + 2;
     constexpr uint16_t NET_TRAP_SOCKET_CLOSE = SYS_LIB_TRAP_CUSTOM + 3;
     constexpr uint16_t NET_TRAP_SOCKET_OPTION_SET = SYS_LIB_TRAP_CUSTOM + 4;
+    constexpr uint16_t NET_TRAP_SOCKET_OPTION_GET = SYS_LIB_TRAP_CUSTOM + 5;
     constexpr uint16_t NET_TRAP_SOCKET_BIND = SYS_LIB_TRAP_CUSTOM + 6;
     constexpr uint16_t NET_TRAP_SOCKET_CONNECT = SYS_LIB_TRAP_CUSTOM + 7;
+    constexpr uint16_t NET_TRAP_SOCKET_LISTEN = SYS_LIB_TRAP_CUSTOM + 8;
+    constexpr uint16_t NET_TRAP_SOCKET_ACCEPT = SYS_LIB_TRAP_CUSTOM + 9;
+    constexpr uint16_t NET_TRAP_SOCKET_SHUTDOWN = SYS_LIB_TRAP_CUSTOM + 10;
+    constexpr uint16_t NET_TRAP_SEND_PB = SYS_LIB_TRAP_CUSTOM + 11;
     constexpr uint16_t NET_TRAP_SEND = SYS_LIB_TRAP_CUSTOM + 12;
+    constexpr uint16_t NET_TRAP_RECEIVE_PB = SYS_LIB_TRAP_CUSTOM + 13;
     constexpr uint16_t NET_TRAP_RECEIVE = SYS_LIB_TRAP_CUSTOM + 14;
     constexpr uint16_t NET_TRAP_SELECT = SYS_LIB_TRAP_CUSTOM + 16;
     constexpr uint16_t NET_TRAP_GET_HOST_BY_NAME = SYS_LIB_TRAP_CUSTOM + 22;
     constexpr uint16_t NET_TRAP_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 23;
     constexpr uint16_t NET_TRAP_IF_SETTING_GET = SYS_LIB_TRAP_CUSTOM + 28;
     constexpr uint16_t NET_TRAP_IF_UP = SYS_LIB_TRAP_CUSTOM + 30;
+    constexpr uint16_t NET_TRAP_GET_SERV_BY_NAME = SYS_LIB_TRAP_CUSTOM + 35;
+    constexpr uint16_t NET_TRAP_SOCKET_ADDR = SYS_LIB_TRAP_CUSTOM + 36;
     constexpr uint16_t NET_TRAP_FINISH_CLOSE_WAIT = SYS_LIB_TRAP_CUSTOM + 37;
     constexpr uint16_t NET_TRAP_OPEN_COUNT = SYS_LIB_TRAP_CUSTOM + 41;
     constexpr uint16_t NET_TRAP_OPEN_IF_CLOSE_WAIT = SYS_LIB_TRAP_CUSTOM + 44;
@@ -55,6 +65,32 @@ namespace {
     constexpr uint16_t netErrSocketClosedByRemote = netErrorClass | 20;
 
     constexpr uint8_t netSocketAddrINET = 2;
+
+    // Send/receive flags supported by the host (NetworkProxy: VALID_FLAGS)
+    constexpr uint16_t netIOFlagOutOfBand = 0x01;
+    constexpr uint16_t netIOFlagPeek = 0x02;
+    constexpr uint16_t netIOFlagDontRoute = 0x04;
+    constexpr uint16_t VALID_IO_FLAGS = netIOFlagOutOfBand | netIOFlagPeek | netIOFlagDontRoute;
+
+    // NetIOParamType / NetIOVecType (68k layout)
+    constexpr uint32_t IOPARAM_ADDR = 0;
+    constexpr uint32_t IOPARAM_ADDR_LEN = 4;
+    constexpr uint32_t IOPARAM_IOV = 6;
+    constexpr uint32_t IOPARAM_IOV_LEN = 10;
+    constexpr uint32_t IOVEC_SIZE = 6;
+    constexpr uint32_t IOVEC_BUF_LEN = 4;
+    constexpr uint16_t netIOVecMaxLen = 16;
+
+    // NetServInfoBufType (68k layout)
+    constexpr uint32_t SERVBUF_NAME_P = 0;
+    constexpr uint32_t SERVBUF_ALIASES_P = 4;
+    constexpr uint32_t SERVBUF_PORT = 8;
+    constexpr uint32_t SERVBUF_PROTO_P = 10;
+    constexpr uint32_t SERVBUF_NAME = 14;
+    constexpr uint32_t SERVBUF_ALIAS_LIST = 30;
+    constexpr uint32_t SERVBUF_PROTO_NAME = 53;
+    constexpr size_t netServMaxName = 15;
+    constexpr size_t netProtoMaxName = 15;
 
     constexpr uint16_t netIFSettingUp = 1;
 
@@ -452,6 +488,395 @@ namespace {
         setResult(err ? -1 : 0);
     }
 
+    // Result of a socket call that only reports success or an error (Int16 0 / -1, *errP).
+    void finishSimple(CallResult result, int32_t err, uint32_t errP) {
+        if (result == CallResult::failed) {
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
+            return setResult(-1);
+        }
+
+        putErr(errP, err);
+        setResult(err ? -1 : 0);
+    }
+
+    // Int16 NetLibSocketListen(UInt16 libRefNum, NetSocketRef socket, UInt16 queueLen,
+    //     Int32 timeout, Err *errP); the backlog is 1 as in the OS 4 integration.
+    void netLibSocketListen(const Args& args) {
+        MsgRequest request = newRequest(MsgRequest_socketListenRequest_tag);
+        request.payload.socketListenRequest.handle = args.i16(2);
+        request.payload.socketListenRequest.backlog = 1;
+        request.payload.socketListenRequest.timeout = convertTimeout(args.i32(6));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+
+        finishSimple(result, response.payload.socketListenResponse.err, args.u32(10));
+    }
+
+    // Int16 NetLibSocketAccept(UInt16 libRefNum, NetSocketRef socket,
+    //     NetSocketAddrType *sockAddrP, Int16 *addrLenP, Int32 timeout, Err *errP)
+    void netLibSocketAccept(const Args& args) {
+        const uint32_t sockAddrP = args.u32(4);
+        const uint32_t addrLenP = args.u32(8);
+        const uint32_t errP = args.u32(16);
+
+        if (sockAddrP && (!addrLenP || static_cast<int16_t>(paceGet16(addrLenP)) < 8)) {
+            putErr(errP, netErrParamErr);
+            return setResult(-1);
+        }
+
+        MsgRequest request = newRequest(MsgRequest_socketAcceptRequest_tag);
+        request.payload.socketAcceptRequest.handle = args.i16(2);
+        request.payload.socketAcceptRequest.timeout = convertTimeout(args.i32(12));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+
+        const auto& r = response.payload.socketAcceptResponse;
+        if (result == CallResult::failed || r.err) return finishSimple(result, r.err, errP);
+
+        if (sockAddrP) {
+            writeAddress(sockAddrP, r.address);
+            paceSet16(addrLenP, 8);
+        }
+
+        putErr(errP, 0);
+        setResult(r.handle);
+    }
+
+    // Int16 NetLibSocketShutdown(UInt16 libRefnum, NetSocketRef socket, Int16 direction,
+    //     Int32 timeout, Err *errP)
+    void netLibSocketShutdown(const Args& args) {
+        MsgRequest request = newRequest(MsgRequest_socketShutdownRequest_tag);
+        request.payload.socketShutdownRequest.handle = args.i16(2);
+        request.payload.socketShutdownRequest.direction = args.i16(4);
+        request.payload.socketShutdownRequest.timeout = convertTimeout(args.i32(6));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+
+        finishSimple(result, response.payload.socketShutdownResponse.err, args.u32(10));
+    }
+
+    // Int16 NetLibSocketAddr(UInt16 libRefNum, NetSocketRef socket,
+    //     NetSocketAddrType *locAddrP, Int16 *locAddrLenP, NetSocketAddrType *remAddrP,
+    //     Int16 *remAddrLenP, Int32 timeout, Err *errP)
+    void netLibSocketAddr(const Args& args) {
+        const uint32_t locAddrP = args.u32(4);
+        const uint32_t locAddrLenP = args.u32(8);
+        const uint32_t remAddrP = args.u32(12);
+        const uint32_t remAddrLenP = args.u32(16);
+        const uint32_t errP = args.u32(24);
+
+        auto lenOk = [](uint32_t addrP, uint32_t lenP) {
+            return !addrP || (lenP && static_cast<int16_t>(paceGet16(lenP)) >= 8);
+        };
+
+        if (!lenOk(locAddrP, locAddrLenP) || !lenOk(remAddrP, remAddrLenP)) {
+            putErr(errP, netErrParamErr);
+            return setResult(-1);
+        }
+
+        MsgRequest request = newRequest(MsgRequest_socketAddrRequest_tag);
+        auto& r = request.payload.socketAddrRequest;
+        r.handle = args.i16(2);
+        r.requestAddressLocal = locAddrP != 0;
+        r.requestAddressRemote = remAddrP != 0;
+        r.timeout = convertTimeout(args.i32(20));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+
+        const auto& resp = response.payload.socketAddrResponse;
+        if (result == CallResult::failed || resp.err) return finishSimple(result, resp.err, errP);
+
+        if (locAddrP) {
+            writeAddress(locAddrP, resp.addressLocal);
+            paceSet16(locAddrLenP, 8);
+        }
+
+        if (remAddrP) {
+            writeAddress(remAddrP, resp.addressRemote);
+            paceSet16(remAddrLenP, 8);
+        }
+
+        putErr(errP, 0);
+        setResult(0);
+    }
+
+    // Int16 NetLibSocketOptionGet(UInt16 libRefNum, NetSocketRef socket, UInt16 level,
+    //     UInt16 option, void *optValueP, UInt16 *optValueLenP, Int32 timeout, Err *errP)
+    // Value decoding as in the OS 4 integration (NetworkProxy::SocketOptionGetSuccess).
+    void netLibSocketOptionGet(const Args& args) {
+        const uint16_t level = args.u16(4);
+        const uint16_t option = args.u16(6);
+        const uint32_t valueP = args.u32(8);
+        const uint32_t valueLenP = args.u32(12);
+        const uint32_t errP = args.u32(20);
+
+        auto fail = [&](uint16_t err) {
+            putErr(errP, err);
+            setResult(-1);
+        };
+
+        if (level == netSocketOptLevelSocket &&
+            (option == netSocketOptSockRequireErrClear || option == netSocketOptSockMultiPktAddr))
+            return fail(netErrUnimplemented);
+
+        if (!valueP || !valueLenP) return fail(netErrParamErr);
+
+        MsgRequest request = newRequest(MsgRequest_socketOptionGetRequest_tag);
+        auto& r = request.payload.socketOptionGetRequest;
+        r.handle = args.i16(2);
+        r.level = level;
+        r.option = option;
+        r.timeout = convertTimeout(args.i32(16));
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) return fail(openCount ? netErrInternal : netErrNotOpen);
+
+        const auto& resp = response.payload.socketOptionGetResponse;
+        if (resp.err) return fail(resp.err);
+
+        const uint16_t len = paceGet16(valueLenP);
+        const bool isInt = resp.which_value == MsgSocketOptionGetResponse_intval_tag;
+
+        if (level == netSocketOptLevelSocket && option == netSocketOptSockLinger) {
+            if (!isInt) return fail(netErrInternal);
+            if (len != 4) return fail(netErrParamErr);
+
+            paceSet16(valueP, resp.value.intval & 0xffff);
+            paceSet16(valueP + 2, (resp.value.intval >> 16) & 0xffff);
+        } else if (level == netSocketOptLevelIP) {
+            if (resp.which_value != MsgSocketOptionGetResponse_bufval_tag ||
+                resp.value.bufval.size > SOCKET_OPTION_BUF_MAX)
+                return fail(netErrInternal);
+            if (len < resp.value.bufval.size) return fail(netErrParamErr);
+
+            copyTo68k(valueP, resp.value.bufval.bytes, resp.value.bufval.size);
+            paceSet16(valueLenP, resp.value.bufval.size);
+        } else {
+            if (!isInt) return fail(netErrInternal);
+
+            const bool isIntOption =
+                (level == netSocketOptLevelTCP && option != netSocketOptTCPNoDelay) ||
+                (level == netSocketOptLevelSocket && option >= netSocketOptSockSndBufSize &&
+                 option <= netSocketOptSockSocketType);
+            const int32_t value = isIntOption ? resp.value.intval : (resp.value.intval != 0 ? 1 : 0);
+
+            switch (len) {
+                case 1:
+                    if (isIntOption) return fail(netErrParamErr);
+                    paceSet8(valueP, static_cast<uint8_t>(value));
+                    break;
+
+                case 2:
+                    paceSet16(valueP, static_cast<uint16_t>(value));
+                    break;
+
+                case 4:
+                    paceSet32(valueP, static_cast<uint32_t>(value));
+                    break;
+
+                default:
+                    return fail(netErrParamErr);
+            }
+        }
+
+        putErr(errP, 0);
+        setResult(0);
+    }
+
+    struct IoVec {
+        uint32_t bufP;
+        uint16_t bufLen;
+    };
+
+    // Reads the scatter/gather array of a NetIOParamType.
+    bool readIoVecs(uint32_t pbP, std::vector<IoVec>& iovs, size_t& total) {
+        const uint32_t iovP = paceGet32(pbP + IOPARAM_IOV);
+        const uint16_t iovLen = paceGet16(pbP + IOPARAM_IOV_LEN);
+        if (iovLen > netIOVecMaxLen || (iovLen && !iovP)) return false;
+
+        total = 0;
+        for (uint16_t i = 0; i < iovLen; i++) {
+            const uint32_t vecP = iovP + i * IOVEC_SIZE;
+            const IoVec vec{paceGet32(vecP), paceGet16(vecP + IOVEC_BUF_LEN)};
+            if (vec.bufLen && !vec.bufP) return false;
+
+            iovs.push_back(vec);
+            total += vec.bufLen;
+        }
+
+        return true;
+    }
+
+    // Int16 NetLibSendPB(UInt16 libRefNum, NetSocketRef socket, NetIOParamType *pbP,
+    //     UInt16 flags, Int32 timeout, Err *errP): the buffers are sent as one block.
+    void netLibSendPB(const Args& args) {
+        const uint32_t pbP = args.u32(4);
+        const uint16_t flags = args.u16(8);
+        const uint32_t errP = args.u32(14);
+
+        std::vector<IoVec> iovs;
+        size_t total = 0;
+        if (!pbP || (flags & ~VALID_IO_FLAGS) || !readIoVecs(pbP, iovs, total)) {
+            putErr(errP, (flags & ~VALID_IO_FLAGS) ? netErrInternal : netErrParamErr);
+            return setResult(-1);
+        }
+
+        MsgRequest request = newRequest(MsgRequest_socketSendRequest_tag);
+        auto& send = request.payload.socketSendRequest;
+        send.handle = args.i16(2);
+        send.flags = flags;
+        send.timeout = convertTimeout(args.i32(10));
+
+        if (const uint32_t addrP = paceGet32(pbP + IOPARAM_ADDR)) {
+            if (paceGet16(pbP + IOPARAM_ADDR_LEN) < 8 || !readAddress(addrP, send.address)) {
+                putErr(errP, netErrParamErr);
+                return setResult(-1);
+            }
+
+            send.has_address = true;
+        }
+
+        std::vector<uint8_t> data(total);
+        size_t offset = 0;
+        for (const auto& vec : iovs) {
+            copyFrom68k(data.data() + offset, vec.bufP, vec.bufLen);
+            offset += vec.bufLen;
+        }
+
+        Buffer buffer{data.data(), data.size()};
+        send.data.arg = &buffer;
+        send.data.funcs.encode = bufferEncodeCb;
+
+        MsgResponse response;
+        const CallResult result = call(request, total, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
+            return setResult(-1);
+        }
+
+        const auto& r = response.payload.socketSendResponse;
+        putErr(errP, r.err);
+        setResult(r.err ? (r.err == netErrSocketClosedByRemote ? 0 : -1) : r.bytesSent);
+    }
+
+    // Int16 NetLibReceivePB(UInt16 libRefNum, NetSocketRef socket, NetIOParamType *pbP,
+    //     UInt16 flags, Int32 timeout, Err *errP): the data is spread over the buffers in order.
+    void netLibReceivePB(const Args& args) {
+        const uint32_t pbP = args.u32(4);
+        const uint16_t flags = args.u16(8);
+        const uint32_t errP = args.u32(14);
+
+        std::vector<IoVec> iovs;
+        size_t total = 0;
+        if (!pbP || (flags & ~VALID_IO_FLAGS) || !readIoVecs(pbP, iovs, total)) {
+            putErr(errP, (flags & ~VALID_IO_FLAGS) ? netErrInternal : netErrParamErr);
+            return setResult(-1);
+        }
+
+        const uint32_t addrP = paceGet32(pbP + IOPARAM_ADDR);
+
+        MsgRequest request = newRequest(MsgRequest_socketReceiveRequest_tag);
+        auto& receive = request.payload.socketReceiveRequest;
+        receive.handle = args.i16(2);
+        receive.flags = flags;
+        receive.timeout = convertTimeout(args.i32(10));
+        receive.maxLen = total;
+        receive.addressRequested = addrP != 0;
+
+        ReceivedBuffer received;
+        MsgResponse response;
+        const CallResult result = call(request, 0, response, &received);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
+            return setResult(-1);
+        }
+
+        const auto& r = response.payload.socketReceiveResponse;
+        if (r.err) {
+            putErr(errP, r.err);
+            return setResult(r.err == netErrSocketClosedByRemote ? 0 : -1);
+        }
+
+        if (received.len > total) {
+            putErr(errP, netErrInternal);
+            return setResult(-1);
+        }
+
+        size_t consumed = 0;
+        for (const auto& vec : iovs) {
+            if (consumed >= received.len) break;
+
+            const size_t chunk = std::min<size_t>(received.len - consumed, vec.bufLen);
+            copyTo68k(vec.bufP, received.data.get() + consumed, chunk);
+            consumed += chunk;
+        }
+
+        if (addrP && r.has_address && paceGet16(pbP + IOPARAM_ADDR_LEN) >= 8) writeAddress(addrP, r.address);
+
+        putErr(errP, 0);
+        setResult(static_cast<int32_t>(received.len));
+    }
+
+    // NetServInfoPtr NetLibGetServByName(UInt16 libRefNum, const Char *servNameP,
+    //     const Char *protoNameP, NetServInfoBufPtr bufP, Int32 timeout, Err *errP)
+    void netLibGetServByName(const Args& args) {
+        const uint32_t bufP = args.u32(10);
+        const uint32_t errP = args.u32(18);
+        const std::string name = readString(args.u32(2), netServMaxName + 2);
+        const std::string proto = readString(args.u32(6), netProtoMaxName + 2);
+
+        MsgRequest request = newRequest(MsgRequest_getServByNameRequest_tag);
+        auto& r = request.payload.getServByNameRequest;
+
+        if (!bufP || name.empty() || name.size() > netServMaxName || name.size() >= sizeof(r.name) ||
+            proto.size() > netProtoMaxName || proto.size() >= sizeof(r.protocol)) {
+            putErr(errP, netErrParamErr);
+            return setResultPtr(0);
+        }
+
+        strcpy(r.name, name.c_str());
+        strcpy(r.protocol, proto.c_str());
+
+        MsgResponse response;
+        const CallResult result = call(request, 0, response);
+        if (result == CallResult::pending) return;
+        if (result == CallResult::failed) {
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
+            return setResultPtr(0);
+        }
+
+        const auto& resp = response.payload.getServByNameResponse;
+        if (resp.err) {
+            putErr(errP, resp.err);
+            return setResultPtr(0);
+        }
+
+        copyTo68k(bufP + SERVBUF_NAME, reinterpret_cast<const uint8_t*>(name.c_str()), name.size() + 1);
+        copyTo68k(bufP + SERVBUF_PROTO_NAME, reinterpret_cast<const uint8_t*>(proto.c_str()),
+                  proto.size() + 1);
+        paceSet32(bufP + SERVBUF_ALIAS_LIST, 0);
+
+        paceSet32(bufP + SERVBUF_NAME_P, bufP + SERVBUF_NAME);
+        paceSet32(bufP + SERVBUF_ALIASES_P, bufP + SERVBUF_ALIAS_LIST);
+        paceSet16(bufP + SERVBUF_PORT, static_cast<uint16_t>(resp.port));  // network order: big endian
+        paceSet32(bufP + SERVBUF_PROTO_P, bufP + SERVBUF_PROTO_NAME);
+
+        putErr(errP, 0);
+        setResultPtr(bufP);
+    }
+
     int16_t countFDs(uint32_t fdSet) {
         int16_t count = 0;
         for (; fdSet; fdSet &= fdSet - 1) count++;
@@ -670,6 +1095,12 @@ namespace {
         const uint16_t len = args.u16(8);
         const uint32_t toAddrP = args.u32(12);
 
+        if (args.u16(10) & ~VALID_IO_FLAGS) {
+            fprintf(stderr, "netlib: Send: unsupported flags %#06x\n", args.u16(10));
+            putErr(errP, netErrInternal);
+            return setResult(-1);
+        }
+
         MsgRequest request = newRequest(MsgRequest_socketSendRequest_tag);
         auto& send = request.payload.socketSendRequest;
         send.handle = args.i16(2);
@@ -713,6 +1144,12 @@ namespace {
         const uint16_t bufLen = args.u16(8);
         const uint32_t fromAddrP = args.u32(12);
         const uint32_t fromLenP = args.u32(16);
+
+        if (args.u16(10) & ~VALID_IO_FLAGS) {
+            fprintf(stderr, "netlib: Receive: unsupported flags %#06x\n", args.u16(10));
+            putErr(errP, netErrInternal);
+            return setResult(-1);
+        }
 
         MsgRequest request = newRequest(MsgRequest_socketReceiveRequest_tag);
         auto& receive = request.payload.socketReceiveRequest;
@@ -816,6 +1253,17 @@ namespace {
 }  // namespace
 
 namespace {
+    // Calls that go to the ROM are logged once per trap (and setting): some are polled often.
+    void logNotRedirected(uint16_t trapWord, int32_t setting = -1) {
+        static std::set<std::pair<uint16_t, int32_t>> logged;
+        if (!logged.insert({trapWord, setting}).second) return;
+
+        if (setting < 0)
+            fprintf(stderr, "netlib: call %#06x not redirected\n", trapWord);
+        else
+            fprintf(stderr, "netlib: call %#06x setting %#06x not redirected\n", trapWord, setting);
+    }
+
     bool handleTrap(uint16_t trapWord) {
 
         // SysLibFind("Net.lib", &refNum) has returned once the next trap arrives.
@@ -863,7 +1311,7 @@ namespace {
             case NET_TRAP_IF_SETTING_GET:
                 if (netLibIFSettingGet(args)) return true;
 
-                fprintf(stderr, "netlib: IFSettingGet setting %u not redirected\n", args.u16(8));
+                logNotRedirected(trapWord, args.u16(8));
                 return false;
 
             // The host connection is always up; there is no close wait or power state to handle.
@@ -893,6 +1341,38 @@ namespace {
                 netLibSelect(args);
                 return true;
 
+            case NET_TRAP_SOCKET_OPTION_GET:
+                netLibSocketOptionGet(args);
+                return true;
+
+            case NET_TRAP_SOCKET_LISTEN:
+                netLibSocketListen(args);
+                return true;
+
+            case NET_TRAP_SOCKET_ACCEPT:
+                netLibSocketAccept(args);
+                return true;
+
+            case NET_TRAP_SOCKET_SHUTDOWN:
+                netLibSocketShutdown(args);
+                return true;
+
+            case NET_TRAP_SOCKET_ADDR:
+                netLibSocketAddr(args);
+                return true;
+
+            case NET_TRAP_SEND_PB:
+                netLibSendPB(args);
+                return true;
+
+            case NET_TRAP_RECEIVE_PB:
+                netLibReceivePB(args);
+                return true;
+
+            case NET_TRAP_GET_SERV_BY_NAME:
+                netLibGetServByName(args);
+                return true;
+
             case NET_TRAP_SOCKET_OPTION_SET:
                 netLibSocketOptionSet(args);
                 return true;
@@ -900,7 +1380,7 @@ namespace {
             case NET_TRAP_SETTING_GET:
                 if (netLibSettingGet(args)) return true;
 
-                fprintf(stderr, "netlib: SettingGet setting %#06x not redirected\n", args.u16(2));
+                logNotRedirected(trapWord, args.u16(2));
                 return false;
 
             case NET_TRAP_SEND:
@@ -917,7 +1397,7 @@ namespace {
 
             default:
                 // Not redirected yet: the ROM handles it (and fails while its stack is closed).
-                fprintf(stderr, "netlib: call %#06x not redirected\n", trapWord);
+                logNotRedirected(trapWord);
                 return false;
         }
     }
