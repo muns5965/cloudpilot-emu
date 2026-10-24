@@ -1,7 +1,7 @@
 # Network on Palm OS 5 (uARM): NetLib redirection
 
-**Status (2026-10-24): native only, experimental.** Start `cp-uarm` with `--net`. The browser
-version does not have it yet.
+**Status (2026-10-24): experimental.** Browser: enable "Network redirection" in the settings
+(the same proxy as on Palm OS 4). Native: start `cp-uarm` with `--net`.
 
 ## How it works
 
@@ -27,6 +27,10 @@ On Palm OS 5, 68k applications run through PACE, and every 68k system call reach
 4. The native build runs the requests on the host network with CloudpilotEmu's network backend
    (`src/cloudpilot/native/network-backend`, `native/NetlibNative.cpp`; the backend applies the
    call's timeout). `NETLIB_TEST_DELAY_MS=<ms>` delays each response to test the waiting path.
+5. The browser build queues session and request events in the core (`web/uarm.cpp`). The worker
+   takes them after each timeslice and sends them to the main thread, where the network backend
+   of the Palm OS 4 integration (proxy or native) runs them (`uarm-network.service.ts`). The
+   responses go back through the worker. An empty response makes the call fail.
 
 Redirected calls: `NetLibOpen`, `NetLibClose`, `NetLibOpenCount`, sleep/wake, `SocketOpen`,
 `SocketClose`, `SocketConnect`, `Send`, `Receive`, `GetHostByName`. Other NetLib calls go to the
@@ -49,3 +53,9 @@ connected, request sent → `HTTP/1.0 200 OK` and the server's headers on screen
 and the run completes; host CPU while waiting stays at the idle level (~25 %, it was ~99 % before
 the SoC idled during the wait). Without `--net`, `NetLibOpen` shows Palm OS's "Incomplete
 setup" alert (no connection configured).
+
+Browser (PWA build of the same commit, Chromium via Playwright): TG50 session, "Network
+redirection" on, local proxy (`server/cloudpilot-server.py serve --insecure`), the same NetTest:
+same result on screen; the proxy logged the handshake, `getHostByName localhost`, socket open,
+connect to 127.0.0.1:8790, send, receive and close. Running it again opens a new proxy
+connection each time.
