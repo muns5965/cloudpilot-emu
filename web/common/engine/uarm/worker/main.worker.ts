@@ -3,7 +3,7 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./dom-stubs.worker.d.ts"/>
 //
-import { Uarm } from '@common/bridge/Uarm';
+import { NetlibEventType, Uarm } from '@common/bridge/Uarm';
 
 import { ClientMessage, ClientMessageType } from './ClientMessage';
 import { Emulator } from './Emulator';
@@ -46,6 +46,13 @@ rpcClient
 
         emulator.systemStateChangeEvent.addHandler((systemState) =>
             dispatchMessage({ type: ClientMessageType.systemStateChanged, ...systemState }),
+        );
+
+        emulator.netlibEvent.addHandler((event) =>
+            dispatchMessage(
+                { type: ClientMessageType.netlib, event },
+                event.type === NetlibEventType.request ? [event.data.buffer] : undefined,
+            ),
         );
     })
     .register('openSession', ({ rom, device, screenSize, ramSize, memory, nand, state, card }) =>
@@ -158,6 +165,10 @@ async function onMessage(e: MessageEvent) {
 
         case HostMessageType.setBackgrounded:
             emulator?.setBackgrounded(message.backgrounded);
+            break;
+
+        case HostMessageType.netlibResponse:
+            emulator?.deliverNetlibResponse(message.data);
             break;
 
         default:

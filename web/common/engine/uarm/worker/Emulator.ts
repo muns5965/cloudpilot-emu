@@ -1,5 +1,5 @@
 import { DbInstallResult, PalmButton } from '@common/bridge/Cloudpilot';
-import { BackupState, Uarm } from '@common/bridge/Uarm';
+import { BackupState, NetlibEvent, Uarm } from '@common/bridge/Uarm';
 import { BackupResult, FullState } from '@common/engine/Engine';
 import { EngineSettings } from '@common/engine/EngineSettings';
 import { deviceDimensions } from '@common/helper/deviceProperties';
@@ -116,6 +116,11 @@ export class Emulator {
         this.uarm.disablePcm(settings.disableAudio);
         this.uarm.setTargetMips(settings.targetMips);
         this.pageTrackerMemory?.enableCrc(settings.memoryCrc);
+        this.uarm.setNetlibEnabled(settings.networkIntegration);
+    }
+
+    deliverNetlibResponse(data: Uint8Array): void {
+        this.uarm.deliverNetlibResponse(data);
     }
 
     buttonUp(button: PalmButton): void {
@@ -399,6 +404,10 @@ export class Emulator {
 
         const sizeSeconds = this.uarm.cycle(now64);
 
+        for (let event = this.uarm.takeNetlibEvent(); event; event = this.uarm.takeNetlibEvent()) {
+            this.netlibEvent.dispatch(event);
+        }
+
         const timesliceRemaining =
             (this.uarm.getTimesliceSizeUsec() - Number(this.uarm.getTimestampUsec()) + now) / 1000;
         this.timeoutHandle = this.immediateHandle = undefined;
@@ -562,6 +571,7 @@ export class Emulator {
     timesliceEvent = new Event<TimesliceProperties>();
     snapshotEvent = new Event<[UarmSnapshot, Array<Transferable>]>();
     systemStateChangeEvent = new Event<SystemState>();
+    netlibEvent = new Event<NetlibEvent>();
 
     private running = false;
     private backgrounded = false;

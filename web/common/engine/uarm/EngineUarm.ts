@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { NetlibEvent } from '@common/bridge/Uarm';
 import { deviceDimensions } from '@common/helper/deviceProperties';
 import { DeviceId } from '@common/model/DeviceId';
 import { Dimensions, ScreenSize } from '@common/model/Dimensions';
@@ -160,6 +161,12 @@ export class EngineUarmImpl implements EngineUarm {
 
     keyUp(key: number): void {
         this.dispatchMessage({ type: HostMessageType.keyUp, key });
+    }
+
+    deliverNetlibResponse(data: Uint8Array): void {
+        // Copy: the caller's buffer may be shared, and the copy is transferred.
+        const copy = data.slice();
+        this.dispatchMessage({ type: HostMessageType.netlibResponse, data: copy }, [copy.buffer]);
     }
 
     reset(): Promise<void> {
@@ -478,6 +485,10 @@ export class EngineUarmImpl implements EngineUarm {
 
                 break;
 
+            case ClientMessageType.netlib:
+                this.netlibEvent.dispatch(message.event);
+                break;
+
             default:
                 message satisfies never;
         }
@@ -490,6 +501,7 @@ export class EngineUarmImpl implements EngineUarm {
     palmosStateChangeEvent = new Event<void>();
     fatalError = new Event<Error>();
     snapshotDoneEvent = new Event<SnapshotStatistics>();
+    netlibEvent = new Event<NetlibEvent>();
 
     private deviceId: DeviceId | undefined;
     private dimensions: Dimensions | undefined;

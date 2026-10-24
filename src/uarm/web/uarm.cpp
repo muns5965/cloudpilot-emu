@@ -15,6 +15,7 @@
 #include "device_configuration.h"
 #include "device_type5.h"
 #include "encoding.h"
+#include "netlib_redirect.h"
 #include "rom_info5.h"
 #include "sdcard.h"
 #include "soc_PXA.h"
@@ -303,4 +304,42 @@ bool Uarm::LaunchAppByDbHeader(void* header, int len) {
     if (len < 32 || strnlen(static_cast<const char*>(header), 32) == 32) return false;
 
     return launchAppByName(soc->GetSyscallDispatch(), static_cast<const char*>(header));
+}
+
+void Uarm::SetNetlibEnabled(bool enabled) {
+    if (enabled == netlib_redirect::IsEnabled()) return;
+
+    if (!enabled) {
+        // Reset() still queues the close event of an open session for the host.
+        netlib_redirect::Reset();
+        return netlib_redirect::Configure(nullptr, nullptr);
+    }
+
+    netlibEvents.clear();
+
+    netlib_redirect::Configure(
+        [this](const uint8_t* request, size_t size) {
+            netlibEvents.emplace_back(3, std::vector<uint8_t>(request, request + size));
+            return true;
+        },
+        [this](bool open) { netlibEvents.emplace_back(open ? 1 : 2, std::vector<uint8_t>()); });
+}
+
+int Uarm::NetlibTakeEvent() {
+    if (netlibEvents.empty()) return 0;
+
+    auto [type, data] = std::move(netlibEvents.front());
+    netlibEvents.pop_front();
+
+    netlibRequest = std::move(data);
+
+    return type;
+}
+
+uint32_t Uarm::NetlibGetRequestSize() { return netlibRequest.size(); }
+
+void* Uarm::NetlibGetRequestData() { return netlibRequest.data(); }
+
+void Uarm::NetlibDeliver(void* data, int size) {
+    netlib_redirect::Deliver(static_cast<const uint8_t*>(data), size > 0 ? size : 0);
 }
