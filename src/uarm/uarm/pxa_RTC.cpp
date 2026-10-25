@@ -137,8 +137,15 @@ struct PxaRtc *pxaRtcInit(struct ArmMem *physMem, struct PxaIc *ic) {
     return rtc;
 }
 
-void pxaRtcTick(struct PxaRtc *rtc) {
-    pxaRtcPrvUpdateAlarm(rtc);
+bool pxaRtcAlarmDue(struct PxaRtc *rtc, uint32_t leadSeconds) {
+    // Only an alarm that has not fired yet (the same test as pxaRtcPrvUpdateAlarm); an alarm
+    // in the past does not count.
+    return (rtc->RTSR & 4) && rtc->lastAlarmCheck < rtc->RTAR &&
+           palmEpochSeconds() + leadSeconds >= rtc->RTAR;
+}
+
+void pxaRtcTick(struct PxaRtc *rtc, bool checkAlarm) {
+    if (checkAlarm) pxaRtcPrvUpdateAlarm(rtc);
     pxaRtcTickHz(rtc);
 }
 
