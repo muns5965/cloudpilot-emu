@@ -29,12 +29,19 @@ Changes made while integrating:
 - Savestates: one `sonyTG50` chunk for the peripherals and a `pxaDeepSleep` chunk; E2 sessions are unchanged.
 - Keys: new `KeyId` values for the QWERTY keyboard and TG50 buttons; keys are held for at least 3 event ticks
   (the ROM scans the matrix slowly). The power key is held for at least ~330 ms.
-- Web: device `PEG-TG50` (320×320, no silkscreen), PC keyboard mapping and an on-screen keyboard below the hard buttons.
+- Web: device `PEG-TG50` (320×320, no silkscreen), PC keyboard mapping and an on-screen keyboard below the hard buttons
+  (can be hidden; includes the power key).
+- PC digit keys send Blue + Q…P (as on the device), natively and on the web.
+- An armed Date Book alarm wakes the device from sleep: shortly before the alarm the power key is pressed, so the
+  device is awake when the alarm fires. In deep sleep the RTC alarm is compared only after the wake (the ROM
+  clears a pending alarm on resume), so an alarm that passed while asleep, e.g. in a session restored later, is
+  still shown once; an alarm in the past that already fired does not wake the device.
+- The native window shows the screen only (no Graffiti area).
 
 ## Running
 
 Native: `./src/uarm/cp-uarm <rom>` (TG50 ROMs are detected; `--tg50` forces the mode). Keys: letters, Space, Enter,
-Backspace, Shift, Ctrl, Tab, Caps, `,` `.` `-`, Blue = F7, Red = F9, Home, PageUp/Down, jog back = End, jog select = F11,
+Backspace, Shift, Ctrl, Tab, Caps, `,` `.` `-`, digits (Blue + Q…P), Blue = F7, Red = F9, Home, PageUp/Down, jog back = End, jog select = F11,
 voice = F5, Graffiti = `` ` ``, power = Esc.
 
 Web: import the ROM; the device is detected as PEG-TG50.
@@ -47,11 +54,11 @@ Web: import the ROM; the device is detected as PEG-TG50.
 | Touch, typing in Memo Pad, hard buttons (native) | works |
 | Sleep and resume with the power key (native) | works |
 | Session save and restore (native) | works |
+| Digit keys; Date Book alarm and Snooze wake the sleeping device; restored after the alarm time (native) | works |
 | Browser: ROM import, boot, touch, hard buttons | works |
 
 Not done or not tested:
 
 - Audio output (codec registers only) and Memory Stick media.
 - Browser PC keyboard, on-screen keyboard and session save/restore: implemented, not hand-tested.
-- PC digit keys are not mapped natively. The native window still shows the E2 Graffiti area, which the TG50 does not have.
 - No comparison with a physical TG50.
