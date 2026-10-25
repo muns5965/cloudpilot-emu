@@ -5,6 +5,7 @@
 #include "ac97dev_WM9712L.h"
 #include "cputil.h"
 #include "device.h"
+#include "deviceSonyTG50.h"
 #include "device_type5.h"
 #include "mmiodev_DirectNAND.h"
 #include "savestate/savestateAll.h"
@@ -103,6 +104,7 @@
 // clang-format on
 
 struct Device {
+    struct SonyTG50 *tg50;
     struct WM9712L *wm9712L;
     struct DirectNAND *nand;
     struct Bcm2035 *bcm2035;
@@ -130,6 +132,19 @@ struct Device *deviceSetup(enum DeviceType5 type, struct SocPeriphs *sp,
                            struct Reschedule reschedule, struct GetEmuTime getTime,
                            struct Keypad *kp, struct VSD *vsd, uint8_t *nandContent,
                            size_t nandSize, const struct MemoryBuffer *pageBuffer) {
+    // TG50 is a distinct hardware configuration, never initialize its E2 NAND/AC97.
+    if (type == DeviceType5::deviceTypeSonyTG50) {
+        auto *dev = static_cast<Device *>(calloc(1, sizeof(Device)));
+        if (!dev) ERR("cannot allocate TG50 device");
+        dev->type = type;
+        dev->gpio = sp->gpio;
+        dev->reschedule = reschedule;
+        dev->tg50 = sonyTG50Initialize(sp);
+        if (!dev->tg50) ERR("could not initialize TG50 peripherals");
+        sp->nand = nullptr; // TG50 ROM is NOR; no E2 NAND device.
+        return dev;
+    }
+
     static const struct NandSpecs nandSpecs = {
         .bytesPerPage = 528,
         .blocksPerDevice = 2048,
@@ -141,7 +156,7 @@ struct Device *deviceSetup(enum DeviceType5 type, struct SocPeriphs *sp,
 
     struct Device *dev;
 
-    dev = (struct Device *)malloc(sizeof(*dev));
+    dev = (struct Device *)calloc(1, sizeof(*dev));
     if (!dev) ERR("cannot alloc device");
 
     dev->type = type;
@@ -212,21 +227,28 @@ struct Device *deviceSetup(enum DeviceType5 type, struct SocPeriphs *sp,
 }
 
 void devicePeriodic(struct Device *dev, uint32_t tier) {
+    if (dev->tg50) { if (tier == DEVICE_PERIODIC_TIER1) sonyTG50Periodic(dev->tg50); return; }
     if (tier == DEVICE_PERIODIC_TIER0) directNandPeriodic(dev->nand);
 }
 
-void devicePcmPeriodic(struct Device *dev) { wm9712Lperiodic(dev->wm9712L); }
+void deviceSleepWakeup(struct Device *dev) {
+    if (dev->tg50) sonyTG50SleepWakeup(dev->tg50);
+}
+
+void devicePcmPeriodic(struct Device *dev) { if (!dev->tg50) wm9712Lperiodic(dev->wm9712L); }
 
 void deviceTouch(struct Device *dev, int x, int y) {
+    if (dev->tg50) { sonyTG50Touch(dev->tg50, x, y); return; }
     wm9712LsetPen(dev->wm9712L, (x >= 0 && y >= 0) ? 280 + 10 * x : -1,
                   (x >= 0 && y >= 0) ? 210 + 7 * y : -1, 1000);
 }
 
 void deviceKey(struct Device *dev, uint32_t key, bool down) {
-    // nothing
+    if (dev->tg50) sonyTG50HostKey(dev->tg50, static_cast<KeyId>(key), down);
 }
 
 bool deviceTaskRequired(struct Device *dev, uint32_t tier) {
+    if (dev->tg50) return tier == DEVICE_PERIODIC_TIER1;
     if (tier == DEVICE_PERIODIC_TIER0) {
         return directNandTaskRequired(dev->nand);
     } else {
@@ -235,19 +257,20 @@ bool deviceTaskRequired(struct Device *dev, uint32_t tier) {
 }
 
 void deviceSetAudioQueue(struct Device *dev, struct AudioQueue *audioQueue) {
-    wm9712LsetAudioQueue(dev->wm9712L, audioQueue);
+    if (!dev->tg50) wm9712LsetAudioQueue(dev->wm9712L, audioQueue);
 }
 
 bool deviceI2sConnected() { return false; }
 
 void deviceSetSdCardInserted(struct Device *dev, bool inserted) {
-    pxaGpioSetState(dev->gpio, 10, !inserted);
+    if (!dev->tg50) pxaGpioSetState(dev->gpio, 10, !inserted);
 }
 
 enum DeviceType5 deviceGetType(struct Device *dev) { return dev->type; }
 
 template <typename T>
 void deviceSave(struct Device *dev, T &savestate) {
+    if (dev->tg50) return sonyTG50Save(dev->tg50, savestate);
     wm9712Lsave(dev->wm9712L, savestate);
     directNandSave(dev->nand, savestate);
     bcm2035Save(dev->bcm2035, savestate);
@@ -255,6 +278,7 @@ void deviceSave(struct Device *dev, T &savestate) {
 
 template <typename T>
 void deviceLoad(struct Device *dev, T &loader) {
+    if (dev->tg50) return sonyTG50Load(dev->tg50, loader);
     wm9712Load(dev->wm9712L, loader);
     directNandLoad(dev->nand, loader);
     bcm2035Load(dev->bcm2035, loader);
