@@ -270,3 +270,26 @@ Verified: three sleep/wake cycles (screen off, then back to the Launcher), hard 
 - Fix: in deep sleep, 3 s before an armed alarm that has not fired yet (`lastAlarmCheck < RTAR`) one power-key press is queued (`soc_PXA.cpp`, `pxaRtcAlarmDue()`). The device is awake when the alarm fires, and the ROM handles it as usual. Deep sleep exists only for TG50/NX70V, so E2 is unchanged. No savestate change: the request flag only prevents repeated presses before the wake.
 - Follow-up (2026-10-25): the first version also pressed the key when `RTSR.AL` was set and compared `now + 3 >= RTAR` without checking whether the alarm had already fired. With a past alarm still armed (e.g. a session restored days later) the device woke again right after every sleep and could not stay asleep. Now a past alarm never wakes the device, and in deep sleep the RTC tick skips the alarm compare (`pxaRtcTick(rtc, checkAlarm)`): an alarm that passes while asleep stays pending, wakes the device, and is raised after the wake (the ROM would otherwise clear it on resume). Checked on TG50 and NX70V: past alarm stays asleep; new alarm and Snooze wake with the Reminder; a session saved asleep and restored after the alarm shows the Reminder once, with either the RTC tick or the sleep check running first.
 - Verified (native): NX70V, new event with an alarm, sleep: wakes at the alarm minute and shows that event's Reminder; TG50, Snooze then sleep: wakes after 5 minutes with the Reminder; after OK, sleep stays asleep (25 s), the power key wakes it, typing works.
+- Web check (2026-10-25): the `pwa-build` branch at 6482ed6a (the Pages build of acb24895) was served locally and
+  driven with Playwright Chromium; TG50 and NX70V sessions saved natively (`.ses`, imported as `.img`; not committed),
+  a fresh browser profile per test. Clock: libfaketime with both realtime and monotonic clocks shifted
+  (shifting only realtime stalled session loading in this environment), TZ=UTC.
+  - Past alarm (real clock): still asleep 30 s after the power key while emulation keeps running. TG50 and NX70V pass.
+  - Alarm 1 min ahead: wakes within the capture interval around alarm − 3 s and shows the Reminder; after OK, still
+    asleep 30 s after the power key. TG50 and NX70V pass.
+  - Tab hidden, "Run when hidden" off (simulated): worker timeslice messages stop while hidden; the alarm time
+    passes; the Reminder appears once after the tab is shown again (TG50: observed within 5 s; NX70V: within 4 s).
+    Both pass.
+  - Tab hidden, "Run when hidden" on (simulated): timeslice messages continue and the device wakes; one Reminder
+    is observed during the simulated hidden interval and remains after return. TG50 and NX70V pass under these
+    simulated conditions.
+  - Limits: the tab was not actually hidden (this environment could not reproduce it); `visibilityState` was
+    overridden and `visibilitychange` dispatched, exercising the app's `setBackgrounded` path but not the
+    browser's own background throttling or suspension (rAF, timers, workers). Screen updates and delays observed
+    while "hidden" are not representative of a real hidden tab. "Run when hidden" is offered only on desktop
+    browsers (`featureService.runHidden`); on iOS/Android, the default app-level path pauses emulation when hidden,
+    but browser tab suspension, discard and restore remain unverified.
+  - Note: the first NX70V alarm-ahead attempt was invalidated due to a test-step error; a subsequent wake and
+    Reminder after re-entering sleep just before the alarm was retained as an incidental observation only.
+  - Open: real browser tab hiding, mobile tab discard and restore, and actual alarm delivery delay with
+    "Run when hidden" enabled.
