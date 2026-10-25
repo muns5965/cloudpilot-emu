@@ -269,7 +269,11 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
             return sleeping ? pxaTimrTicksToNextInterrupt(tmr) : 1;
 
         case SCHEDULER_TASK_RTC:
-            pxaRtcTick(rtc);
+            // Defer the alarm compare during deep sleep: the ROM clears a pending AL bit on
+            // resume, so an alarm that fired while asleep would be lost. With a normally running
+            // scheduler the next RTC tick after the wake raises it. The alarm IRQ update is
+            // deferred too; the sleeping CPU cannot service it, and RTSR writes recalculate it.
+            pxaRtcTick(rtc, !pxaPwrClkInDeepSleep(pwrClk));
             return 1;
 
         case SCHEDULER_TASK_LCD:
@@ -294,7 +298,9 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
                 // TG50/NX70V: the ROM arms the RTC alarm before sleeping but enables no RTC
                 // wake source; a bare CPU wake leaves the screen off, and the resume code
                 // clears a pending alarm without delivering it. Shortly before the alarm, press
-                // the power key: the device is awake when the alarm fires and shows it.
+                // the power key: the device is awake when the alarm fires and shows it. An alarm
+                // that passed while asleep (e.g. a restored session) is still pending, as the RTC
+                // tick defers it, so it wakes the device too; an alarm that already fired does not.
                 if (pxaRtcAlarmDue(rtc, RTC_ALARM_WAKE_LEAD_SECONDS) && !rtcAlarmWakeRequested) {
                     rtcAlarmWakeRequested = true;
                     KeyDown(keyIdPower);
