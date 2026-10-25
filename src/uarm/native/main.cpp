@@ -48,6 +48,7 @@ struct Options {
     optional<string> script;
     optional<unsigned int> ramSize;
     bool smallWindow;
+    bool forceTg50;
     optional<DisplayMode> displayMode;
 };
 
@@ -120,7 +121,7 @@ namespace {
 
     bool readSession(const Options& options, Buffer& nor, Buffer& nand, Buffer& ram,
                      Buffer& savestate, uint32_t& ramSize, RomInfo5& romInfo,
-                     optional<DisplayMode>& displayMode) {
+                     optional<DisplayMode>& displayMode, optional<DeviceType5>& sessionDeviceType) {
         SessionFile5 sessionFile;
 
         size_t norOrSessionLen{0};
@@ -129,10 +130,14 @@ namespace {
 
         if (SessionFile5::IsSessionFile(norOrSessionLen, norOrSessionData.get()) &&
             sessionFile.Deserialize(norOrSessionLen, norOrSessionData.get())) {
+            if (options.forceTg50)
+                cerr << "--tg50 ignored: the session file records its device type" << endl;
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
             }
+
+            sessionDeviceType = static_cast<DeviceType5>(sessionFile.GetDeviceType());
 
             ramSize = sessionFile.GetRamSize();
             if (ramSize == 0) ramSize = ramSizeFromMemorySize(sessionFile.GetMemorySize());
@@ -186,14 +191,25 @@ namespace {
         Buffer nor, nand, memory, savestate;
         RomInfo5 romInfo;
         optional<DisplayMode> displayMode = nullopt;
+        optional<DeviceType5> sessionDeviceType = nullopt;
         uint32_t ramSize{0};
 
-        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode))
+        if (!readSession(options, nor, nand, memory, savestate, ramSize, romInfo, displayMode,
+                         sessionDeviceType))
             return false;
         cerr << romInfo;
 
-        if (!romInfo.IsValid() || romInfo.GetDeviceType() == DeviceType5::deviceTypeInvalid)
+        if (!romInfo.IsValid()) return false;
+        // A session records its device type; TG50 ROMs (sony/vrna) are also identified from their header.
+        const DeviceType5 deviceType =
+            sessionDeviceType ? *sessionDeviceType
+            : options.forceTg50 ? DeviceType5::deviceTypeSonyTG50
+                                : romInfo.GetDeviceType();
+        if (deviceType == DeviceType5::deviceTypeInvalid) return false;
+        if (options.forceTg50 && options.nand) {
+            cerr << "TG50 has no E2-style NAND; omit --nand" << endl;
             return false;
+        }
 
         if (options.ramSize) {
             if (ramSize == 0) {
@@ -204,9 +220,10 @@ namespace {
             }
         }
 
-        if (ramSize == 0) ramSize = romInfo.GetRecommendedRamSize();
+        if (ramSize == 0)
+            ramSize = options.forceTg50 ? (17ul << 20) : romInfo.GetRecommendedRamSize();
 
-        if (!deviceConfigurationSupportsRamSize(romInfo.GetDeviceType(), ramSize)) {
+        if (!deviceConfigurationSupportsRamSize(deviceType, ramSize)) {
             cerr << "unsupported RAM size: " << ramSize << " bytes" << endl;
             return false;
         }
@@ -215,14 +232,14 @@ namespace {
 
         if (!displayMode.has_value())
             displayMode = options.displayMode.value_or(
-                deviceConfigurationDefaultDisplayMode(romInfo.GetDeviceType()));
+                deviceConfigurationDefaultDisplayMode(deviceType));
 
-        if (!deviceConfigurationDeviceSupportsDisplayMode(romInfo.GetDeviceType(), *displayMode)) {
+        if (!deviceConfigurationDeviceSupportsDisplayMode(deviceType, *displayMode)) {
             cerr << "unsupported display mode for device" << endl;
             return false;
         }
 
-        const uint32_t nandSize = deviceConfigurationGetNandSize(romInfo.GetDeviceType());
+        const uint32_t nandSize = deviceConfigurationGetNandSize(deviceType);
         if (nand.size != nandSize) {
             cerr << "invalid NAND size; expected " << nandSize << " bytes" << endl;
             return false;
@@ -242,7 +259,6 @@ namespace {
             sdCardInitializeWithData(sdLen / SD_SECTOR_SIZE, sdData.release(), key.c_str());
         }
 
-        const DeviceType5 deviceType = romInfo.GetDeviceType();
         const int gdbPort = options.gdbPort.value_or(-1);
 
         DisplayConfiguration displayConfiguration =
@@ -305,7 +321,8 @@ namespace {
 
         auto sdlRenderer =
             make_unique<SdlRenderer>(window, soc, scale, displayConfiguration, rotation);
-        SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation);
+        SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation,
+                                        deviceType == DeviceType5::deviceTypeSonyTG50);
 
         SdlAudioDriver audioDriver(soc, audioQueue);
         if (!options.disableAudio) audioDriver.Start();
@@ -381,6 +398,11 @@ int main(int argc, char** argv) {
 
     program.add_argument("nor_or_session").help("NOR rom or saved session").required();
 
+    program.add_argument("--tg50")
+        .help("experimental Sony PEG-TG50 mode (raw Palm OS 5 NOR ROM only)")
+        .default_value(false)
+        .implicit_value(true);
+
     program.add_argument("--nand", "-n").help("NAND rom file").metavar("<nand file>");
 
     program.add_argument("--sd", "-s").help("SD card file").metavar("<SD card file>");
@@ -455,6 +477,7 @@ int main(int argc, char** argv) {
                        .script = program.present("--script"),
                        .ramSize = program.present<unsigned int>("--ram-size"),
                        .smallWindow = program.get<bool>("--small-window"),
+                       .forceTg50 = program.get<bool>("--tg50"),
                        .displayMode = program.present<DisplayMode>("--display")};
 
     logEnable();
