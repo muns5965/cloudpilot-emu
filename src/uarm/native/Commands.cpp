@@ -14,6 +14,7 @@
 #include "FileUtil.h"
 #include "SoC.h"
 #include "app_launcher.h"
+#include "cputil.h"
 #include "db_backup.h"
 #include "db_installer.h"
 #include "db_list.h"
@@ -108,12 +109,14 @@ namespace {
     void CmdReset(vector<string> args, cli::CommandEnvironment& env, void* context) {
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->Reset();
     }
 
     void CmdResetNoExtensions(vector<string> args, cli::CommandEnvironment& env, void* context) {
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->JamKey(keyIdUp, 2000);
         ctx->soc->Reset();
     }
@@ -121,6 +124,7 @@ namespace {
     void CmdResetHard(vector<string> args, cli::CommandEnvironment& env, void* context) {
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->JamKey(keyIdPower, 2000);
         ctx->soc->Reset();
     }
@@ -429,6 +433,132 @@ namespace {
              << endl;
     }
 
+    // "tap" and "key": press through the same SoC calls as the SDL input (PenDown/PenUp,
+    // KeyDown/KeyUp) and release after a hold time, from the main loop (non-blocking).
+    // "ok" means the press was handed to the SoC, "released" that PenUp()/KeyUp() was called;
+    // neither says that the device or the app reacted.
+    struct HeldInput {
+        bool pen;
+        KeyId key;
+        uint64_t releaseAtUsec;
+    };
+
+    vector<HeldInput> heldInputs;
+
+    const char* const KEY_NAMES[] = {
+        nullptr,  "hard1",   "hard2",    "hard3",     "hard4",         "up",       "down",
+        "left",   "right",   "select",   "power",     "kbdA",          "kbdB",     "kbdC",
+        "kbdD",   "kbdE",    "kbdF",     "kbdG",      "kbdH",          "kbdI",     "kbdJ",
+        "kbdK",   "kbdL",    "kbdM",     "kbdN",      "kbdO",          "kbdP",     "kbdQ",
+        "kbdR",   "kbdS",    "kbdT",     "kbdU",      "kbdV",          "kbdW",     "kbdX",
+        "kbdY",   "kbdZ",    "kbdSpace", "kbdEnter",  "kbdBackspace",  "kbdShift", "kbdCtrl",
+        "kbdTab", "kbdCaps", "kbdComma", "kbdPeriod", "kbdUnderscore", "kbdBlue",  "kbdRed",
+        "home",   "pageUp",  "pageDown", "jogBack",   "voice",         "graffiti"};
+    static_assert(sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]) == keyIdGraffiti + 1,
+                  "KEY_NAMES must follow enum KeyId");
+
+    string lower(const string& s) {
+        string r(s);
+        for (auto& c : r) c = tolower(static_cast<unsigned char>(c));
+        return r;
+    }
+
+    KeyId keyFromName(const string& name) {
+        for (size_t i = 1; i < sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]); i++)
+            if (lower(name) == lower(KEY_NAMES[i])) return static_cast<KeyId>(i);
+
+        return keyInvalid;
+    }
+
+    bool parseUint(const string& arg, uint32_t& value) {
+        istringstream s(arg);
+        s >> value;
+
+        return !s.fail() && s.eof();
+    }
+
+    bool parseHoldMs(const vector<string>& args, size_t index, uint32_t defaultMs, uint32_t& ms) {
+        ms = defaultMs;
+        if (args.size() <= index) return true;
+
+        return parseUint(args[index], ms) && ms >= 1 && ms <= 60000;
+    }
+
+    bool isHeld(bool pen, KeyId key) {
+        for (auto& held : heldInputs)
+            if (held.pen == pen && (pen || held.key == key)) return true;
+
+        return false;
+    }
+
+    void CmdTap(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() < 2 || args.size() > 3) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        uint32_t x, y, ms;
+        if (!parseUint(args[0], x) || !parseUint(args[1], y) || !parseHoldMs(args, 2, 250, ms)) {
+            cout << "tap error invalid-argument" << endl;
+            return;
+        }
+
+        if (static_cast<int>(x) >= ctx->screenWidth || static_cast<int>(y) >= ctx->screenHeight) {
+            cout << "tap error out-of-range screen=" << ctx->screenWidth << "x" << ctx->screenHeight
+                 << endl;
+            return;
+        }
+
+        if (isHeld(true, keyInvalid)) {
+            cout << "tap busy" << endl;
+            return;
+        }
+
+        ctx->soc->PenDown(x, y);
+        heldInputs.push_back(
+            {.pen = true, .key = keyInvalid, .releaseAtUsec = timestampUsec() + ms * 1000ull});
+
+        cout << "tap ok x=" << x << " y=" << y << " release_in=" << ms << endl;
+    }
+
+    void CmdKey(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() < 1 || args.size() > 2) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        const KeyId key = keyFromName(args[0]);
+        uint32_t ms;
+        if (key == keyInvalid) {
+            cout << "key error unknown-key " << args[0] << endl;
+            return;
+        }
+        if (!parseHoldMs(args, 1, 200, ms)) {
+            cout << "key error invalid-argument" << endl;
+            return;
+        }
+
+        if (isHeld(false, key)) {
+            cout << "key busy " << KEY_NAMES[key] << endl;
+            return;
+        }
+
+        ctx->soc->KeyDown(key);
+        heldInputs.push_back(
+            {.pen = false, .key = key, .releaseAtUsec = timestampUsec() + ms * 1000ull});
+
+        cout << "key ok " << KEY_NAMES[key] << " release_in=" << ms << endl;
+    }
+
+    void release(commands::Context& ctx, const HeldInput& held, const char* reason) {
+        if (held.pen) {
+            ctx.soc->PenUp();
+            cout << "tap released";
+        } else {
+            ctx.soc->KeyUp(held.key);
+            cout << "key " << KEY_NAMES[held.key] << " released";
+        }
+
+        if (reason) cout << " (" << reason << ")";
+        cout << endl;
+    }
+
     const vector<cli::Command> commandList(
         {{.name = "set-mips",
           .usage = "set-mips <mips>",
@@ -488,6 +618,20 @@ namespace {
               "host local time. due: result of the alarm-due test of the deep-sleep alarm "
               "wake (pxaRtcAlarmDue, 3 s early-wake lead). PXA devices only, else n/a.",
           .cmd = CmdRtc},
+         {.name = "tap",
+          .usage = "tap <x> <y> [ms]",
+          .description = "Pen down at device screen coordinates, pen up after ms (default 250). "
+                         "Prints \"tap ok\" when pressed and \"tap released\" when released.",
+          .cmd = CmdTap},
+         {.name = "key",
+          .usage = "key <name> [ms]",
+          .description =
+              "Press a device key, release after ms (default 200). Names: power, home, "
+              "up, down, left, right, select, hard1-4, kbdA-kbdZ, kbdSpace, kbdEnter, "
+              "kbdBackspace, kbdShift, kbdCtrl, kbdTab, kbdCaps, kbdComma, kbdPeriod, "
+              "kbdUnderscore, kbdBlue, kbdRed, pageUp, pageDown, jogBack, voice, graffiti "
+              "(case-insensitive). Prints \"key ok\" / \"key <name> released\".",
+          .cmd = CmdKey},
          {.name = "sleep-state",
           .description = "Print the sleep state, read-only. deep: PXA deep sleep (device asleep). "
                          "cpuIdle: CPU waiting for an interrupt (also while the device is on). "
@@ -496,3 +640,24 @@ namespace {
 }  // namespace
 
 void commands::Register() { cli::AddCommands(commandList); }
+
+void commands::ProcessScheduledInput(Context& context, uint64_t nowUsec) {
+    for (auto it = heldInputs.begin(); it != heldInputs.end();) {
+        if (it->releaseAtUsec > nowUsec) {
+            it++;
+            continue;
+        }
+
+        const HeldInput held = *it;
+        it = heldInputs.erase(it);
+        release(context, held, nullptr);
+    }
+}
+
+void commands::ReleaseAllInput(Context& context, const char* reason) {
+    // Clear first: no stale scheduled release may later hit a key pressed after the reset.
+    const vector<HeldInput> held(heldInputs);
+    heldInputs.clear();
+
+    for (auto& input : held) release(context, input, reason);
+}
