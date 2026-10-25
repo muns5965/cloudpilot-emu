@@ -8,7 +8,8 @@
 #include "sony_tg50_hardware.h"
 
 struct SonyTG50;
-SonyTG50* sonyTG50Initialize(SocPeriphs* peripherals);
+// nx70v selects the PEG-NX70V differences: CF slot at CS4, HOLD switch polarity, pen axes.
+SonyTG50* sonyTG50Initialize(SocPeriphs* peripherals, bool nx70v = false);
 void sonyTG50Periodic(SonyTG50* device);
 void sonyTG50Touch(SonyTG50* device, int x, int y);
 void sonyTG50SleepWakeup(SonyTG50* device);

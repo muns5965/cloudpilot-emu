@@ -16,6 +16,7 @@ namespace {
     constexpr uint32_t COMPANY_ID_PALM = 'Palm';
     constexpr uint32_t COMPANY_ID_SONY = 'sony';
     constexpr uint32_t HAL_ID_SONY_TG50 = 'vrna';
+    constexpr uint32_t HAL_ID_SONY_NX70V = 'crdb';
 
     constexpr uint32_t SIGNATURE = 0xfeedbeef;
 
@@ -45,6 +46,9 @@ namespace {
 
             case DeviceType5::deviceTypeSonyTG50:
                 return "Sony PEG-TG50";
+
+            case DeviceType5::deviceTypeSonyNX70V:
+                return "Sony PEG-NX70V";
 
             default:
                 return "unknown";
@@ -81,7 +85,9 @@ uint32_t RomInfo5::GetCompanyId() const { return companyId; }
 uint32_t RomInfo5::GetHalId() const { return halId; }
 
 uint32_t RomInfo5::GetRecommendedRamSize() const {
-    if (GetDeviceType() == DeviceType5::deviceTypeSonyTG50) return 17ul << 20;
+    if (GetDeviceType() == DeviceType5::deviceTypeSonyTG50 ||
+        GetDeviceType() == DeviceType5::deviceTypeSonyNX70V)
+        return 17ul << 20;
 
     return IsDmitryPatched() ? (32ul << 20) : (16ul << 20);
 }
@@ -103,6 +109,11 @@ DeviceType5 RomInfo5::GetDeviceType() const {
 
     if (companyId == COMPANY_ID_SONY && halId == HAL_ID_SONY_TG50) {
         return DeviceType5::deviceTypeSonyTG50;
+    }
+
+    // The known NX70V dump has its header at 0x20000 (device data, no boot ROM, at 0x0).
+    if (companyId == COMPANY_ID_SONY && halId == HAL_ID_SONY_NX70V) {
+        return DeviceType5::deviceTypeSonyNX70V;
     }
 
     return DeviceType5::deviceTypeInvalid;

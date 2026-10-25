@@ -1,5 +1,6 @@
 //(c) uARM project    https://github.com/uARM-Palm/uARM    uARM@dmitry.gr
 // Sony PEG-TG50 peripheral setup, ported from uARM deviceSonyTG50.c and adapted to CloudpilotEmu.
+// Also used for the PEG-NX70V (same peripherals, differences selected by nx70v; see docs/sony-nx70v.md).
 
 #include "deviceSonyTG50.h"
 #include "i2cdev_AN32502A.h"
@@ -21,10 +22,23 @@ struct SonyTG50 {
     AK4534* codec;
     MemoryStickController* stick;
     PxaGpio* gpio;
+    bool nx70v;
     SoC* soc;
 };
 
-SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
+namespace {
+// Minimal PEG-NX70V CF slot controller: always "no card"; other registers accept writes.
+// Without it the NX70V DAL faults on its first write and the ROM reboots in a loop.
+bool nx70vCfSlotAccess(void*, uint32_t pa, uint_fast8_t size, bool write, void* buf) {
+    if (write) return true;
+    std::memset(buf, 0, size);
+    if ((pa - sony_tg50::kNx70vCfSlotBase) == sony_tg50::kNx70vCfSlotStatus)
+        *static_cast<uint8_t*>(buf) = sony_tg50::kNx70vCfSlotNoCard;
+    return true;
+}
+}  // namespace
+
+SonyTG50* sonyTG50Initialize(SocPeriphs* sp, bool nx70v) {
     if (!sp || !sp->mem || !sp->gpio || !sp->ssp || !sp->i2c || !sp->i2s)
         return nullptr;
 
@@ -38,9 +52,10 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     auto* dev = static_cast<SonyTG50*>(std::calloc(1, sizeof(SonyTG50)));
     if (!dev) return nullptr;
     dev->gpio = sp->gpio;
+    dev->nx70v = nx70v;
     dev->soc = sp->soc;
     // Registration of emulated peripherals is not currently reversible.
-    // Call once per SoC (from the device factory for deviceTypeSonyTG50); a failure is fatal there.
+    // Call once per SoC (from the device factory for the TG50 and NX70V); a failure is fatal there.
     dev->touch = ad7873Init(sp->ssp, sp->gpio, sony_tg50::kTouchIrqGpio);
     dev->codec = ak4534Init(sp->i2c, sp->i2s, sp->gpio);
     dev->power = an32502aInit(sp->i2c);
@@ -53,6 +68,14 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
         // MMIO/SSP/I2C callbacks may already reference allocated clients.
         // Do not free the clients or the device here until rollback support exists.
         return nullptr;
+    }
+    if (nx70v) {
+        if (!memRegionAdd(sp->mem, sony_tg50::kNx70vCfSlotBase, sony_tg50::kNx70vCfSlotSize,
+                          nx70vCfSlotAccess, nullptr))
+            return nullptr;
+        // HOLD switch off on NX70V (opposite polarity to TG50).
+        tg50ucGpioSetInState(dev->controller, sony_tg50::kHoldSwitchPort,
+                             sony_tg50::kHoldSwitchPin, false);
     }
     // Power key is wired to GPIO0, active low (uARM: keypadAddGpioKey(kp, SDLK_ESCAPE, 0, false),
     // which leaves the line high). Left low, the boot code at 0x20036DBC spins waiting for release.
@@ -78,6 +101,12 @@ void sonyTG50Periodic(SonyTG50* dev) {
 
 void sonyTG50Touch(SonyTG50* dev, int x, int y) {
     if (!dev) return;
+    if (dev->nx70v && x >= 0 && y >= 0) {
+        // NX70V: 480 lines share the TG50 raw range, and both axes run the other way.
+        y = y * 2 / 3;
+        x = 319 - x;
+        y = 319 - y;
+    }
     ad7873PenInput(dev->touch,
                    x >= 0 && y >= 0 ? static_cast<int16_t>(3200 - 10 * x) : -1,
                    x >= 0 && y >= 0 ? static_cast<int16_t>(3200 - 10 * y) : -1);

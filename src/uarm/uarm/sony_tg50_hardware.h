@@ -1,5 +1,6 @@
 //(c) uARM project    https://github.com/uARM-Palm/uARM    uARM@dmitry.gr
-// Sony PEG-TG50 hardware definitions (addresses, GPIOs), taken from uARM deviceSonyTG50.c and mmiodev_TG50uc.c.
+// Sony PEG-TG50 hardware definitions (addresses, GPIOs), taken from uARM deviceSonyTG50.c and mmiodev_TG50uc.c,
+// plus the PEG-NX70V differences found by tracing its ROM (not part of uARM).
 
 #ifndef _SONY_TG50_HARDWARE_H_
 #define _SONY_TG50_HARDWARE_H_
@@ -12,6 +13,16 @@ constexpr uint32_t kUcSize = 0x0220ul;
 constexpr uint32_t kMemoryStickBase = 0x14000000ul;
 constexpr uint32_t kUnknownSramBase = 0xac000000ul;
 constexpr uint32_t kUnknownSramSize = 1024ul;
+
+// PEG-NX70V differences found by tracing its ROM on the TG50 peripheral set.
+// CF slot controller (Sony CfSlot Library), 8-bit registers with a 4-byte stride.
+constexpr uint32_t kNx70vCfSlotBase = 0x10000000ul;
+constexpr uint32_t kNx70vCfSlotSize = 0x10000ul;
+constexpr uint32_t kNx70vCfSlotStatus = 0x10;      // card status register
+constexpr uint8_t kNx70vCfSlotNoCard = 0xC0;       // card-detect bits: no card inserted
+// Sony controller port A pin 4: TG50 reads high as "hold off", NX70V reads high as "hold on".
+constexpr unsigned kHoldSwitchPort = 0;
+constexpr unsigned kHoldSwitchPin = 4;
 // uARM deviceSonyTG50.c keeps GPIO13 high (inactive) and drives GPIO14
 // through the Sony microcontroller. GPIO13 is a sleep wake source (PWER/PFER);
 // this port pulls it low while the power key is pressed so the ROM wakes up.

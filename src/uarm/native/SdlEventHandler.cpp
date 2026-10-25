@@ -57,7 +57,7 @@ namespace {
         }
     }
 
-    // Digits are Blue + Q..P on the device. Returns the letter of that chord.
+    // Digits are Blue (NX70V: Fn) + Q..P on the device. Returns the letter of that chord.
     enum KeyId mapDigitKey(SDL_Keycode keysym) {
         int digit;
 

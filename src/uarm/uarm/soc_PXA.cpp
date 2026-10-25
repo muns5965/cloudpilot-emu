@@ -71,7 +71,8 @@ SocPXA::SocPXA(enum DeviceType5 deviceType, uint32_t ramSize, void *romData, con
     struct GetEmuTime getEmuTime = {.getTimeF = GetTimeCB, .userdata = this};
 
     this->socRev = socRev;
-    tg50Mode = deviceType == deviceTypeSonyTG50;
+    // NX70V shares the TG50 peripheral set (see deviceSonyTG50.cpp).
+    tg50Mode = deviceType == deviceTypeSonyTG50 || deviceType == deviceTypeSonyNX70V;
     holdShortKeyPresses = tg50Mode;
 
     if (ramSize == 0) ramSize = tg50Mode ? sony_tg50::kRamSize : 16ul << 20;
@@ -295,7 +296,7 @@ uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
         case SCHEDULER_TASK_AUX_2:
             PumpEventQueues();
             if (pxaPwrClkInDeepSleep(pwrClk)) {
-                // TG50: the ROM arms the RTC alarm before sleeping but enables no RTC
+                // TG50/NX70V: the ROM arms the RTC alarm before sleeping but enables no RTC
                 // wake source; a bare CPU wake leaves the screen off, and the resume code
                 // clears a pending alarm without delivering it. Shortly before the alarm, press
                 // the power key: the device is awake when the alarm fires and shows it. An alarm
