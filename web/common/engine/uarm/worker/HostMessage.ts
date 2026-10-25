@@ -9,6 +9,8 @@ export const enum HostMessageType {
     updateSettings = 'updateSettings',
     buttonUp = 'buttonUp',
     buttonDown = 'buttonDown',
+    keyUp = 'keyUp',
+    keyDown = 'keyDown',
     penUp = 'penUp',
     penDown = 'penDown',
     returnFrame = 'returnFrame',
@@ -34,6 +36,16 @@ export interface HostMessageButtonUp {
 export interface HostMessageButtonDown {
     type: HostMessageType.buttonDown;
     button: PalmButton;
+}
+
+export interface HostMessageKeyUp {
+    type: HostMessageType.keyUp;
+    key: number;
+}
+
+export interface HostMessageKeyDown {
+    type: HostMessageType.keyDown;
+    key: number;
 }
 
 export interface HostMessagePenUp {
@@ -67,6 +79,8 @@ export type HostMessage =
     | HostMessageUpdateSettings
     | HostMessageButtonUp
     | HostMessageButtonDown
+    | HostMessageKeyUp
+    | HostMessageKeyDown
     | HostMessagePenUp
     | HostMessagePenDown
     | HostMessageReturnFrame

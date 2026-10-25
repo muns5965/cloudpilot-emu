@@ -124,6 +124,14 @@ export class Emulator {
         this.uarm.buttonDown(button);
     }
 
+    keyUp(key: number): void {
+        this.uarm.keyUp(key);
+    }
+
+    keyDown(key: number): void {
+        this.uarm.keyDown(key);
+    }
+
     penDown(x: number, y: number): void {
         this.uarm.penDown(x, y);
     }
