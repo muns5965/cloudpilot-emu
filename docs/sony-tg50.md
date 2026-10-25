@@ -37,6 +37,7 @@ Changes made while integrating:
   clears a pending alarm on resume), so an alarm that passed while asleep, e.g. in a session restored later, is
   still shown once; an alarm in the past that already fired does not wake the device.
 - The native window shows the screen only (no Graffiti area).
+- The [PEG-NX70V](sony-nx70v.md) uses the same peripherals.
 
 ## Running
 
