@@ -26,6 +26,7 @@ const BACKGROUND_KEYBOARD = '#9e9e9e';
 const BACKGROUND_KEY = '#eeeeee';
 const BACKGROUND_KEY_ACTIVE = '#bdbdbd';
 const BACKGROUND_KEY_LATCHED = '#ffd54f';
+const BACKGROUND_KEY_TOGGLE = '#1565c0';
 const KEY_OUTLINE = '#757575';
 const KEY_BLUE_LABEL = '#1565c0';
 
@@ -70,7 +71,12 @@ function scaleForDensity(density: number, pixelRatio: number): number {
     return pixelRatio >>> 1 > 0 && pixelRatio % 2 === 0 ? 1.5 : 2;
 }
 
-function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, pixelRatio: number): Layout {
+function calculateLayout(
+    device: DeviceId,
+    screenSize: ScreenSize | undefined,
+    pixelRatio: number,
+    keyboardCollapsed = false,
+): Layout {
     const dimensions = deviceDimensions(device, screenSize);
     const scale = scaleForDensity(densityForScreenSize(dimensions.screenSize), pixelRatio) * pixelRatio;
     const borderWidth: FrameDependent = { frameDevice: 1, frameCanvas: scale };
@@ -80,7 +86,7 @@ function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, p
 
     const separatorHeight = dimensions.silkscreenHeight > 0 ? dist(1) : dist(0);
     const buttonHeight = dist(buttonHeightForScreenSize(dimensions.screenSize));
-    const keyboardHeight = dist(onScreenKeyboardHeight(device));
+    const keyboardHeight = dist(onScreenKeyboardHeight(device, keyboardCollapsed));
 
     return {
         scale,
@@ -118,6 +124,30 @@ function calculateLayout(device: DeviceId, screenSize: ScreenSize | undefined, p
             dimensions.height + separatorHeight.frameDevice + dimensions.silkscreenHeight + buttonHeight.frameDevice,
         ),
     };
+}
+
+const KEYBOARD_COLLAPSED_KEY = 'onScreenKeyboardCollapsed';
+const keyboardCollapsedState = new Map<DeviceId, boolean>();
+
+function loadKeyboardCollapsed(device: DeviceId): boolean {
+    const state = keyboardCollapsedState.get(device);
+    if (state !== undefined) return state;
+
+    try {
+        return localStorage.getItem(`${KEYBOARD_COLLAPSED_KEY}-${device}`) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function saveKeyboardCollapsed(device: DeviceId, collapsed: boolean): void {
+    keyboardCollapsedState.set(device, collapsed);
+
+    try {
+        localStorage.setItem(`${KEYBOARD_COLLAPSED_KEY}-${device}`, collapsed ? '1' : '0');
+    } catch {
+        // ignore: the choice is not remembered
+    }
 }
 
 export abstract class AbstractCanvasDisplayService {
@@ -270,6 +300,15 @@ export abstract class AbstractCanvasDisplayService {
         return onScreenKeyAt(this.keyboardKeys, x, y - this.keyboardOffset());
     }
 
+    // Shows or hides the on-screen keyboard; the canvas is resized. The choice is remembered per
+    // device in this browser.
+    async toggleKeyboard(): Promise<void> {
+        const collapsed = !this.keyboardCollapsed;
+        saveKeyboardCollapsed(this.getDeviceId(), collapsed);
+
+        await this.initWithCanvas(this.dpad);
+    }
+
     drawKeyboard(activeKeys: Iterable<number> = [], latchedKeys: Iterable<number> = []): void {
         if (!this.ctx || this.layout.keyboardHeight.frameDevice === 0) return;
         this.setupTransformation();
@@ -291,11 +330,15 @@ export abstract class AbstractCanvasDisplayService {
         const canvasY = (y: number) => this.layout.borderWidth.frameCanvas + scale * (top + y);
 
         for (const k of this.keyboardKeys) {
-            const background = latched.has(k.key)
-                ? BACKGROUND_KEY_LATCHED
+            const background = k.toggle
+                ? BACKGROUND_KEY_TOGGLE
                 : active.has(k.key)
                   ? BACKGROUND_KEY_ACTIVE
-                  : BACKGROUND_KEY;
+                  : k.background
+                    ? k.background
+                    : latched.has(k.key)
+                      ? BACKGROUND_KEY_LATCHED
+                      : BACKGROUND_KEY;
 
             this.ctx.beginPath();
             this.ctx.roundRect(
@@ -330,17 +373,18 @@ export abstract class AbstractCanvasDisplayService {
 
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillStyle = 'black';
+                this.ctx.fillStyle = k.toggle ? 'white' : (k.color ?? 'black');
                 this.ctx.font = `${scale * fontSize}px sans-serif`;
                 this.ctx.fillText(k.label, cx, cy);
             }
 
-            if (k.blueLabel) {
+            this.ctx.font = `${scale * 6.5}px sans-serif`;
+            this.ctx.textBaseline = 'top';
+
+            if (k.fnLabel) {
                 this.ctx.fillStyle = KEY_BLUE_LABEL;
-                this.ctx.font = `${scale * 6.5}px sans-serif`;
-                this.ctx.textAlign = 'right';
-                this.ctx.textBaseline = 'top';
-                this.ctx.fillText(k.blueLabel, canvasX(k.x + k.width + 1.5), canvasY(k.y + k.height + 0.5));
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(k.fnLabel, canvasX(k.x + k.width / 2), canvasY(k.y + k.height + 0.5));
             }
         }
     }
@@ -394,7 +438,13 @@ export abstract class AbstractCanvasDisplayService {
         if (!canvas) return;
 
         this.dpad = dpad;
-        this.layout = calculateLayout(this.getDeviceId(), this.getScreenSize(), this.pixelRatio());
+        this.keyboardCollapsed = loadKeyboardCollapsed(this.getDeviceId());
+        this.layout = calculateLayout(
+            this.getDeviceId(),
+            this.getScreenSize(),
+            this.pixelRatio(),
+            this.keyboardCollapsed,
+        );
 
         this.onResize.dispatch();
 
@@ -424,7 +474,11 @@ export abstract class AbstractCanvasDisplayService {
             this.backgroundColor(),
         );
 
-        this.keyboardKeys = onScreenKeyboardLayout(this.getDeviceId(), this.layout.screenWidth.frameDevice);
+        this.keyboardKeys = onScreenKeyboardLayout(
+            this.getDeviceId(),
+            this.layout.screenWidth.frameDevice,
+            this.keyboardCollapsed,
+        );
 
         this.drawEmulationCanvas();
         this.drawKeyboard();
@@ -885,6 +939,7 @@ export abstract class AbstractCanvasDisplayService {
     protected lastEmulationCanvas: HTMLCanvasElement | undefined;
     protected dpad = false;
     protected keyboardKeys: Array<OnScreenKey> = [];
+    protected keyboardCollapsed = false;
 
     readonly onResize = new Event<void>();
 

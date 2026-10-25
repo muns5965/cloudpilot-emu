@@ -1,5 +1,5 @@
 import { PalmButton } from '@common/bridge/Cloudpilot';
-import { hardwareKeyFromCode } from '@common/helper/hardwareKeyboard';
+import { hardwareKeysFromCode } from '@common/helper/hardwareKeyboard';
 import { AbstractCanvasDisplayService } from '@common/service/AbstractCanvasDisplayService';
 import { AbstractEmulationService } from '@common/service/AbstractEmulationService';
 
@@ -355,13 +355,16 @@ export class GenericEventHandlingService {
             return;
         }
 
-        const hardwareKey = this.hardwareKeyFromEvent(e);
-        if (hardwareKey !== undefined) {
+        if (this.usesHardwareKeyboard()) {
+            // Unmapped keys are ignored; they must not fall through to the game mode buttons.
+            const keys = hardwareKeysFromCode(e.code);
+            if (keys === undefined) return;
+
             e.preventDefault();
 
-            if (!this.activeHardwareKeys.has(hardwareKey)) {
-                this.activeHardwareKeys.add(hardwareKey);
-                this.emulationService.handleHardwareKeyDown(hardwareKey);
+            if (!this.activeHardwareKeys.has(e.code)) {
+                this.pressDeviceKeys(keys);
+                this.activeHardwareKeys.set(e.code, keys);
             }
 
             return;
@@ -383,16 +386,17 @@ export class GenericEventHandlingService {
     };
 
     private handleKeyUp = (e: KeyboardEvent): void => {
-        if (this.emulationService.isSuspended() || !this.enableKeyboardEvents()) return;
-
-        const hardwareKey = hardwareKeyFromCode(e.code);
-        if (hardwareKey !== undefined && this.activeHardwareKeys.has(hardwareKey)) {
-            this.activeHardwareKeys.delete(hardwareKey);
-            this.emulationService.handleHardwareKeyUp(hardwareKey);
+        // Release a pressed device key even while a modal is open; otherwise it stays down.
+        const hardwareKeys = this.activeHardwareKeys.get(e.code);
+        if (hardwareKeys !== undefined) {
+            this.activeHardwareKeys.delete(e.code);
+            this.releaseDeviceKeys(hardwareKeys);
             e.preventDefault();
 
             return;
         }
+
+        if (this.emulationService.isSuspended() || !this.enableKeyboardEvents()) return;
 
         const button = this.buttonFromEvent(e);
         if (button !== undefined) {
@@ -450,6 +454,12 @@ export class GenericEventHandlingService {
         const key = this.canvasDisplayService.determineKeyboardKey(coords);
         if (!key) return [];
 
+        if (key.toggle) {
+            this.handleOnScreenKeyboardToggle();
+
+            return [];
+        }
+
         if (key.modifier) {
             if (!this.latchedOnScreenKeys.delete(key.key)) this.latchedOnScreenKeys.add(key.key);
             this.drawOnScreenKeyboard();
@@ -460,23 +470,28 @@ export class GenericEventHandlingService {
         const keys = [...this.latchedOnScreenKeys, key.key];
         this.latchedOnScreenKeys.clear();
 
-        for (const k of keys) {
-            this.activeOnScreenKeys.add(k);
-            this.emulationService.handleHardwareKeyDown(k);
-        }
+        this.pressDeviceKeys(keys);
+        for (const k of keys) this.activeOnScreenKeys.add(k);
 
         this.drawOnScreenKeyboard();
 
         return keys;
     }
 
+    private handleOnScreenKeyboardToggle(): void {
+        const keys = [...this.activeOnScreenKeys];
+        this.activeOnScreenKeys.clear();
+        this.latchedOnScreenKeys.clear();
+        this.releaseDeviceKeys(keys);
+
+        void this.canvasDisplayService.toggleKeyboard();
+    }
+
     private handleOnScreenKeyUp(keys: Array<number>): void {
         if (keys.length === 0) return;
 
-        for (const k of [...keys].reverse()) {
-            this.activeOnScreenKeys.delete(k);
-            this.emulationService.handleHardwareKeyUp(k);
-        }
+        for (const k of keys) this.activeOnScreenKeys.delete(k);
+        this.releaseDeviceKeys(keys);
 
         this.drawOnScreenKeyboard();
     }
@@ -486,18 +501,41 @@ export class GenericEventHandlingService {
     }
 
     private releaseHardwareKeys = (): void => {
-        for (const key of this.activeHardwareKeys) {
-            this.emulationService.handleHardwareKeyUp(key);
-        }
-
+        const chords = [...this.activeHardwareKeys.values()];
         this.activeHardwareKeys.clear();
+
+        for (const keys of chords) this.releaseDeviceKeys(keys);
     };
 
-    // Devices with a hardware keyboard get raw device keys unless game mode is on.
-    private hardwareKeyFromEvent(e: KeyboardEvent): number | undefined {
-        if (this.gameMode || !this.emulationService.supportsHardwareKeyboard()) return undefined;
+    // Presses device keys in order, except keys another host key or on-screen key already holds.
+    // Call before recording the keys as held.
+    private pressDeviceKeys(keys: Array<number>): void {
+        for (const k of keys) {
+            if (!this.isDeviceKeyHeld(k)) this.emulationService.handleHardwareKeyDown(k);
+        }
+    }
 
-        return hardwareKeyFromCode(e.code);
+    // Releases device keys in reverse order, except keys still held by another host key or an
+    // on-screen key (e.g. Blue held with F7 while a digit chord Blue + Q is released).
+    private releaseDeviceKeys(keys: Array<number>): void {
+        for (let i = keys.length - 1; i >= 0; i--) {
+            if (!this.isDeviceKeyHeld(keys[i])) this.emulationService.handleHardwareKeyUp(keys[i]);
+        }
+    }
+
+    private isDeviceKeyHeld(key: number): boolean {
+        if (this.activeOnScreenKeys.has(key)) return true;
+
+        for (const keys of this.activeHardwareKeys.values()) {
+            if (keys.includes(key)) return true;
+        }
+
+        return false;
+    }
+
+    // Devices with a hardware keyboard get raw device keys unless game mode is on.
+    private usesHardwareKeyboard(): boolean {
+        return !this.gameMode && this.emulationService.supportsHardwareKeyboard();
     }
 
     private isToggleGameMode(e: KeyboardEvent): boolean {
@@ -615,7 +653,7 @@ export class GenericEventHandlingService {
     private interactionMouse: Interaction | undefined;
     private interactionsTouch = new Map<number, Interaction>();
     private activeButtons = new Set<PalmButton>();
-    private activeHardwareKeys = new Set<number>();
+    private activeHardwareKeys = new Map<string, Array<number>>();
     private activeOnScreenKeys = new Set<number>();
     private latchedOnScreenKeys = new Set<number>();
     private gameMode = false;

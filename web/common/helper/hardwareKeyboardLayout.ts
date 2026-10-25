@@ -9,71 +9,85 @@ import { KeyId } from '@native-uarm/index';
 export interface OnScreenKey {
     key: KeyId;
     label: string;
-    // Character typed with Blue held (as the TG50 ROM produces it)
-    blueLabel?: string;
-    // Shift, Blue, Red and Ctrl latch until the next key (the TG50 ROM does not latch them)
+    // Character typed with Blue held (as the ROM produces it)
+    fnLabel?: string;
+    // Shift, Blue, Red and Ctrl latch until the next key (the ROM does not latch them)
     modifier?: boolean;
-    // Draw a colored bar instead of the label (Blue and Red keys)
+    // Draw a colored bar instead of the label (TG50 Blue and Red keys)
     bar?: string;
+    // Label color
+    color?: string;
+    // Shows / hides the on-screen keyboard instead of sending a key
+    toggle?: boolean;
+    // Key background (default: plain key)
+    background?: string;
     x: number;
     y: number;
     width: number;
     height: number;
 }
 
-interface KeySpec {
-    key: KeyId;
-    label: string;
-    // Position and size in the units of the measurement (see GEOMETRY below)
+type KeySpec = Omit<OnScreenKey, 'x' | 'y' | 'width' | 'height'> & {
+    // Left edge and width in the units of the layout (default width: keyWidth)
     x: number;
     w?: number;
-    blueLabel?: string;
-    modifier?: boolean;
-    bar?: string;
-}
+};
 
-// Key positions measured on the keyboard drawing in the TG50 "Read This First" manual (p. 94):
-// key pitch 79.5, key size 56, row pitch 80.75 (units of the measurement). Only the geometry is
-// used. Blue characters are what the TG50 ROM types with Blue held (checked in the emulator).
-const GEOMETRY = { width: 772, keyWidth: 56, keyHeight: 56, rowPitch: 80.75 };
+interface LayoutSpec {
+    // Width of the keyboard and key size in layout units
+    width: number;
+    keyWidth: number;
+    keyHeight: number;
+    rowPitch: number;
+    rows: Array<Array<KeySpec>>;
+}
 
 const COLOR_BLUE = '#1565c0';
 const COLOR_RED = '#c62828';
 
-const KEY_X = [0, 80, 159, 239, 318, 398, 477, 557, 637, 716];
-const KEY_X_OFFSET = [40, 119, 199, 278, 358, 438, 517, 597, 676];
-
-function letter(c: string, x: number, blueLabel?: string): KeySpec {
-    return { key: KeyId.keyIdKbdA + (c.charCodeAt(0) - 'A'.charCodeAt(0)), label: c, x, blueLabel };
+function letter(c: string, x: number, fnLabel?: string): KeySpec {
+    return { key: KeyId.keyIdKbdA + (c.charCodeAt(0) - 'A'.charCodeAt(0)), label: c, x, fnLabel: fnLabel || undefined };
 }
 
-const ROWS: Array<Array<KeySpec>> = [
-    'QWERTYUIOP'.split('').map((c, i) => letter(c, KEY_X[i], '1234567890'[i])),
-    'ASDFGHJKL'.split('').map((c, i) => letter(c, KEY_X_OFFSET[i], '#<>()\\$€£'[i])),
-    [
-        { key: KeyId.keyIdKbdTab, label: 'Tab', x: 0, w: 96 },
-        ...'ZXCVBNM'.split('').map((c, i) => letter(c, KEY_X_OFFSET[i + 1], ' °%+/*='[i].trim() || undefined)),
-        { key: KeyId.keyIdKbdBackspace, label: 'BS', x: 676, w: 96, blueLabel: 'Del' },
+// TG50: key positions measured on the keyboard drawing in the TG50 "Read This First" manual
+// (p. 94): key pitch 79.5, key size 56, row pitch 80.75. Only the geometry is used. Blue
+// characters are what the TG50 ROM types with Blue held (checked in the emulator).
+const TG50_X = [0, 80, 159, 239, 318, 398, 477, 557, 637, 716];
+const TG50_X_OFFSET = [40, 119, 199, 278, 358, 438, 517, 597, 676];
+
+const TG50: LayoutSpec = {
+    width: 772,
+    keyWidth: 56,
+    keyHeight: 56,
+    rowPitch: 80.75,
+    rows: [
+        'QWERTYUIOP'.split('').map((c, i) => letter(c, TG50_X[i], '1234567890'[i])),
+        'ASDFGHJKL'.split('').map((c, i) => letter(c, TG50_X_OFFSET[i], '#<>()\\$€£'[i])),
+        [
+            { key: KeyId.keyIdKbdTab, label: 'Tab', x: 0, w: 96 },
+            ...'ZXCVBNM'.split('').map((c, i) => letter(c, TG50_X_OFFSET[i + 1], ' °%+/*='[i].trim())),
+            { key: KeyId.keyIdKbdBackspace, label: 'BS', x: 676, w: 96, fnLabel: 'Del' },
+        ],
+        [
+            { key: KeyId.keyIdKbdCtrl, label: 'Ctrl', x: 40, w: 95, modifier: true },
+            { key: KeyId.keyIdKbdBlue, label: 'Blue', x: 159, w: 96, modifier: true, bar: COLOR_BLUE },
+            { key: KeyId.keyIdKbdUnderscore, label: '@_', x: 278 },
+            { key: KeyId.keyIdKbdComma, label: ',;', x: 358 },
+            { key: KeyId.keyIdKbdPeriod, label: '.:', x: 438 },
+            { key: KeyId.keyIdUp, label: '▲', x: 517 },
+            { key: KeyId.keyIdKbdEnter, label: '↵', x: 597, w: 135 },
+        ],
+        [
+            { key: KeyId.keyIdKbdShift, label: 'Shift', x: 40, w: 95, modifier: true },
+            { key: KeyId.keyIdKbdRed, label: 'Red', x: 159, w: 96, modifier: true, bar: COLOR_RED },
+            { key: KeyId.keyIdKbdSpace, label: 'Space', x: 278, w: 136 },
+            { key: KeyId.keyIdLeft, label: '◀', x: 438 },
+            { key: KeyId.keyIdDown, label: '▼', x: 517 },
+            { key: KeyId.keyIdRight, label: '▶', x: 597 },
+            { key: KeyId.keyIdKbdCaps, label: 'Caps', x: 676 },
+        ],
     ],
-    [
-        { key: KeyId.keyIdKbdCtrl, label: 'Ctrl', x: 40, w: 95, modifier: true },
-        { key: KeyId.keyIdKbdBlue, label: 'Blue', x: 159, w: 96, modifier: true, bar: COLOR_BLUE },
-        { key: KeyId.keyIdKbdUnderscore, label: '@_', x: 278 },
-        { key: KeyId.keyIdKbdComma, label: ',;', x: 358 },
-        { key: KeyId.keyIdKbdPeriod, label: '.:', x: 438 },
-        { key: KeyId.keyIdUp, label: '▲', x: 517 },
-        { key: KeyId.keyIdKbdEnter, label: '↵', x: 597, w: 135 },
-    ],
-    [
-        { key: KeyId.keyIdKbdShift, label: 'Shift', x: 40, w: 95, modifier: true },
-        { key: KeyId.keyIdKbdRed, label: 'Red', x: 159, w: 96, modifier: true, bar: COLOR_RED },
-        { key: KeyId.keyIdKbdSpace, label: 'Space', x: 278, w: 136 },
-        { key: KeyId.keyIdLeft, label: '◀', x: 438 },
-        { key: KeyId.keyIdDown, label: '▼', x: 517 },
-        { key: KeyId.keyIdRight, label: '▶', x: 597 },
-        { key: KeyId.keyIdKbdCaps, label: 'Caps', x: 676 },
-    ],
-];
+};
 
 // Device buttons that are not on the keyboard, in a row of their own below it. The row starts
 // after a gap on the left, where the PWA places its floating menu button.
@@ -87,64 +101,119 @@ const EXTRA_KEYS: Array<{ key: KeyId; label: string }> = [
     { key: KeyId.keyIdJogBack, label: 'Back' },
 ];
 
+// Power: sleep / wake (the same key as Esc on a PC keyboard)
+const POWER_KEY = { key: KeyId.keyIdPower, label: '⏻ Power', color: 'white', background: '#424242' };
+const POWER_UNITS = 1.4;
+
+const TOGGLE_LABEL_HIDE = '⌨ ▼ Hide';
+const TOGGLE_LABEL_SHOW = '⌨ ▲ Show keyboard';
+// The hide key is wider than the device buttons next to it
+const TOGGLE_UNITS = 1.5;
+const COLLAPSED_HEIGHT = 22;
+
 const DEVICE_WIDTH = 320;
 const MARGIN = 4;
 const EXTRA_ROW_HEIGHT = 22;
+// Room for the labels printed below the last keyboard row
+const LABEL_SPACE = 7;
 const EXTRA_ROW_LEFT_GAP = 40;
 
-function scaleForWidth(width: number): number {
-    return (width - 2 * MARGIN) / GEOMETRY.width;
+function layoutSpec(deviceId: DeviceId): LayoutSpec | undefined {
+    switch (deviceId) {
+        case DeviceId.pegTG50:
+            return TG50;
+
+        default:
+            return undefined;
+    }
 }
 
-function mainHeight(width: number): number {
-    const s = scaleForWidth(width);
-
-    return 2 * MARGIN + s * ((ROWS.length - 1) * GEOMETRY.rowPitch + GEOMETRY.keyHeight);
+function scaleForWidth(spec: LayoutSpec, width: number): number {
+    return (width - 2 * MARGIN) / spec.width;
 }
 
-function buildLayout(width: number): Array<OnScreenKey> {
-    const s = scaleForWidth(width);
+function mainHeight(spec: LayoutSpec, width: number): number {
+    return 2 * MARGIN + scaleForWidth(spec, width) * ((spec.rows.length - 1) * spec.rowPitch + spec.keyHeight);
+}
+
+function buildLayout(spec: LayoutSpec, width: number): Array<OnScreenKey> {
+    const s = scaleForWidth(spec, width);
     const keys: Array<OnScreenKey> = [];
 
-    ROWS.forEach((row, rowIndex) => {
-        for (const spec of row) {
+    spec.rows.forEach((row, rowIndex) => {
+        for (const { x, w, ...key } of row) {
             keys.push({
-                key: spec.key,
-                label: spec.label,
-                blueLabel: spec.blueLabel,
-                modifier: spec.modifier,
-                bar: spec.bar,
-                x: MARGIN + s * spec.x,
-                y: MARGIN + s * rowIndex * GEOMETRY.rowPitch,
-                width: s * (spec.w ?? GEOMETRY.keyWidth),
-                height: s * GEOMETRY.keyHeight,
+                ...key,
+                x: MARGIN + s * x,
+                y: MARGIN + s * rowIndex * spec.rowPitch,
+                width: s * (w ?? spec.keyWidth),
+                height: s * spec.keyHeight,
             });
         }
     });
 
-    const extraTop = mainHeight(width);
-    const extraWidth = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / EXTRA_KEYS.length;
+    const extraTop = mainHeight(spec, width) + LABEL_SPACE;
+    const extraKeys = [
+        ...EXTRA_KEYS.map((key) => ({ ...key, units: 1 })),
+        { ...POWER_KEY, units: POWER_UNITS },
+        { key: KeyId.keyInvalid, label: TOGGLE_LABEL_HIDE, toggle: true, units: TOGGLE_UNITS },
+    ];
+    const unit = (width - EXTRA_ROW_LEFT_GAP - MARGIN) / extraKeys.reduce((acc, { units }) => acc + units, 0);
 
-    EXTRA_KEYS.forEach((spec, i) =>
+    let x = EXTRA_ROW_LEFT_GAP;
+    for (const { units, ...key } of extraKeys) {
         keys.push({
-            key: spec.key,
-            label: spec.label,
-            x: EXTRA_ROW_LEFT_GAP + i * extraWidth,
+            ...key,
+            x,
             y: extraTop,
-            width: extraWidth,
+            width: units * unit,
             height: EXTRA_ROW_HEIGHT - MARGIN,
-        }),
-    );
+        });
+
+        x += units * unit;
+    }
 
     return keys;
 }
 
-export function onScreenKeyboardHeight(deviceId: DeviceId): number {
-    return deviceId === DeviceId.pegTG50 ? Math.ceil(mainHeight(DEVICE_WIDTH) + EXTRA_ROW_HEIGHT) : 0;
+// Collapsed: a single strip that shows the keyboard again. It starts after the gap on the left,
+// where the PWA places its floating menu button.
+function buildCollapsedLayout(width: number): Array<OnScreenKey> {
+    const available = width - EXTRA_ROW_LEFT_GAP - MARGIN;
+    const powerWidth = available * 0.3;
+
+    return [
+        {
+            ...POWER_KEY,
+            x: EXTRA_ROW_LEFT_GAP,
+            y: MARGIN / 2,
+            width: powerWidth,
+            height: COLLAPSED_HEIGHT - MARGIN,
+        },
+        {
+            key: KeyId.keyInvalid,
+            label: TOGGLE_LABEL_SHOW,
+            toggle: true,
+            x: EXTRA_ROW_LEFT_GAP + powerWidth,
+            y: MARGIN / 2,
+            width: available - powerWidth,
+            height: COLLAPSED_HEIGHT - MARGIN,
+        },
+    ];
 }
 
-export function onScreenKeyboardLayout(deviceId: DeviceId, width: number): Array<OnScreenKey> {
-    return deviceId === DeviceId.pegTG50 ? buildLayout(width) : [];
+export function onScreenKeyboardHeight(deviceId: DeviceId, collapsed = false): number {
+    const spec = layoutSpec(deviceId);
+    if (!spec) return 0;
+
+    return collapsed ? COLLAPSED_HEIGHT : Math.ceil(mainHeight(spec, DEVICE_WIDTH) + LABEL_SPACE + EXTRA_ROW_HEIGHT);
+}
+
+export function onScreenKeyboardLayout(deviceId: DeviceId, width: number, collapsed = false): Array<OnScreenKey> {
+    const spec = layoutSpec(deviceId);
+    if (!spec) return [];
+
+    return collapsed ? buildCollapsedLayout(width) : buildLayout(spec, width);
 }
 
 // Key under the point; a touch between keys snaps to the nearest key within a few pixels.
