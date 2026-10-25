@@ -402,6 +402,33 @@ namespace {
         launchAppByName(sd, args[0].c_str());
     }
 
+    // One line each, "key=value" fields, for test scripts. Read-only: no emulator state changes.
+    void CmdRtc(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 0) return env.PrintUsage();
+
+        SoC::RtcAlarmStatus s;
+        if (!static_cast<commands::Context*>(context)->soc->GetRtcAlarmStatus(s)) {
+            cout << "rtc n/a" << endl;
+            return;
+        }
+
+        cout << "rtc rtcNow=" << s.rtcNow << " RTAR=" << s.alarm
+             << " RTSR=" << static_cast<unsigned>(s.status) << " AL=" << (s.status & 1)
+             << " ALE=" << ((s.status >> 2) & 1) << " lastCheck=" << s.lastCheck
+             << " due=" << s.wakeDue << endl;
+    }
+
+    void CmdSleepState(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 0) return env.PrintUsage();
+
+        const SoC* soc = static_cast<commands::Context*>(context)->soc;
+        const int wakeRequested = soc->GetAlarmWakeRequested();
+
+        cout << "sleep-state deep=" << soc->IsInDeepSleep() << " cpuIdle=" << soc->IsCpuIdle()
+             << " wakeRequested=" << (wakeRequested < 0 ? string("n/a") : to_string(wakeRequested))
+             << endl;
+    }
+
     const vector<cli::Command> commandList(
         {{.name = "set-mips",
           .usage = "set-mips <mips>",
@@ -454,7 +481,18 @@ namespace {
          {.name = "launch",
           .usage = "launch <name>",
           .description = "Launch app",
-          .cmd = CmdLaunch}});
+          .cmd = CmdLaunch},
+         {.name = "rtc",
+          .description =
+              "Print the RTC alarm state, read-only. rtcNow: RTC time, seconds since 1904, "
+              "host local time. due: result of the alarm-due test of the deep-sleep alarm "
+              "wake (pxaRtcAlarmDue, 3 s early-wake lead). PXA devices only, else n/a.",
+          .cmd = CmdRtc},
+         {.name = "sleep-state",
+          .description = "Print the sleep state, read-only. deep: PXA deep sleep (device asleep). "
+                         "cpuIdle: CPU waiting for an interrupt (also while the device is on). "
+                         "wakeRequested: alarm wake power-key press pending (PXA only, else n/a).",
+          .cmd = CmdSleepState}});
 }  // namespace
 
 void commands::Register() { cli::AddCommands(commandList); }

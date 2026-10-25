@@ -54,6 +54,8 @@ class SoC {
     void EnterDeepSleep();
     void ExitDeepSleep();
     bool IsInDeepSleep() const { return deepSleep; }
+    // CPU idle (waiting for an interrupt); not the device sleep state, see IsInDeepSleep()
+    bool IsCpuIdle() const { return sleeping; }
     void SetDeepSleepFlag(bool on) { deepSleep = on; }  // savestate restore only
 
     void SetAudioQueue(struct AudioQueue *audioQueue);
@@ -100,6 +102,18 @@ class SoC {
     virtual DisplayMode GetDisplayMode() = 0;
     virtual void SuspendTimerInterrupts(bool suspendInterrupts) = 0;
     virtual bool LcdEnabled() = 0;
+
+    // Read-only state for the native "rtc" and "sleep-state" commands; querying changes nothing.
+    struct RtcAlarmStatus {
+        uint64_t rtcNow;     // RTC time (what RCNR reads): seconds since 1904, host local time
+        uint32_t alarm;      // RTAR
+        uint8_t status;      // RTSR
+        uint64_t lastCheck;  // time of the last alarm compare
+        bool wakeDue;        // pxaRtcAlarmDue() now, with the alarm wake lead (3 s)
+    };
+    virtual bool GetRtcAlarmStatus(RtcAlarmStatus &) const { return false; }
+    // 1 / 0, or -1 if this SoC has no alarm wake
+    virtual int GetAlarmWakeRequested() const { return -1; }
 
    protected:
     // Actual SoC needs to implement those, the other virtuals are taken

@@ -17,6 +17,10 @@ void pxaRtcTick(struct PxaRtc* rtc, bool checkAlarm);
 // The armed RTC alarm (RTSR.ALE) has not fired yet and fires within leadSeconds.
 bool pxaRtcAlarmDue(struct PxaRtc* rtc, uint32_t leadSeconds);
 
+// Copies the alarm registers for diagnostics; no alarm compare, no side effects.
+void pxaRtcGetAlarmState(const struct PxaRtc* rtc, uint32_t* rtar, uint8_t* rtsr,
+                         uint64_t* lastAlarmCheck);
+
 template <typename T>
 void pxaRtcSave(struct PxaRtc* rtc, T& savestate);
 
