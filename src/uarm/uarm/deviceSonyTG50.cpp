@@ -40,7 +40,7 @@ SonyTG50* sonyTG50Initialize(SocPeriphs* sp) {
     dev->gpio = sp->gpio;
     dev->soc = sp->soc;
     // Registration of emulated peripherals is not currently reversible.
-    // Call only once per initialized SoC, after TG50 is selected by a future factory.
+    // Call once per SoC (from the device factory for deviceTypeSonyTG50); a failure is fatal there.
     dev->touch = ad7873Init(sp->ssp, sp->gpio, sony_tg50::kTouchIrqGpio);
     dev->codec = ak4534Init(sp->i2c, sp->i2s, sp->gpio);
     dev->power = an32502aInit(sp->i2c);

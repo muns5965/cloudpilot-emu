@@ -222,7 +222,7 @@ static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, 
 				break;
 			
 			// Swapped versus original uARM (0x80 = falling there). Idle TG50 firmware sets port C
-			// 0x88 = 0, 0xa8 = 0xff00 to catch key presses (columns go low); see docs/sony-tg50-port.md
+			// 0x88 = 0, 0xa8 = 0xff00 to catch key presses (columns go low); see docs/sony-tg50.md
 			case 0x80:	//GPIOA risingEdgeDetect (RW)
 			case 0x84:	//GPIOB risingEdgeDetect (RW)
 			case 0x88:	//GPIOC risingEdgeDetect (RW)
