@@ -559,6 +559,21 @@ namespace {
         cout << endl;
     }
 
+    void CmdScreenshot(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 1) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        bool lcdOn = false;
+        string error;
+        if (!ctx->screenshot || !ctx->screenshot(args[0], lcdOn, error)) {
+            cout << "screenshot error " << (error.empty() ? "unavailable" : error) << endl;
+            return;
+        }
+
+        cout << "screenshot ok path=" << args[0] << " size=" << ctx->screenWidth << "x"
+             << ctx->screenHeight << " lcd=" << lcdOn << endl;
+    }
+
     const vector<cli::Command> commandList(
         {{.name = "set-mips",
           .usage = "set-mips <mips>",
@@ -632,6 +647,11 @@ namespace {
               "kbdUnderscore, kbdBlue, kbdRed, pageUp, pageDown, jogBack, voice, graffiti "
               "(case-insensitive). Prints \"key ok\" / \"key <name> released\".",
           .cmd = CmdKey},
+         {.name = "screenshot",
+          .usage = "screenshot <file.png>",
+          .description = "Save the device screen as last drawn to a PNG file: device size and "
+                         "orientation (not rotated or scaled), white with the LCD off (lcd=0).",
+          .cmd = CmdScreenshot},
          {.name = "sleep-state",
           .description = "Print the sleep state, read-only. deep: PXA deep sleep (device asleep). "
                          "cpuIdle: CPU waiting for an interrupt (also while the device is on). "

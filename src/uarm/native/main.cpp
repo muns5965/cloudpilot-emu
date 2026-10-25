@@ -398,7 +398,10 @@ namespace {
             .audioDriver = audioDriver,
             .rotation = rotation,
             .screenWidth = static_cast<int>(displayConfiguration.width),
-            .screenHeight = static_cast<int>(displayConfiguration.height)};
+            .screenHeight = static_cast<int>(displayConfiguration.height),
+            .screenshot = [&sdlRenderer](const string& path, bool& lcdOn, string& error) {
+                return sdlRenderer->SaveScreenshot(path.c_str(), lcdOn, error);
+            }};
 
         uint64_t lastSpeedDump = timestampUsec();
 

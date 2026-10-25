@@ -19,6 +19,8 @@ namespace commands {
         // Device screen size (pen coordinates of the "tap" command)
         int screenWidth;
         int screenHeight;
+        // "screenshot": saves the device screen (see SdlRenderer::SaveScreenshot)
+        std::function<bool(const std::string& path, bool& lcdOn, std::string& error)> screenshot;
     };
 
     void Register();
