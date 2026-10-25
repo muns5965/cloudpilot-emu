@@ -22,6 +22,7 @@ class Uarm {
 
     Uarm& SetRamSize(unsigned int size);
     Uarm& SetDisplayMode(unsigned int displayMode);
+    Uarm& SetDeviceType(int deviceType);
     Uarm& SetNand(unsigned int size, void* data);
     Uarm& SetMemory(unsigned int size, void* data);
     Uarm& SetSavestate(unsigned int size, void* data);
@@ -112,6 +113,8 @@ class Uarm {
     size_t ramSize{0};
 
     std::optional<DisplayMode> displayMode;
+    // Device type of the session; overrides the ROM header (an NX70V image carries a TG50 boot ROM)
+    std::optional<DeviceType5> requestedDeviceType;
 
     size_t nandSize{0};
     uint8_t* nandData{nullptr};

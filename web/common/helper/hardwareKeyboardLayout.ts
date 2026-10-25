@@ -2,16 +2,17 @@ import { DeviceId } from '@common/model/DeviceId';
 import { KeyId } from '@native-uarm/index';
 
 /**
- * On-screen keyboard for devices with a hardware keyboard (Sony TG50), drawn below the
+ * On-screen keyboard for devices with a hardware keyboard (Sony TG50, NX70V), drawn below the
  * hard buttons. Positions are in device pixels relative to the top left of the keyboard area.
  * Keys are drawn as plain rounded rectangles with text labels; no device artwork is used.
  */
 export interface OnScreenKey {
     key: KeyId;
     label: string;
-    // Character typed with Blue held (as the ROM produces it)
+    // Characters typed with Blue / Fn and with Red / Alt held (as the ROM produces them)
     fnLabel?: string;
-    // Shift, Blue, Red and Ctrl latch until the next key (the ROM does not latch them)
+    altLabel?: string;
+    // Shift, Blue/Fn, Red/Alt and Ctrl latch until the next key (the ROMs do not latch them)
     modifier?: boolean;
     // Draw a colored bar instead of the label (TG50 Blue and Red keys)
     bar?: string;
@@ -44,9 +45,16 @@ interface LayoutSpec {
 
 const COLOR_BLUE = '#1565c0';
 const COLOR_RED = '#c62828';
+const COLOR_ALT = '#6a1b9a';
 
-function letter(c: string, x: number, fnLabel?: string): KeySpec {
-    return { key: KeyId.keyIdKbdA + (c.charCodeAt(0) - 'A'.charCodeAt(0)), label: c, x, fnLabel: fnLabel || undefined };
+function letter(c: string, x: number, fnLabel?: string, altLabel?: string): KeySpec {
+    return {
+        key: KeyId.keyIdKbdA + (c.charCodeAt(0) - 'A'.charCodeAt(0)),
+        label: c,
+        x,
+        fnLabel: fnLabel || undefined,
+        altLabel: altLabel || undefined,
+    };
 }
 
 // TG50: key positions measured on the keyboard drawing in the TG50 "Read This First" manual
@@ -89,6 +97,47 @@ const TG50: LayoutSpec = {
     ],
 };
 
+// NX70V: key positions measured on a front photo of a European NX70V (perspective corrected
+// per row); unit = key pitch, round keys 0.77, row pitch 1.25. Fn is the TG50 Blue key, Alt the
+// Red key; `<,` `>.` `:;` sit on the TG50 `@_` `.` `,` matrix positions. Fn and Alt characters
+// are what the NX70V ROM (European) types (checked in the emulator).
+const NX_X = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const NX_X_OFFSET = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5];
+
+const NX70V: LayoutSpec = {
+    width: 9.77,
+    keyWidth: 0.77,
+    keyHeight: 0.77,
+    rowPitch: 1.25,
+    rows: [
+        'QWERTYUIOP'.split('').map((c, i) => letter(c, NX_X[i], '1234567890'[i], ' é€ßëêèÇçà'[i].trim())),
+        'ASDFGHJKL'.split('').map((c, i) => letter(c, NX_X_OFFSET[i], '~!%"\'()\\_'[i], '  Üüï'[i]?.trim())),
+        [
+            { key: KeyId.keyIdKbdTab, label: 'Tab', x: NX_X_OFFSET[0] },
+            ...'ZXCVBNM'.split('').map((c, i) => letter(c, NX_X_OFFSET[i + 1], '@+*#$-/'[i], 'ÖöÄä£'[i])),
+            { key: KeyId.keyIdKbdBackspace, label: 'BS', x: NX_X_OFFSET[8], fnLabel: 'Del' },
+        ],
+        [
+            { key: KeyId.keyIdKbdCtrl, label: 'Ctrl', x: 0.5, modifier: true },
+            { key: KeyId.keyIdKbdBlue, label: 'Fn', x: 1.5, modifier: true, color: COLOR_BLUE },
+            { key: KeyId.keyIdKbdRed, label: 'Alt', x: 2.5, modifier: true, color: COLOR_ALT },
+            { key: KeyId.keyIdKbdUnderscore, label: '<,', x: 3.5 },
+            { key: KeyId.keyIdKbdPeriod, label: '>.', x: 4.5, fnLabel: '?' },
+            { key: KeyId.keyIdKbdComma, label: ':;', x: 5.5, fnLabel: '&' },
+            { key: KeyId.keyIdUp, label: '▲', x: 6.5 },
+            { key: KeyId.keyIdKbdEnter, label: '↵', x: 7.5, w: 1.77, fnLabel: '=' },
+        ],
+        [
+            { key: KeyId.keyIdKbdShift, label: 'Shift', x: 0.5, w: 1.77, modifier: true },
+            { key: KeyId.keyIdKbdSpace, label: 'Space', x: 3.035, w: 1.73 },
+            { key: KeyId.keyIdLeft, label: '◀', x: 5.5 },
+            { key: KeyId.keyIdDown, label: '▼', x: 6.5 },
+            { key: KeyId.keyIdRight, label: '▶', x: 7.5 },
+            { key: KeyId.keyIdKbdCaps, label: 'Caps', x: 8.5, fnLabel: 'Num' },
+        ],
+    ],
+};
+
 // Device buttons that are not on the keyboard, in a row of their own below it. The row starts
 // after a gap on the left, where the PWA places its floating menu button.
 const EXTRA_KEYS: Array<{ key: KeyId; label: string }> = [
@@ -122,6 +171,9 @@ function layoutSpec(deviceId: DeviceId): LayoutSpec | undefined {
     switch (deviceId) {
         case DeviceId.pegTG50:
             return TG50;
+
+        case DeviceId.pegNX70V:
+            return NX70V;
 
         default:
             return undefined;

@@ -5,7 +5,7 @@ import { KeyId } from '@native-uarm/index';
  * keyboard (Sony TG50). Mirrors the native SDL mapping in src/uarm/native/SdlEventHandler.cpp.
  */
 export function hardwareKeysFromCode(code: string): Array<KeyId> | undefined {
-    // Digits are Blue + Q..P on the device; send that chord.
+    // Digits are Blue (NX70V: Fn) + Q..P on the device; send that chord.
     const digit = /^(?:Digit|Numpad)([0-9])$/.exec(code);
     if (digit) {
         const letter = 'PQWERTYUIO'.charCodeAt(Number(digit[1])) - 'A'.charCodeAt(0);

@@ -25,6 +25,7 @@ export const enum DeviceType5 {
     deviceTypeFrankenE2 = 1,
     deviceTypePV = 2,
     deviceTypeSonyTG50 = 3,
+    deviceTypeSonyNX70V = 4,
     deviceTypeInvalid = -1,
 }
 

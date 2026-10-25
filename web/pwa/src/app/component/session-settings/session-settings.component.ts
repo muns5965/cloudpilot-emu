@@ -1,6 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { AbstractControl, UntypedFormControl, UntypedFormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { cpuClock, deviceName } from '@common/helper/deviceProperties';
+import { isSonyBootRomSource } from '@common/helper/sonyBootRom';
 import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
 
@@ -68,6 +69,10 @@ export class SessionSettingsComponent implements OnInit {
         return this.formGroup.get('nand')!;
     }
 
+    get formControlBootRom(): AbstractControl {
+        return this.formGroup.get('bootRom')!;
+    }
+
     get formControlScreenSize(): AbstractControl {
         return this.formGroup.get('screenSize')!;
     }
@@ -113,6 +118,7 @@ export class SessionSettingsComponent implements OnInit {
             this.formControlScreenSize.value ?? undefined,
             this.formControlRamSize.value ?? this.ramSize,
             this.nand,
+            this.bootRom,
         );
     }
 
@@ -205,6 +211,33 @@ export class SessionSettingsComponent implements OnInit {
         });
     }
 
+    onBootRomClick(): void {
+        this.fileService.openFile(async (file) => {
+            let content: Uint8Array;
+            try {
+                content = await file.getContent({ onTop: true });
+            } catch (e) {
+                console.warn(e);
+
+                await this.alertService.errorMessage(`Unable to open ${file.name}.`);
+                return;
+            }
+
+            if (!isSonyBootRomSource(content)) {
+                void this.alertService.errorMessage(`${file.name} is not a PEG-TG50 ROM.`);
+                return;
+            }
+
+            this.bootRom = content;
+            this.formControlBootRom.setValue(file.name);
+        });
+    }
+
+    onBootRomClearClick(): void {
+        this.bootRom = undefined;
+        this.formControlBootRom.setValue(undefined);
+    }
+
     onNandClearClick(): void {
         this.nand = undefined;
         this.formControlNand.setValue(undefined);
@@ -249,6 +282,7 @@ export class SessionSettingsComponent implements OnInit {
                 this.settings.engine === 'uarm' ? this.settings.disableAudio : false,
             ),
             nand: new UntypedFormControl(),
+            bootRom: new UntypedFormControl(),
         });
     }
 
@@ -291,8 +325,13 @@ export class SessionSettingsComponent implements OnInit {
     }
 
     @Input()
-    onSave: (device: DeviceId, screenSize: ScreenSize | undefined, ramSize: number, nand?: Uint8Array) => void = () =>
-        undefined;
+    onSave: (
+        device: DeviceId,
+        screenSize: ScreenSize | undefined,
+        ramSize: number,
+        nand?: Uint8Array,
+        bootRom?: Uint8Array,
+    ) => void = () => undefined;
 
     @Input()
     onCancel: () => void = () => undefined;
@@ -321,6 +360,10 @@ export class SessionSettingsComponent implements OnInit {
     @Input()
     selectNandSize: number | undefined;
 
+    // NX70V: ask for a Sony ROM that supplies the missing boot ROM
+    @Input()
+    selectBootRom = false;
+
     formGroup!: UntypedFormGroup;
 
     speedTransient: number | undefined;
@@ -329,5 +372,6 @@ export class SessionSettingsComponent implements OnInit {
     maxHostLoadTransient: number | undefined;
 
     nand: Uint8Array | undefined;
+    bootRom: Uint8Array | undefined;
 }
 export { SessionSettings };
