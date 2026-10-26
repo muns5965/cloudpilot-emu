@@ -14,25 +14,30 @@ namespace {
     using B = AndroidButtons;
 
     // Hard buttons strip: 60 units per button (web layout buttonWidth for a 320x320 screen),
-    // the middle 80 units split into up (top half) and down.
+    // the middle 80 units split into the rocker's top half and bottom half.
     constexpr int kStripMid = B::kStripTop + B::kStripHeight / 2;
-    constexpr int kRowKey = B::kWidth / 6;
+    // Extra keys: two rows of four (extra-keys.svg).
+    constexpr int kKeyWidth = B::kWidth / 4;
+    constexpr int kRow1 = B::kKeysTop;
+    constexpr int kRow2 = B::kKeysTop + B::kKeyRowHeight;
+    constexpr int kKeyH = B::kKeyRowHeight;
 
     // Keycodes as mapped by SdlEventHandler for the TG50 (hardware keyboard mode).
     constexpr B::Button kButtons[] = {
-        {{0, B::kStripTop, 60, B::kStripHeight}, SDLK_F1},                   // hard 1
-        {{60, B::kStripTop, 60, B::kStripHeight}, SDLK_F2},                  // hard 2
-        {{120, B::kStripTop, 80, B::kStripHeight / 2}, SDLK_UP},             // up
-        {{120, kStripMid, 80, B::kStripHeight / 2}, SDLK_DOWN},              // down
-        {{200, B::kStripTop, 60, B::kStripHeight}, SDLK_F3},                 // hard 3
-        {{260, B::kStripTop, 60, B::kStripHeight}, SDLK_F4},                 // hard 4
-        {{0 * kRowKey, B::kRowTop, kRowKey, B::kRowHeight}, SDLK_ESCAPE},    // power
-        {{1 * kRowKey, B::kRowTop, kRowKey, B::kRowHeight}, SDLK_HOME},      // home
-        {{2 * kRowKey, B::kRowTop, kRowKey, B::kRowHeight}, SDLK_END},       // back (jog back)
-        {{3 * kRowKey, B::kRowTop, kRowKey, B::kRowHeight}, SDLK_F11},       // select (jog select)
-        {{4 * kRowKey, B::kRowTop, kRowKey, B::kRowHeight}, SDLK_PAGEUP},    // page up
-        {{5 * kRowKey, B::kRowTop, B::kWidth - 5 * kRowKey, B::kRowHeight},  // page down
-         SDLK_PAGEDOWN},
+        {{0, B::kStripTop, 60, B::kStripHeight}, SDLK_F1},            // hard 1
+        {{60, B::kStripTop, 60, B::kStripHeight}, SDLK_F2},           // hard 2
+        {{120, B::kStripTop, 80, B::kStripHeight / 2}, SDLK_PAGEUP},  // rocker up: page up
+        {{120, kStripMid, 80, B::kStripHeight / 2}, SDLK_PAGEDOWN},   // rocker down: page down
+        {{200, B::kStripTop, 60, B::kStripHeight}, SDLK_F3},          // hard 3
+        {{260, B::kStripTop, 60, B::kStripHeight}, SDLK_F4},          // hard 4
+        {{0 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_ESCAPE},      // power
+        {{1 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_HOME},        // home
+        {{2 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_END},         // back (jog back)
+        {{3 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_F11},         // select (jog select)
+        {{0 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_LEFT},        // cursor left
+        {{1 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_UP},          // cursor up
+        {{2 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_DOWN},        // cursor down
+        {{3 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_RIGHT},       // cursor right
     };
 
     SDL_Texture* rasterize(SDL_Renderer* renderer, const unsigned char* svg, size_t size, int width,
@@ -60,20 +65,20 @@ AndroidButtons::AndroidButtons(SDL_Renderer* renderer) : renderer(renderer) {
     // Rasterise at the physical width so the artwork stays sharp when SDL scales it.
     stripTexture =
         rasterize(renderer, kNr70Svg, kNr70SvgSize, outputW, outputW * kStripHeight / kWidth);
-    rowTexture = rasterize(renderer, kExtraKeysSvg, kExtraKeysSvgSize, outputW,
-                           outputW * kRowHeight / kWidth);
+    keysTexture = rasterize(renderer, kExtraKeysSvg, kExtraKeysSvgSize, outputW,
+                            outputW * kKeysHeight / kWidth);
 }
 
 AndroidButtons::~AndroidButtons() {
     if (stripTexture) SDL_DestroyTexture(stripTexture);
-    if (rowTexture) SDL_DestroyTexture(rowTexture);
+    if (keysTexture) SDL_DestroyTexture(keysTexture);
 }
 
 void AndroidButtons::Draw(SDL_Renderer* renderer) {
     const SDL_Rect strip{0, kStripTop, kWidth, kStripHeight};
-    const SDL_Rect row{0, kRowTop, kWidth, kRowHeight};
+    const SDL_Rect keys{0, kKeysTop, kWidth, kKeysHeight};
     if (stripTexture) SDL_RenderCopy(renderer, stripTexture, nullptr, &strip);
-    if (rowTexture) SDL_RenderCopy(renderer, rowTexture, nullptr, &row);
+    if (keysTexture) SDL_RenderCopy(renderer, keysTexture, nullptr, &keys);
 
     if (!drawnPressed) return;
 

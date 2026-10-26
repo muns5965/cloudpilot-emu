@@ -14,8 +14,8 @@ android {
         applicationId = 'io.github.muns5965.cloudpilot.test'
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = '0.3-2c'
+        versionCode = 4
+        versionName = '0.4-2c'
 
         ndk {
             abiFilters 'arm64-v8a'
