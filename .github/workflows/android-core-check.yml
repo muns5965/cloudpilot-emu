@@ -29,6 +29,17 @@ jobs:
       - name: Build and check core library
         run: tools/android-core-check.sh build-android-core 2>&1 | tee check.log; exit ${PIPESTATUS[0]}
 
+      # Result summary as annotations (readable through the checks API without the log archive).
+      - name: Summary
+        if: always()
+        run: |
+          note() { printf '::notice title=%s::%s\n' "$1" "$(head -c 3500 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"; }
+          grep -v '^ *[0-9]* [a-z]' check.log | note result || true
+          grep 'warning:' check.log build-android-core/compile.log 2>/dev/null | sed 's/.*warning: //' | sort | uniq -c | sort -rn | note warnings || true
+          grep -B2 -A3 'error:' build-android-core/compile.log 2>/dev/null | note compile-errors || true
+          note link < build-android-core/link.log 2>/dev/null || true
+          grep 'warning:' build-android-core/compile.log | sed 's/: warning:.*//' | sed "s|$PWD/||" | sort | uniq -c | note warning-files || true
+
       - name: Check for ROM files
         if: always()
         run: |
