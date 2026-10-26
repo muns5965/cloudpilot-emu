@@ -72,7 +72,9 @@ NM=$TC/llvm-nm
 echo "library: $(stat -c %s "$OUT/libuarmcore.so") bytes"
 $READELF -h "$OUT/libuarmcore.so" | grep -E 'Class|Machine'
 echo "needed: $($READELF -d "$OUT/libuarmcore.so" | grep NEEDED | sed 's/.*\[\(.*\)\]/\1/' | tr '\n' ' ')"
-echo "undefined (resolved by the NEEDED system libraries): $($NM -D --undefined-only "$OUT/libuarmcore.so" | wc -l)"
+$NM -D --undefined-only "$OUT/libuarmcore.so" | awk '{print $NF}' > "$OUT/undefined.txt"
+$NM -DC --defined-only "$OUT/libuarmcore.so" > "$OUT/exports.txt"
+echo "undefined (resolved by the NEEDED system libraries): $(wc -l < "$OUT/undefined.txt")"
 
 # Every object must define at least one symbol (so nothing compiled to an empty object), and
 # core entry points must be present in the library.
@@ -84,7 +86,7 @@ echo "objects linked: $(ls "$OUT"/obj/*.o | wc -l), objects without symbols: $em
 miss=0
 for s in 'deviceSetup(' 'cpuInit(' 'MainLoop::Cycle(' 'sonyTG50Touch(' 'ad7873PenInput(' \
          'palmEpochSeconds(' 'SessionFile5::Deserialize(' 'tg50ucInit('; do
-    if $NM -DC --defined-only "$OUT/libuarmcore.so" | grep -qF " T $s"; then echo "  exported: $s"
+    if grep -qF " T $s" "$OUT/exports.txt"; then echo "  exported: $s"
     else echo "  MISSING: $s"; miss=$((miss + 1)); fi
 done
 [ "$empty" = 0 ] && [ "$miss" = 0 ]

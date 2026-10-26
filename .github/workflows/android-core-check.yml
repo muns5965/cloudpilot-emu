@@ -38,6 +38,7 @@ jobs:
           grep 'warning:' check.log build-android-core/compile.log 2>/dev/null | sed 's/.*warning: //' | sort | uniq -c | sort -rn | note warnings || true
           grep -B2 -A3 'error:' build-android-core/compile.log 2>/dev/null | note compile-errors || true
           note link < build-android-core/link.log 2>/dev/null || true
+          tr '\n' ' ' < build-android-core/undefined.txt | fold -w 200 | note undefined || true
           grep 'warning:' build-android-core/compile.log | sed 's/: warning:.*//' | sed "s|$PWD/||" | sort | uniq -c | note warning-files || true
 
       - name: Check for ROM files
@@ -53,5 +54,6 @@ jobs:
             check.log
             build-android-core/compile.log
             build-android-core/link.log
+            build-android-core/undefined.txt
             build-android-core/libuarmcore.so
           retention-days: 14
