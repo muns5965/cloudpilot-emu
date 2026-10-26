@@ -17,6 +17,7 @@ import org.libsdl.app.SDLActivity;
  */
 public class EmulatorActivity extends SDLActivity {
     public static final String EXTRA_ROM = "rom";
+    public static final String EXTRA_SESSION = "session";
     private static final String TAG = "cp-android";
 
     @Override
@@ -26,8 +27,11 @@ public class EmulatorActivity extends SDLActivity {
 
     @Override
     protected String[] getArguments() {
+        // SDL_main arguments: [ROM path or ""] [session path]; none: the test screen.
         String rom = getIntent().getStringExtra(EXTRA_ROM);
-        return rom == null || rom.isEmpty() ? new String[0] : new String[] {rom};
+        String session = getIntent().getStringExtra(EXTRA_SESSION);
+        if (session == null) return rom == null || rom.isEmpty() ? new String[0] : new String[] {rom};
+        return new String[] {rom == null ? "" : rom, session};
     }
 
     @Override

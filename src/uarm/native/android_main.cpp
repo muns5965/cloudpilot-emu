@@ -2,9 +2,10 @@
 //
 // Stage 2-B: a ROM whose header identifies a Sony PEG-TG50 is booted, following the order of
 // native/main.cpp run() (SocPXA, MainLoop, SdlRenderer, SdlEventHandler, SdlAudioDriver) without
-// the console, debugger, NetLib, SD card and sessions, with on-screen buttons below the LCD
-// (AndroidButtons). Anything else (no ROM, unreadable, invalid,
-// another device) shows the stage 2-A test screen, whose colour gives the result.
+// the console, debugger, NetLib and SD card, with on-screen buttons below the LCD
+// (AndroidButtons) and the session saved and resumed (AndroidSession, stage 2-E). Anything else
+// (no ROM, unreadable, invalid, another device) shows the stage 2-A test screen, whose colour
+// gives the result.
 // Logs go to logcat: this file under SDL/APP, the core's stdout/stderr under cp-core.
 
 #include <SDL.h>
@@ -13,12 +14,17 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "AndroidButtons.h"
+#include "AndroidSession.h"
 #include "MainLoop.h"
 #include "Rotation.h"
 #include "SdlAudioDriver.h"
@@ -40,12 +46,36 @@ namespace {
 
     // ---- core output to logcat ---------------------------------------------------------------
 
+    // Reads the pipe with read(), not stdio: a thread blocked in fgets() holds its FILE lock,
+    // which exit() needs to flush all streams.
     void* forwardOutput(void* arg) {
         const int fd = static_cast<int>(reinterpret_cast<intptr_t>(arg));
-        FILE* in = fdopen(fd, "r");
         char line[512];
-        while (in && fgets(line, sizeof(line), in))
-            __android_log_write(ANDROID_LOG_INFO, "cp-core", line);
+        size_t used = 0;
+
+        while (true) {
+            const ssize_t n = read(fd, line + used, sizeof(line) - 1 - used);
+            if (n < 0 && errno == EINTR) continue;
+            if (n <= 0) break;
+            used += static_cast<size_t>(n);
+
+            // Write out every complete line, and a full buffer as it is.
+            size_t start = 0;
+            for (size_t i = 0; i < used; i++) {
+                if (line[i] != '\n') continue;
+                line[i] = 0;
+                __android_log_write(ANDROID_LOG_INFO, "cp-core", line + start);
+                start = i + 1;
+            }
+            if (start == 0 && used == sizeof(line) - 1) {
+                line[used] = 0;
+                __android_log_write(ANDROID_LOG_INFO, "cp-core", line);
+                start = used;
+            }
+            memmove(line, line + start, used - start);
+            used -= start;
+        }
+
         return nullptr;
     }
 
@@ -243,26 +273,48 @@ namespace {
         return 0;
     }
 
-    // ---- stage 2-B TG50 boot -------------------------------------------------------------------
+    // ---- app lifecycle ------------------------------------------------------------------------
 
-    int bootTg50(std::vector<uint8_t>& nor) {
+    // SDL_HINT_ANDROID_BLOCK_ON_PAUSE is off (see main()): SDL does not block the event loop in
+    // the background, so the emulator loop can save the session there, with the CPU stopped, and
+    // then idle (no emulation, no drawing) until the app is in the foreground again. The watch
+    // runs on the thread that sends the app events (SDL's event pump, the emulator thread).
+    std::atomic<bool> inBackground{false};
+
+    int SDLCALL watchLifecycle(void*, SDL_Event* event) {
+        if (event->type == SDL_APP_WILLENTERBACKGROUND) inBackground = true;
+        if (event->type == SDL_APP_DIDENTERFOREGROUND) inBackground = false;
+        return 0;
+    }
+
+    // ---- TG50 boot (stage 2-B) and session (stage 2-E) -----------------------------------------
+
+    enum class BootResult { ok, failed, badSession };
+
+    // Boots image (cold from its NOR, or from the session state) in the order of native/main.cpp
+    // run(). sessionPath empty: no saving. The session is saved when the app goes to the background
+    // and when the emulator quits.
+    BootResult bootTg50(Tg50Image& image, const std::string& sessionPath) {
         const DeviceType5 deviceType = DeviceType5::deviceTypeSonyTG50;
-        const uint32_t ramSize = 17ul << 20;  // native/main.cpp default for Sony devices
+        // native/main.cpp: the session's RAM size, else 17 MiB for Sony devices
+        const uint32_t ramSize = image.fromSession && image.ramSize ? image.ramSize : 17ul << 20;
 
         if (!deviceConfigurationSupportsRamSize(deviceType, ramSize)) {
             SDL_Log("cp-android: unsupported RAM size %u", ramSize);
-            return 1;
+            return image.fromSession ? BootResult::badSession : BootResult::failed;
         }
 
-        const DisplayMode displayMode = deviceConfigurationDefaultDisplayMode(deviceType);
+        const DisplayMode displayMode = image.fromSession
+                                            ? image.displayMode
+                                            : deviceConfigurationDefaultDisplayMode(deviceType);
         if (!deviceConfigurationDeviceSupportsDisplayMode(deviceType, displayMode)) {
             SDL_Log("cp-android: unsupported display mode");
-            return 1;
+            return image.fromSession ? BootResult::badSession : BootResult::failed;
         }
 
         if (deviceConfigurationGetNandSize(deviceType) != 0) {
             SDL_Log("cp-android: unexpected NAND size for TG50");
-            return 1;
+            return BootResult::failed;
         }
 
         DisplayConfiguration displayConfiguration =
@@ -273,16 +325,33 @@ namespace {
             displayConfiguration.height != AndroidButtons::kLcdHeight) {
             SDL_Log("cp-android: unexpected LCD size %ux%u", displayConfiguration.width,
                     displayConfiguration.height);
-            return 1;
+            return image.fromSession ? BootResult::badSession : BootResult::failed;
         }
 
-        SDL_Log("cp-android: booting TG50, RAM %u bytes, LCD %ux%u", ramSize,
-                displayConfiguration.width, displayConfiguration.height);
+        SDL_Log("cp-android: booting TG50 (%s), RAM %u bytes, LCD %ux%u",
+                image.fromSession ? "session" : "cold", ramSize, displayConfiguration.width,
+                displayConfiguration.height);
 
-        // The ROM buffer stays alive until the process ends; the SoC keeps pointers into it.
+        // The NOR buffer stays alive until the process ends; the SoC keeps pointers into it.
         // The SoC is not deleted, as in native/main.cpp: the :emu process ends after SDL_main.
-        SoC* soc = new SocPXA(deviceType, ramSize, nor.data(), nor.size(), nullptr, 0, -1,
-                              deviceGetSocRev());
+        SoC* soc = new SocPXA(deviceType, ramSize, image.nor.data(), image.nor.size(), nullptr, 0,
+                              -1, deviceGetSocRev());
+
+        // Session state, as native/main.cpp after readSession().
+        if (image.fromSession) {
+            if (image.memory.size() > soc->GetMemoryData().size) {
+                SDL_Log("cp-android: session RAM size mismatch");
+                return BootResult::badSession;
+            }
+            memcpy(soc->GetMemoryData().data, image.memory.data(), image.memory.size());
+
+            // Unlike native/main.cpp (which continues from the initial state), a failed restore
+            // is a bad session: continuing would save a fresh state over it.
+            if (!soc->Load(image.savestate.size(), image.savestate.data())) {
+                SDL_Log("cp-android: failed to restore savestate");
+                return BootResult::badSession;
+            }
+        }
 
         AudioQueue* audioQueue = audioQueueCreate(AUDIO_QUEUE_SIZE);
         soc->SetAudioQueue(audioQueue);
@@ -302,7 +371,7 @@ namespace {
                                               AndroidButtons::kHeight, SDL_WINDOW_ALLOW_HIGHDPI);
         if (!window) {
             SDL_Log("cp-android: window failed: %s", SDL_GetError());
-            return 1;
+            return BootResult::failed;
         }
 
         auto sdlRenderer =
@@ -311,7 +380,7 @@ namespace {
         if (!renderer || SDL_RenderSetLogicalSize(renderer, AndroidButtons::kWidth,
                                                   AndroidButtons::kHeight) != 0) {
             SDL_Log("cp-android: renderer setup failed: %s", SDL_GetError());
-            return 1;
+            return BootResult::failed;
         }
 
         int windowW, windowH, outputW, outputH;
@@ -337,8 +406,32 @@ namespace {
         audioDriver.Start();
 
         uint64_t lastSpeedDump = timestampUsec();
+        bool background = false;
 
         while (true) {
+            // In the background: save once with the CPU stopped, then only handle events.
+            if (inBackground) {
+                if (!background) {
+                    background = true;
+                    SDL_Log("cp-android: background");
+                    if (!sessionPath.empty()) SaveSession(soc, sessionPath);
+                }
+
+                buttons.PushKeyEvents();
+                sdlEventHandler.HandleEvents();
+                if (sdlEventHandler.QuitRequested()) break;
+
+                SDL_Delay(50);
+                continue;
+            }
+
+            bool forceRedraw = false;
+            if (background) {
+                background = false;
+                forceRedraw = true;
+                SDL_Log("cp-android: foreground");
+            }
+
             const uint64_t now = timestampUsec();
 
             soc->SetPcmSuspended(audioDriver.GetAudioBackpressure());
@@ -348,7 +441,7 @@ namespace {
             // Button presses become SDL key events, handled by HandleEvents() below.
             const bool buttonsChanged = buttons.PushKeyEvents();
 
-            sdlRenderer->Draw(sdlEventHandler.RedrawRequested() || buttonsChanged);
+            sdlRenderer->Draw(sdlEventHandler.RedrawRequested() || buttonsChanged || forceRedraw);
             sdlEventHandler.ClearRedrawRequested();
 
             sdlEventHandler.HandleEvents();
@@ -373,18 +466,28 @@ namespace {
         sdlRenderer->SetBeforePresent(nullptr);
         audioDriver.Pause();
 
-        return 0;
+        // Quit (back, or the activity finishing): save with the CPU stopped.
+        if (!sessionPath.empty()) SaveSession(soc, sessionPath);
+
+        return BootResult::ok;
     }
 }  // namespace
 
+// Arguments (EmulatorActivity): [ROM path or ""] [session path]. A usable TG50 session is
+// resumed (no ROM needed); an unusable one is moved to <session>.bad and the ROM, else the
+// session's own NOR, is booted cold. Without a TG50 ROM or session: the test screen.
 int main(int argc, char* argv[]) {
     redirectOutputToLogcat();
     SDL_Log("cp-android: start, %d argument(s)", argc - 1);
+
+    // Must be set before SDL_Init (read when the Android video driver starts).
+    SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) < 0) {
         SDL_Log("cp-android: SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
+    SDL_AddEventWatch(watchLifecycle, nullptr);
 
     SDL_version sdlVersion;
     SDL_GetVersion(&sdlVersion);
@@ -394,10 +497,51 @@ int main(int argc, char* argv[]) {
             sdlVersion.minor, sdlVersion.patch, imgVersion->major, imgVersion->minor,
             imgVersion->patch, (imgFlags & IMG_INIT_PNG) ? "ok" : "unavailable");
 
-    std::vector<uint8_t> rom;
-    const RomState romState = (argc > 1 && argv[1][0]) ? readRom(argv[1], rom) : RomState::none;
+    const char* romPath = argc > 1 && argv[1][0] ? argv[1] : nullptr;
+    std::string sessionPath = argc > 2 ? argv[2] : "";
 
-    const int result = romState == RomState::tg50 ? bootTg50(rom) : runTestScreen(romState);
+    Tg50Image image;
+    RomState romState = RomState::none;
+
+    if (!sessionPath.empty()) {
+        switch (LoadSession(sessionPath, image)) {
+            case SessionLoad::loaded:
+                romState = RomState::tg50;
+                break;
+
+            case SessionLoad::keptBad:
+                sessionPath.clear();  // never save over a session that could not be moved
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (romState != RomState::tg50 && romPath) {
+        romState = readRom(romPath, image.nor);
+        image.ColdBoot();
+    }
+
+    int result;
+    if (romState == RomState::tg50) {
+        BootResult boot = bootTg50(image, sessionPath);
+
+        if (boot == BootResult::badSession) {
+            // The session state is unusable: keep the file aside, boot its NOR (or the ROM) cold.
+            if (!QuarantineSession(sessionPath)) sessionPath.clear();
+            if (romPath) {
+                image.nor.clear();
+                if (readRom(romPath, image.nor) != RomState::tg50) image.nor.clear();
+            }
+            image.ColdBoot();
+            boot = image.nor.empty() ? BootResult::failed : bootTg50(image, sessionPath);
+        }
+
+        result = boot == BootResult::ok ? 0 : 1;
+    } else {
+        result = runTestScreen(romState);
+    }
 
     SDL_Log("cp-android: exit %d", result);
     IMG_Quit();

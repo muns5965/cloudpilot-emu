@@ -1,6 +1,7 @@
 package io.github.muns5965.cloudpilot;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -16,11 +17,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DateFormat;
+import java.util.Date;
 
 /**
- * Start screen (stage 2-B test build): pick a ROM with the system file picker, copy it to app
- * storage, and start the emulator with it (a TG50 ROM boots; anything else shows the SDL test
- * screen) or the test screen without a ROM.
+ * Start screen (test build): pick a ROM with the system file picker, copy it to app storage, and
+ * start the emulator. A saved TG50 session (files/tg50.ses, written by the emulator when it goes
+ * to the background or quits) is resumed; without one a TG50 ROM boots cold. Anything else shows
+ * the SDL test screen.
  */
 public class MainActivity extends Activity {
     private static final String TAG = "cp-android";
@@ -28,10 +32,15 @@ public class MainActivity extends Activity {
     private static final long MAX_ROM_SIZE = 64L * 1024 * 1024;
 
     private TextView status;
-    private Button runWithRom;
+    private Button run;
+    private Button deleteSession;
 
     private File romFile() {
         return new File(getFilesDir(), "rom.bin");
+    }
+
+    private File sessionFile() {
+        return new File(getFilesDir(), "tg50.ses");
     }
 
     @Override
@@ -57,7 +66,7 @@ public class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("CloudpilotEmu Android 시험 빌드 (2-C)\nTG50 ROM만 부팅합니다. 실행할 때마다 처음부터 부팅하며 저장되지 않습니다.");
+        title.setText("CloudpilotEmu Android 시험 빌드 (2-E)\nTG50 ROM만 부팅합니다. 백그라운드로 가거나 종료할 때 세션을 저장하고, 다음 실행 때 이어서 시작합니다.");
         title.setTextSize(18);
         layout.addView(title);
 
@@ -75,32 +84,64 @@ public class MainActivity extends Activity {
         });
         layout.addView(pick);
 
-        Button runTest = new Button(this);
-        runTest.setText("SDL 시험 화면 (ROM 없이)");
-        runTest.setOnClickListener(v -> startEmulator(null));
-        layout.addView(runTest);
+        run = new Button(this);
+        run.setText("실행 (세션이 있으면 이어서, 없으면 ROM 부팅)");
+        run.setOnClickListener(v -> startEmulator(true));
+        layout.addView(run);
 
-        runWithRom = new Button(this);
-        runWithRom.setText("선택한 ROM 실행 (TG50이면 부팅)");
-        runWithRom.setOnClickListener(v -> startEmulator(romFile().getAbsolutePath()));
-        layout.addView(runWithRom);
+        deleteSession = new Button(this);
+        deleteSession.setText("저장된 세션 지우기");
+        deleteSession.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setMessage("저장된 세션(Palm 데이터·설정·설치한 프로그램)을 지웁니다. 다음 실행은 ROM으로 처음부터 부팅합니다.")
+                .setPositiveButton("지우기", (d, w) -> {
+                    boolean deleted = sessionFile().delete();
+                    updateStatus(deleted ? "세션을 지웠습니다" : "세션을 지우지 못했습니다");
+                })
+                .setNegativeButton("취소", null)
+                .show());
+        layout.addView(deleteSession);
+
+        Button runTest = new Button(this);
+        runTest.setText("SDL 시험 화면 (ROM·세션 없이)");
+        runTest.setOnClickListener(v -> startEmulator(false));
+        layout.addView(runTest);
 
         setContentView(layout);
         updateStatus(null);
     }
 
-    private void startEmulator(String romPath) {
+    private void startEmulator(boolean emulate) {
         Intent intent = new Intent(this, EmulatorActivity.class);
-        if (romPath != null) intent.putExtra(EmulatorActivity.EXTRA_ROM, romPath);
+        if (emulate) {
+            intent.putExtra(EmulatorActivity.EXTRA_ROM, romFile().isFile() ? romFile().getAbsolutePath() : "");
+            intent.putExtra(EmulatorActivity.EXTRA_SESSION, sessionFile().getAbsolutePath());
+        }
         startActivity(intent);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateStatus(null);  // the emulator may have saved or moved the session
     }
 
     private void updateStatus(String message) {
         File rom = romFile();
-        String text = rom.isFile() ? "저장된 ROM: " + rom.length() + " 바이트" : "저장된 ROM 없음";
-        if (message != null) text = message + "\n" + text;
+        File session = sessionFile();
+        File bad = new File(session.getPath() + ".bad");
+        DateFormat format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
+
+        StringBuilder text = new StringBuilder();
+        if (message != null) text.append(message).append("\n");
+        text.append(rom.isFile() ? "저장된 ROM: " + rom.length() + " 바이트" : "저장된 ROM 없음");
+        text.append("\n").append(session.isFile()
+                ? "저장된 세션: " + session.length() + " 바이트, " + format.format(new Date(session.lastModified()))
+                : "저장된 세션 없음");
+        if (bad.isFile()) text.append("\n손상된 세션을 tg50.ses.bad로 옮겨 두었습니다 (새로 부팅했습니다)");
+
         status.setText(text);
-        runWithRom.setEnabled(rom.isFile());
+        run.setEnabled(rom.isFile() || session.isFile());
+        deleteSession.setEnabled(session.isFile());
     }
 
     @Override
