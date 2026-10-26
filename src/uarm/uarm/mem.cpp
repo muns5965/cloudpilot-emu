@@ -94,7 +94,8 @@ bool memRegionAddRom(struct ArmMem *mem, uint32_t pa, uint32_t sz, ArmMemAccessF
 
 template <int size, bool write>
 bool memAccess(struct ArmMem *mem, uint32_t addr, void *buf) {
-    const uint32_t ub = addr + size;
+    // 64 bit: addr + size would wrap to 0 at the top of the address space and match any region.
+    const uint64_t ub = static_cast<uint64_t>(addr) + size;
 
     if (mem->regions[REGION_RAM].pa <= addr && mem->regions[REGION_RAM].ub >= ub) {
         return ramAccessF<size, write>(mem->regions[REGION_RAM].uD, addr, buf);
@@ -129,7 +130,7 @@ DECLARE_MEM_ACCESS_SIZE(32)
 DECLARE_MEM_ACCESS_SIZE(64)
 
 bool memAccess(struct ArmMem *mem, uint32_t addr, uint_fast8_t size, bool write, void *buf) {
-    const uint32_t ub = addr + size;
+    const uint64_t ub = static_cast<uint64_t>(addr) + size;
 
     if (mem->regions[REGION_RAM].pa <= addr && mem->regions[REGION_RAM].ub >= ub) {
         return ramAccessF(mem->regions[REGION_RAM].uD, addr, size, write, buf);
@@ -153,7 +154,7 @@ bool memAccess(struct ArmMem *mem, uint32_t addr, uint_fast8_t size, bool write,
 
 template <int size>
 bool memInstructionFetch(struct ArmMem *mem, uint32_t addr, void *buf) {
-    const uint32_t ub = addr + size;
+    const uint64_t ub = static_cast<uint64_t>(addr) + size;
 
     if (mem->regions[REGION_RAM].pa <= addr && mem->regions[REGION_RAM].ub >= ub)
         return ramAccessF<size, false>(mem->regions[REGION_RAM].uD, addr, buf);

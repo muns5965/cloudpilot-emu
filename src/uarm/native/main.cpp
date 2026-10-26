@@ -30,6 +30,7 @@
 #include "device.h"
 #include "device_configuration.h"
 #include "device_type5.h"
+#include "gdbstub.h"
 #include "md5.h"
 #include "rom_info5.h"
 #include "sdcard.h"
@@ -417,6 +418,7 @@ namespace {
 
             sdlEventHandler.HandleEvents();
             if (sdlEventHandler.QuitRequested()) break;
+            if (gdbStubQuitRequested()) break;  // "k" from the debugger (GDB stub builds)
 
             if (now - lastSpeedDump > 1000000) {
                 const uint64_t currentIps = mainLoop.GetCurrentIps();

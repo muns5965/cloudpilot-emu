@@ -9,8 +9,7 @@
     #include <sys/socket.h>
     #include <sys/time.h>
     #include <sys/types.h>
-
-    #include <unicstd>
+    #include <unistd.h>
 
 #endif
 #include <cerrno>
@@ -62,6 +61,16 @@ struct stub {
 };
 
 #ifdef GDB_STUB_ENABLED
+static bool quitRequested = false;  // "k" from the debugger: the host app should quit
+
+// End the debugging session (detach, kill or a lost connection) and keep emulating without it.
+static void gdbStubPrvEndSession(struct stub *stub, const char *why) {
+    fprintf(stderr, "debugger session ended (%s)\n", why);
+    close(stub->sock);
+    stub->sock = -1;
+    stub->runState = RunstateRunning;
+}
+
 static void gdbStubPrvSendBytes(struct stub *stub, const char *data, unsigned len) {
     ssize_t ret;
 
@@ -97,7 +106,7 @@ static void gdbStubPrvSendPacket(struct stub *stub, const char *packet, bool inc
     gdbStubPrvSendBytes(stub, end, 3);
 }
 
-static void gdbStubPrvGetPacket(struct stub *stub) {
+static bool gdbStubPrvGetPacket(struct stub *stub) {  // false: the session ended
     bool inEsc = false, first = true;
     int ret, endLeft = 0;
     char c;
@@ -105,12 +114,15 @@ static void gdbStubPrvGetPacket(struct stub *stub) {
     stub->pktBufUsed = 0;
     do {
         ret = recv(stub->sock, &c, 1, 0);
-        if (ret == 0) ERR("debugger connection was closed\n");
+        if (ret == 0) {
+            gdbStubPrvEndSession(stub, "connection closed");
+            return false;
+        }
         if (ret == -1) {
-            if (errno == EINTR)
-                continue;
-            else
-                ERR("debugger RX error %d\n", errno);
+            if (errno == EINTR) continue;
+
+            gdbStubPrvEndSession(stub, "receive error");
+            return false;
         }
 
         if (first) {
@@ -146,6 +158,7 @@ static void gdbStubPrvGetPacket(struct stub *stub) {
     } while (c);
 
     fprintf(stderr, "RX: <<%s>>\n", stub->pktBuf);
+    return true;
 }
 
 static uint32_t gdbStubPrvHtoi(const char **cP) {
@@ -383,8 +396,16 @@ static bool gdbStubPrvInterpPacket(struct stub *stub)  // return true if we prep
         strcpy(out, stub->stopReason);
 
     else if (!strcmp(in, "D")) {
-        fprintf(stderr, "debugger detached\n");
-        exit(0);
+        gdbStubPrvSendPacket(stub, "OK", true);
+        gdbStubPrvEndSession(stub, "detached");
+        return false;
+    }
+
+    else if (!strcmp(in, "k")) {  // kill: end the session and quit through the normal exit path
+        gdbStubPrvSendAck(stub);
+        quitRequested = true;
+        gdbStubPrvEndSession(stub, "kill");
+        return false;
     }
 
     else if (in[0] == 'Z' || in[0] == 'z') {
@@ -517,7 +538,7 @@ static bool gdbStubPrvInterpPacket(struct stub *stub)  // return true if we prep
 
 static void gdbStubPrvGetAndHandleCommands(struct stub *stub) {
     while (stub->runState == RunStateStopped) {
-        gdbStubPrvGetPacket(stub);
+        if (!gdbStubPrvGetPacket(stub)) return;
 
         if (gdbStubPrvInterpPacket(stub)) gdbStubPrvSendPacket(stub, stub->pktBuf, true);
     }
@@ -571,7 +592,10 @@ static bool gdbStubPrvCheckInterrupt(struct stub *stub) {
     if (ret == 0) return false;
 
     ret = recv(stub->sock, &c, 1, 0);
-    if (ret != 1) ERR("failed to receive one byte: %d %d\n", ret, errno);
+    if (ret != 1) {
+        gdbStubPrvEndSession(stub, ret == 0 ? "connection closed" : "receive error");
+        return false;
+    }
 
     if (c != 3) ERR("RXed byte ('%c' 0x%02x) is not interrupt when only that is possible\n", c, c);
 
@@ -636,6 +660,8 @@ void gdbStubReportMemAccess(struct stub *stub, uint32_t addr, uint_fast8_t sz, b
 }
 
 bool gdbStubEnabled(struct stub *stub) { return stub->sock >= 0; }
+
+bool gdbStubQuitRequested() { return quitRequested; }
 #endif
 
 struct stub *gdbStubInit(struct ArmCpu *cpu, int port) {
@@ -650,16 +676,19 @@ struct stub *gdbStubInit(struct ArmCpu *cpu, int port) {
 
 #ifdef GDB_STUB_ENABLED
     if (port >= 0) {
-        struct sockaddr_in sa = {
-            .sin_family = AF_INET,
-            .sin_port = htons(port),
-        };
+        struct sockaddr_in sa = {};
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(port);
         socklen_t sl = sizeof(sa);
+        const int reuse = 1;
 
         inet_aton("0.0.0.0", (struct in_addr *)&sa.sin_addr.s_addr);
 
         sock = socket(PF_INET, SOCK_STREAM, 0);
         if (sock == -1) ERR("gdb socket creation fails: %d", errno);
+
+        // allow a restart on the same port while the previous connection is in TIME_WAIT
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 
         do {
             ret = bind(sock, (struct sockaddr *)&sa, sizeof(sa));
