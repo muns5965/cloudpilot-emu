@@ -65,11 +65,12 @@ jobs:
           grep -A15 'What went wrong' gradle.log 2>/dev/null | note gradle-error || true
           grep -E 'OS 5 core:' -r android/app/.cxx 2>/dev/null | head -2 | note cmake || true
 
+      # Files this workflow produces and uploads (the APK's own entries are checked in Check APK).
       - name: Check for ROM files
         if: always()
         run: |
-          if find . -path ./android/deps -prune -o -path ./.git -prune -o -type f \
-               \( -iname '*.rom' -o -iname '*.nor' -o -iname '*.img' -o -iname '*.ses' \) -print | grep .; then exit 1; fi
+          if find apkcheck android/app/build/outputs -type f \
+               \( -iname '*.rom' -o -iname '*.nor' -o -iname '*.img' -o -iname '*.ses' \) -print 2>/dev/null | grep .; then exit 1; fi
 
       - uses: actions/upload-artifact@v4
         if: always()
