@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <cstdint>
+#include <string>
 
 #include "Rotation.h"
 #include "SoC.h"
@@ -16,6 +17,11 @@ class SdlRenderer {
     ~SdlRenderer();
 
     void Draw(bool forceRedraw);
+
+    // Saves the device screen as last drawn (device orientation and size, before the window
+    // rotation and scale) to a PNG file. With the LCD off the saved screen is white, as in the
+    // window. Changes no emulator state. Returns false and sets error on failure.
+    bool SaveScreenshot(const char* path, bool& lcdOn, std::string& error);
 
    private:
     void DrawSilkscreen();

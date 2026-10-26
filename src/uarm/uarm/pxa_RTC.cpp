@@ -144,6 +144,13 @@ bool pxaRtcAlarmDue(struct PxaRtc *rtc, uint32_t leadSeconds) {
            palmEpochSeconds() + leadSeconds >= rtc->RTAR;
 }
 
+void pxaRtcGetAlarmState(const struct PxaRtc *rtc, uint32_t *rtar, uint8_t *rtsr,
+                         uint64_t *lastAlarmCheck) {
+    *rtar = rtc->RTAR;
+    *rtsr = rtc->RTSR;
+    *lastAlarmCheck = rtc->lastAlarmCheck;
+}
+
 void pxaRtcTick(struct PxaRtc *rtc, bool checkAlarm) {
     if (checkAlarm) pxaRtcPrvUpdateAlarm(rtc);
     pxaRtcTickHz(rtc);

@@ -44,6 +44,7 @@
 #include "rom_info5.h"
 #include "sony_tg50_hardware.h"
 #include "syscall_dispatch.h"
+#include "timeutil.h"
 
 #define SAVESTATE_VERSION 2
 
@@ -260,6 +261,17 @@ namespace {
     // The power-key wake takes about a second; wake this long before an RTC alarm.
     constexpr uint32_t RTC_ALARM_WAKE_LEAD_SECONDS = 3;
 }  // namespace
+
+bool SocPXA::GetRtcAlarmStatus(RtcAlarmStatus &status) const {
+    status.rtcNow = palmEpochSeconds();
+    pxaRtcGetAlarmState(rtc, &status.alarm, &status.status, &status.lastCheck);
+    // pxaRtcAlarmDue() only reads the RTC state.
+    status.wakeDue = pxaRtcAlarmDue(rtc, RTC_ALARM_WAKE_LEAD_SECONDS);
+
+    return true;
+}
+
+int SocPXA::GetAlarmWakeRequested() const { return rtcAlarmWakeRequested ? 1 : 0; }
 
 uint32_t SocPXA::DispatchTicks(uint32_t clientType, uint32_t batchedTicks) {
     switch (clientType) {

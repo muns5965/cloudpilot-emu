@@ -1,7 +1,12 @@
 #include "SdlRenderer.h"
 
+#include <sys/stat.h>
+
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <vector>
 
 #include "SDL_image.h"
 #include "SDL_render.h"
@@ -172,6 +177,61 @@ void SdlRenderer::Draw(bool forceRedraw) {
     SDL_RenderPresent(renderer);
 
     soc->ResetPendingFrame();
+}
+
+bool SdlRenderer::SaveScreenshot(const char* path, bool& lcdOn, std::string& error) {
+    const int width = displayConfiguration.width, height = displayConfiguration.height;
+    lcdOn = frameTextureValid && lcdEnabled;
+
+    SDL_Surface* surface =
+        SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_ABGR8888);
+    if (!surface) {
+        error = SDL_GetError();
+        return false;
+    }
+
+    if (lcdOn) {
+        SDL_SetRenderTarget(renderer, frameTexture);
+        const int result = SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_ABGR8888,
+                                                surface->pixels, surface->pitch);
+        SDL_SetRenderTarget(renderer, nullptr);
+
+        if (result != 0) {
+            error = SDL_GetError();
+            SDL_FreeSurface(surface);
+            return false;
+        }
+    } else {
+        SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 0xff, 0xff, 0xff));
+    }
+
+    // Encode in memory, then write the file with checked fwrite/fclose: IMG_SavePNG() reports
+    // success even when the file write fails (e.g. a full disk).
+    std::vector<uint8_t> png(static_cast<size_t>(width) * height * 4 * 2 + 65536);
+    SDL_RWops* rw = SDL_RWFromMem(png.data(), static_cast<int>(png.size()));
+    const bool encoded = rw && IMG_SavePNG_RW(surface, rw, 0) == 0;
+    const Sint64 pngSize = rw ? SDL_RWtell(rw) : -1;
+    if (rw) SDL_RWclose(rw);
+    SDL_FreeSurface(surface);
+
+    if (!encoded || pngSize <= 0) {
+        error = std::string("PNG encoding failed: ") + SDL_GetError();
+        return false;
+    }
+
+    FILE* file = fopen(path, "wb");
+    bool saved = file && fwrite(png.data(), 1, pngSize, file) == static_cast<size_t>(pngSize);
+    if (file && fclose(file) != 0) saved = false;
+
+    if (!saved) {
+        error = std::string("cannot write ") + path + ": " + strerror(errno);
+
+        // No partly written file is left behind (regular files only, never e.g. a device node).
+        struct stat st;
+        if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) std::remove(path);
+    }
+
+    return saved;
 }
 
 void SdlRenderer::DrawSilkscreen() {

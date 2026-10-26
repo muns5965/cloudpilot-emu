@@ -393,7 +393,15 @@ namespace {
         commands::Register();
         cli::Start(options.script);
         commands::Context commandContext{
-            .soc = soc, .mainLoop = mainLoop, .audioDriver = audioDriver, .rotation = rotation};
+            .soc = soc,
+            .mainLoop = mainLoop,
+            .audioDriver = audioDriver,
+            .rotation = rotation,
+            .screenWidth = static_cast<int>(displayConfiguration.width),
+            .screenHeight = static_cast<int>(displayConfiguration.height),
+            .screenshot = [&sdlRenderer](const string& path, bool& lcdOn, string& error) {
+                return sdlRenderer->SaveScreenshot(path.c_str(), lcdOn, error);
+            }};
 
         uint64_t lastSpeedDump = timestampUsec();
 
@@ -429,6 +437,7 @@ namespace {
                 mainLoop.GetTimesliceSizeUsec() - static_cast<int64_t>(timestampUsec() - now);
 
             if (cli::Execute(&commandContext)) break;
+            commands::ProcessScheduledInput(commandContext, timestampUsec());
 
             if (commandContext.rotation != rotation) {
                 rotation = commandContext.rotation;
@@ -446,6 +455,7 @@ namespace {
             if (timesliceRemaining > 10) usleep(timesliceRemaining);
         }
 
+        commands::ReleaseAllInput(commandContext, "exit");
         audioDriver.Pause();
         cli::Stop();
 

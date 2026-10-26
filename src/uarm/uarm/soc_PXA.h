@@ -50,6 +50,8 @@ class SocPXA : public SocGeneric<SocPXA> {
     DisplayMode GetDisplayMode() override;
     void SuspendTimerInterrupts(bool suspendInterrupts) override;
     bool LcdEnabled() override;
+    bool GetRtcAlarmStatus(RtcAlarmStatus &status) const override;
+    int GetAlarmWakeRequested() const override;
 
     uint32_t DispatchTicks(uint32_t clientType, uint32_t batchedTicks);
 

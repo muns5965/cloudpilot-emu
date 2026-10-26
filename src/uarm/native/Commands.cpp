@@ -14,6 +14,7 @@
 #include "FileUtil.h"
 #include "SoC.h"
 #include "app_launcher.h"
+#include "cputil.h"
 #include "db_backup.h"
 #include "db_installer.h"
 #include "db_list.h"
@@ -21,6 +22,7 @@
 #include "sdcard.h"
 #include "session/session_file5.h"
 #include "syscall_dispatch.h"
+#include "timeutil.h"
 
 using namespace std;
 
@@ -105,22 +107,37 @@ namespace {
         ctx->soc->SdInsert();
     }
 
+    // Refuse a reset while a time-skip offset is active (the device would boot on the moved clock).
+    bool RefuseResetWithTimeSkip(const char* name) {
+        if (palmEpochTestOffset() == 0) return false;
+
+        cout << name << " error time-skip offset active (" << palmEpochTestOffset()
+             << " s); restart the emulator" << endl;
+        return true;
+    }
+
     void CmdReset(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->Reset();
     }
 
     void CmdResetNoExtensions(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset-no-ext")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->JamKey(keyIdUp, 2000);
         ctx->soc->Reset();
     }
 
     void CmdResetHard(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset-hard")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
+        commands::ReleaseAllInput(*ctx, "reset");
         ctx->soc->JamKey(keyIdPower, 2000);
         ctx->soc->Reset();
     }
@@ -133,6 +150,14 @@ namespace {
 
     void CmdSaveSession(vector<string> args, cli::CommandEnvironment& env, void* context) {
         if (args.size() != 1 && args.size() != 2) return env.PrintUsage();
+
+        // The saved RTC state is absolute time: with a time-skip offset it would be read back with
+        // the clock running behind it.
+        if (palmEpochTestOffset() != 0) {
+            cout << "save-session error time-skip offset active (" << palmEpochTestOffset()
+                 << " s); restart the emulator to save" << endl;
+            return;
+        }
 
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
@@ -402,6 +427,223 @@ namespace {
         launchAppByName(sd, args[0].c_str());
     }
 
+    // One line each, "key=value" fields, for test scripts. Read-only: no emulator state changes.
+    void CmdRtc(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 0) return env.PrintUsage();
+
+        SoC::RtcAlarmStatus s;
+        if (!static_cast<commands::Context*>(context)->soc->GetRtcAlarmStatus(s)) {
+            cout << "rtc n/a" << endl;
+            return;
+        }
+
+        cout << "rtc rtcNow=" << s.rtcNow << " timeSkip=" << palmEpochTestOffset()
+             << " RTAR=" << s.alarm << " RTSR=" << static_cast<unsigned>(s.status)
+             << " AL=" << (s.status & 1) << " ALE=" << ((s.status >> 2) & 1)
+             << " lastCheck=" << s.lastCheck << " due=" << s.wakeDue << endl;
+    }
+
+    void CmdSleepState(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 0) return env.PrintUsage();
+
+        const SoC* soc = static_cast<commands::Context*>(context)->soc;
+        const int wakeRequested = soc->GetAlarmWakeRequested();
+
+        cout << "sleep-state deep=" << soc->IsInDeepSleep() << " cpuIdle=" << soc->IsCpuIdle()
+             << " wakeRequested=" << (wakeRequested < 0 ? string("n/a") : to_string(wakeRequested))
+             << endl;
+    }
+
+    // "tap" and "key": press through the same SoC calls as the SDL input (PenDown/PenUp,
+    // KeyDown/KeyUp) and release after a hold time, from the main loop (non-blocking).
+    // "ok" means the press was handed to the SoC, "released" that PenUp()/KeyUp() was called;
+    // neither says that the device or the app reacted.
+    struct HeldInput {
+        bool pen;
+        KeyId key;
+        uint64_t releaseAtUsec;
+    };
+
+    vector<HeldInput> heldInputs;
+
+    const char* const KEY_NAMES[] = {
+        nullptr,  "hard1",   "hard2",    "hard3",     "hard4",         "up",       "down",
+        "left",   "right",   "select",   "power",     "kbdA",          "kbdB",     "kbdC",
+        "kbdD",   "kbdE",    "kbdF",     "kbdG",      "kbdH",          "kbdI",     "kbdJ",
+        "kbdK",   "kbdL",    "kbdM",     "kbdN",      "kbdO",          "kbdP",     "kbdQ",
+        "kbdR",   "kbdS",    "kbdT",     "kbdU",      "kbdV",          "kbdW",     "kbdX",
+        "kbdY",   "kbdZ",    "kbdSpace", "kbdEnter",  "kbdBackspace",  "kbdShift", "kbdCtrl",
+        "kbdTab", "kbdCaps", "kbdComma", "kbdPeriod", "kbdUnderscore", "kbdBlue",  "kbdRed",
+        "home",   "pageUp",  "pageDown", "jogBack",   "voice",         "graffiti"};
+    static_assert(sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]) == keyIdGraffiti + 1,
+                  "KEY_NAMES must follow enum KeyId");
+
+    string lower(const string& s) {
+        string r(s);
+        for (auto& c : r) c = tolower(static_cast<unsigned char>(c));
+        return r;
+    }
+
+    KeyId keyFromName(const string& name) {
+        for (size_t i = 1; i < sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]); i++)
+            if (lower(name) == lower(KEY_NAMES[i])) return static_cast<KeyId>(i);
+
+        return keyInvalid;
+    }
+
+    bool parseUint(const string& arg, uint32_t& value) {
+        // istream reads "-N" into an unsigned type as its wrapped value; a valid argument
+        // never contains a minus sign.
+        if (arg.find('-') != string::npos) return false;
+
+        istringstream s(arg);
+        s >> value;
+
+        return !s.fail() && s.eof();
+    }
+
+    bool parseHoldMs(const vector<string>& args, size_t index, uint32_t defaultMs, uint32_t& ms) {
+        ms = defaultMs;
+        if (args.size() <= index) return true;
+
+        return parseUint(args[index], ms) && ms >= 1 && ms <= 60000;
+    }
+
+    bool isHeld(bool pen, KeyId key) {
+        for (auto& held : heldInputs)
+            if (held.pen == pen && (pen || held.key == key)) return true;
+
+        return false;
+    }
+
+    void CmdTap(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() < 2 || args.size() > 3) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        uint32_t x, y, ms;
+        if (!parseUint(args[0], x) || !parseUint(args[1], y) || !parseHoldMs(args, 2, 250, ms)) {
+            cout << "tap error invalid-argument" << endl;
+            return;
+        }
+
+        if (static_cast<int>(x) >= ctx->screenWidth || static_cast<int>(y) >= ctx->screenHeight) {
+            cout << "tap error out-of-range screen=" << ctx->screenWidth << "x" << ctx->screenHeight
+                 << endl;
+            return;
+        }
+
+        if (isHeld(true, keyInvalid)) {
+            cout << "tap busy" << endl;
+            return;
+        }
+
+        ctx->soc->PenDown(x, y);
+        heldInputs.push_back(
+            {.pen = true, .key = keyInvalid, .releaseAtUsec = timestampUsec() + ms * 1000ull});
+
+        cout << "tap ok x=" << x << " y=" << y << " release_in=" << ms << endl;
+    }
+
+    void CmdKey(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() < 1 || args.size() > 2) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        const KeyId key = keyFromName(args[0]);
+        uint32_t ms;
+        if (key == keyInvalid) {
+            cout << "key error unknown-key " << args[0] << endl;
+            return;
+        }
+        if (!parseHoldMs(args, 1, 200, ms)) {
+            cout << "key error invalid-argument" << endl;
+            return;
+        }
+
+        if (isHeld(false, key)) {
+            cout << "key busy " << KEY_NAMES[key] << endl;
+            return;
+        }
+
+        ctx->soc->KeyDown(key);
+        heldInputs.push_back(
+            {.pen = false, .key = key, .releaseAtUsec = timestampUsec() + ms * 1000ull});
+
+        cout << "key ok " << KEY_NAMES[key] << " release_in=" << ms << endl;
+    }
+
+    void release(commands::Context& ctx, const HeldInput& held, const char* reason) {
+        if (held.pen) {
+            ctx.soc->PenUp();
+            cout << "tap released";
+        } else {
+            ctx.soc->KeyUp(held.key);
+            cout << "key " << KEY_NAMES[held.key] << " released";
+        }
+
+        if (reason) cout << " (" << reason << ")";
+        cout << endl;
+    }
+
+    void CmdScreenshot(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 1) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        bool lcdOn = false;
+        string error;
+        if (!ctx->screenshot || !ctx->screenshot(args[0], lcdOn, error)) {
+            cout << "screenshot error " << (error.empty() ? "unavailable" : error) << endl;
+            return;
+        }
+
+        cout << "screenshot ok path=" << args[0] << " size=" << ctx->screenWidth << "x"
+             << ctx->screenHeight << " lcd=" << lcdOn << endl;
+    }
+
+    constexpr uint32_t TIME_SKIP_MAX_SECONDS = 86400;          // per call
+    constexpr uint64_t TIME_SKIP_MAX_TOTAL_SECONDS = 2592000;  // per emulator run (30 days)
+
+    void CmdTimeSkip(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 1) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        uint32_t seconds;
+        if (!parseUint(args[0], seconds) || seconds < 1 || seconds > TIME_SKIP_MAX_SECONDS) {
+            cout << "time-skip error seconds must be 1.." << TIME_SKIP_MAX_SECONDS << endl;
+            return;
+        }
+        if (palmEpochTestOffset() + seconds > TIME_SKIP_MAX_TOTAL_SECONDS) {
+            cout << "time-skip error total offset would exceed " << TIME_SKIP_MAX_TOTAL_SECONDS
+                 << " s (now " << palmEpochTestOffset() << " s)" << endl;
+            return;
+        }
+        if (!ctx->soc->IsInDeepSleep()) {
+            cout << "time-skip error not in deep sleep" << endl;
+            return;
+        }
+
+        const uint64_t before = palmEpochSeconds();
+        if (before + seconds > UINT32_MAX) {
+            cout << "time-skip error RTC would pass 0xFFFFFFFF" << endl;
+            return;
+        }
+
+        const uint64_t prev = palmEpochTestOffset();
+        palmEpochSetTestOffset(prev + seconds);
+        const uint64_t after = palmEpochSeconds();
+
+        // A second may pass between the two readings. On a mismatch (host clock adjusted in
+        // between) restore the offset; the host clock itself is not restored.
+        if (after < before + seconds || after > before + seconds + 2) {
+            palmEpochSetTestOffset(prev);
+            cout << "time-skip error RTC check failed (before=" << before << " after=" << after
+                 << "); offset restored to " << prev << endl;
+            return;
+        }
+
+        cout << "time-skip ok seconds=" << seconds << " offset=" << palmEpochTestOffset()
+             << " rtcNow=" << after << endl;
+    }
+
     const vector<cli::Command> commandList(
         {{.name = "set-mips",
           .usage = "set-mips <mips>",
@@ -454,7 +696,65 @@ namespace {
          {.name = "launch",
           .usage = "launch <name>",
           .description = "Launch app",
-          .cmd = CmdLaunch}});
+          .cmd = CmdLaunch},
+         {.name = "rtc",
+          .description =
+              "Print the RTC alarm state, read-only. rtcNow: RTC time, seconds since 1904, "
+              "host local time. due: result of the alarm-due test of the deep-sleep alarm "
+              "wake (pxaRtcAlarmDue, 3 s early-wake lead). PXA devices only, else n/a.",
+          .cmd = CmdRtc},
+         {.name = "tap",
+          .usage = "tap <x> <y> [ms]",
+          .description = "Pen down at device screen coordinates, pen up after ms (default 250). "
+                         "Prints \"tap ok\" when pressed and \"tap released\" when released.",
+          .cmd = CmdTap},
+         {.name = "key",
+          .usage = "key <name> [ms]",
+          .description =
+              "Press a device key, release after ms (default 200). Names: power, home, "
+              "up, down, left, right, select, hard1-4, kbdA-kbdZ, kbdSpace, kbdEnter, "
+              "kbdBackspace, kbdShift, kbdCtrl, kbdTab, kbdCaps, kbdComma, kbdPeriod, "
+              "kbdUnderscore, kbdBlue, kbdRed, pageUp, pageDown, jogBack, voice, graffiti "
+              "(case-insensitive). Prints \"key ok\" / \"key <name> released\".",
+          .cmd = CmdKey},
+         {.name = "screenshot",
+          .usage = "screenshot <file.png>",
+          .description = "Save the device screen as last drawn to a PNG file: device size and "
+                         "orientation (not rotated or scaled), white with the LCD off (lcd=0).",
+          .cmd = CmdScreenshot},
+         {.name = "time-skip",
+          .usage = "time-skip <seconds>",
+          .description =
+              "Test only: move the RTC forward while the device is in deep sleep "
+              "(1..86400 s per call, 30 days in total, forward only). The emulated CPU "
+              "and OS timers are not advanced; save-session and reset are refused afterwards.",
+          .cmd = CmdTimeSkip},
+         {.name = "sleep-state",
+          .description = "Print the sleep state, read-only. deep: PXA deep sleep (device asleep). "
+                         "cpuIdle: CPU waiting for an interrupt (also while the device is on). "
+                         "wakeRequested: alarm wake power-key press pending (PXA only, else n/a).",
+          .cmd = CmdSleepState}});
 }  // namespace
 
 void commands::Register() { cli::AddCommands(commandList); }
+
+void commands::ProcessScheduledInput(Context& context, uint64_t nowUsec) {
+    for (auto it = heldInputs.begin(); it != heldInputs.end();) {
+        if (it->releaseAtUsec > nowUsec) {
+            it++;
+            continue;
+        }
+
+        const HeldInput held = *it;
+        it = heldInputs.erase(it);
+        release(context, held, nullptr);
+    }
+}
+
+void commands::ReleaseAllInput(Context& context, const char* reason) {
+    // Clear first: no stale scheduled release may later hit a key pressed after the reset.
+    const vector<HeldInput> held(heldInputs);
+    heldInputs.clear();
+
+    for (auto& input : held) release(context, input, reason);
+}
