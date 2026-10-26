@@ -6,6 +6,15 @@
 #define REFRESH_TZ_INTERVAL_SECONDS 10
 #define PALM_EPOCH_OFFSET 2082844800ull
 
+namespace {
+    // Test-only RTC offset ("time-skip" in the native console); always 0 otherwise.
+    uint64_t testOffsetSeconds = 0;
+}  // namespace
+
+uint64_t palmEpochTestOffset() { return testOffsetSeconds; }
+
+void palmEpochSetTestOffset(uint64_t seconds) { testOffsetSeconds = seconds; }
+
 uint64_t palmEpochSeconds() {
     static time_t lastUpdate = 0;
     static long int tzoffset = 0;
@@ -26,5 +35,5 @@ uint64_t palmEpochSeconds() {
         lastUpdate = now;
     }
 
-    return (uint64_t)now + PALM_EPOCH_OFFSET + tzoffset;
+    return (uint64_t)now + PALM_EPOCH_OFFSET + tzoffset + testOffsetSeconds;
 }

@@ -22,6 +22,7 @@
 #include "sdcard.h"
 #include "session/session_file5.h"
 #include "syscall_dispatch.h"
+#include "timeutil.h"
 
 using namespace std;
 
@@ -106,7 +107,17 @@ namespace {
         ctx->soc->SdInsert();
     }
 
+    // Refuse a reset while a time-skip offset is active (the device would boot on the moved clock).
+    bool RefuseResetWithTimeSkip(const char* name) {
+        if (palmEpochTestOffset() == 0) return false;
+
+        cout << name << " error time-skip offset active (" << palmEpochTestOffset()
+             << " s); restart the emulator" << endl;
+        return true;
+    }
+
     void CmdReset(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
         commands::ReleaseAllInput(*ctx, "reset");
@@ -114,6 +125,7 @@ namespace {
     }
 
     void CmdResetNoExtensions(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset-no-ext")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
         commands::ReleaseAllInput(*ctx, "reset");
@@ -122,6 +134,7 @@ namespace {
     }
 
     void CmdResetHard(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (RefuseResetWithTimeSkip("reset-hard")) return;
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
         commands::ReleaseAllInput(*ctx, "reset");
@@ -137,6 +150,14 @@ namespace {
 
     void CmdSaveSession(vector<string> args, cli::CommandEnvironment& env, void* context) {
         if (args.size() != 1 && args.size() != 2) return env.PrintUsage();
+
+        // The saved RTC state is absolute time: with a time-skip offset it would be read back with
+        // the clock running behind it.
+        if (palmEpochTestOffset() != 0) {
+            cout << "save-session error time-skip offset active (" << palmEpochTestOffset()
+                 << " s); restart the emulator to save" << endl;
+            return;
+        }
 
         auto ctx = reinterpret_cast<commands::Context*>(context);
 
@@ -416,10 +437,10 @@ namespace {
             return;
         }
 
-        cout << "rtc rtcNow=" << s.rtcNow << " RTAR=" << s.alarm
-             << " RTSR=" << static_cast<unsigned>(s.status) << " AL=" << (s.status & 1)
-             << " ALE=" << ((s.status >> 2) & 1) << " lastCheck=" << s.lastCheck
-             << " due=" << s.wakeDue << endl;
+        cout << "rtc rtcNow=" << s.rtcNow << " timeSkip=" << palmEpochTestOffset()
+             << " RTAR=" << s.alarm << " RTSR=" << static_cast<unsigned>(s.status)
+             << " AL=" << (s.status & 1) << " ALE=" << ((s.status >> 2) & 1)
+             << " lastCheck=" << s.lastCheck << " due=" << s.wakeDue << endl;
     }
 
     void CmdSleepState(vector<string> args, cli::CommandEnvironment& env, void* context) {
@@ -574,6 +595,51 @@ namespace {
              << ctx->screenHeight << " lcd=" << lcdOn << endl;
     }
 
+    constexpr uint32_t TIME_SKIP_MAX_SECONDS = 86400;          // per call
+    constexpr uint64_t TIME_SKIP_MAX_TOTAL_SECONDS = 2592000;  // per emulator run (30 days)
+
+    void CmdTimeSkip(vector<string> args, cli::CommandEnvironment& env, void* context) {
+        if (args.size() != 1) return env.PrintUsage();
+        auto ctx = static_cast<commands::Context*>(context);
+
+        uint32_t seconds;
+        if (!parseUint(args[0], seconds) || seconds < 1 || seconds > TIME_SKIP_MAX_SECONDS) {
+            cout << "time-skip error seconds must be 1.." << TIME_SKIP_MAX_SECONDS << endl;
+            return;
+        }
+        if (palmEpochTestOffset() + seconds > TIME_SKIP_MAX_TOTAL_SECONDS) {
+            cout << "time-skip error total offset would exceed " << TIME_SKIP_MAX_TOTAL_SECONDS
+                 << " s (now " << palmEpochTestOffset() << " s)" << endl;
+            return;
+        }
+        if (!ctx->soc->IsInDeepSleep()) {
+            cout << "time-skip error not in deep sleep" << endl;
+            return;
+        }
+
+        const uint64_t before = palmEpochSeconds();
+        if (before + seconds > UINT32_MAX) {
+            cout << "time-skip error RTC would pass 0xFFFFFFFF" << endl;
+            return;
+        }
+
+        const uint64_t prev = palmEpochTestOffset();
+        palmEpochSetTestOffset(prev + seconds);
+        const uint64_t after = palmEpochSeconds();
+
+        // A second may pass between the two readings. On a mismatch (host clock adjusted in
+        // between) restore the offset; the host clock itself is not restored.
+        if (after < before + seconds || after > before + seconds + 2) {
+            palmEpochSetTestOffset(prev);
+            cout << "time-skip error RTC check failed (before=" << before << " after=" << after
+                 << "); offset restored to " << prev << endl;
+            return;
+        }
+
+        cout << "time-skip ok seconds=" << seconds << " offset=" << palmEpochTestOffset()
+             << " rtcNow=" << after << endl;
+    }
+
     const vector<cli::Command> commandList(
         {{.name = "set-mips",
           .usage = "set-mips <mips>",
@@ -652,6 +718,13 @@ namespace {
           .description = "Save the device screen as last drawn to a PNG file: device size and "
                          "orientation (not rotated or scaled), white with the LCD off (lcd=0).",
           .cmd = CmdScreenshot},
+         {.name = "time-skip",
+          .usage = "time-skip <seconds>",
+          .description =
+              "Test only: move the RTC forward while the device is in deep sleep "
+              "(1..86400 s per call, 30 days in total, forward only). The emulated CPU "
+              "and OS timers are not advanced; save-session and reset are refused afterwards.",
+          .cmd = CmdTimeSkip},
          {.name = "sleep-state",
           .description = "Print the sleep state, read-only. deep: PXA deep sleep (device asleep). "
                          "cpuIdle: CPU waiting for an interrupt (also while the device is on). "
