@@ -258,6 +258,9 @@ namespace {
 
     CallResult call(MsgRequest& request, size_t extraSize, MsgResponse& response,
                     ReceivedBuffer* received = nullptr) {
+        // Zeroed on every path: callers read the error field also when the call failed.
+        response = MsgResponse_init_zero;
+
         if (!send || openCount == 0) return CallResult::failed;
 
         if (pending.active && (pending.trapWord != currentTrap || pending.sp != currentSp)) {
@@ -302,7 +305,6 @@ namespace {
         const uint32_t id = pending.id;
         pending.active = false;
 
-        response = MsgResponse_init_zero;
         if (received) {
             response.cb_payload.arg = received;
             response.cb_payload.funcs.decode = setupPayloadDecodeCb;
@@ -395,7 +397,7 @@ namespace {
         const CallResult result = call(request, 0, response);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
 
@@ -481,7 +483,7 @@ namespace {
         MsgResponse response;
         const CallResult result = call(request, 0, response);
         if (result == CallResult::pending) return;
-        if (result == CallResult::failed) return fail(netErrInternal);
+        if (result == CallResult::failed) return fail(openCount ? netErrInternal : netErrNotOpen);
 
         const int32_t err = response.payload.socketOptionSetResponse.err;
         putErr(errP, err);
@@ -1053,7 +1055,7 @@ namespace {
         const CallResult result = call(request, 0, response);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
 
@@ -1080,7 +1082,7 @@ namespace {
         const CallResult result = call(request, 0, response);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
 
@@ -1127,7 +1129,7 @@ namespace {
         const CallResult result = call(request, len, response);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
 
@@ -1164,7 +1166,7 @@ namespace {
         const CallResult result = call(request, 0, response, &received);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResult(-1);
         }
 
@@ -1209,7 +1211,7 @@ namespace {
         const CallResult result = call(request, 0, response);
         if (result == CallResult::pending) return;
         if (result == CallResult::failed) {
-            putErr(errP, netErrInternal);
+            putErr(errP, openCount ? netErrInternal : netErrNotOpen);
             return setResultPtr(0);
         }
 

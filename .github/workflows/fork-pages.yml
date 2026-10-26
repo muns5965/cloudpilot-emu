@@ -14,16 +14,16 @@ env:
   NODE_VERSION: 24
   EM_CACHE_FOLDER: emsdk
 permissions:
-  # write: the build is also pushed to the pwa-build branch (for local browser tests)
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 concurrency:
   group: fork-pages
   cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      # write: the build is also pushed to the pwa-build branch (for local browser tests)
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +83,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -75,18 +75,20 @@ namespace {
 
     bool applyNx70vBootRom(const Options& options, uint8_t* nor, size_t norSize) {
         if (!hasPalmCardHeaderAt(nor, norSize, 0x20000)) {
-            cerr << "--nx70v: no Palm OS ROM header at 0x20000" << endl;
+            cerr << "NX70V: no Palm OS ROM header at 0x20000" << endl;
             return false;
         }
 
         if (hasPalmCardHeaderAt(nor, norSize, 0)) {
-            if (options.bootRom) cerr << "--nx70v: ROM already has a boot ROM at 0x0; --boot-rom ignored" << endl;
+            if (options.bootRom)
+                cerr << "NX70V: ROM already has a boot ROM at 0x0; --boot-rom ignored" << endl;
             return true;
         }
 
         if (!options.bootRom) {
-            cerr << "--nx70v: this ROM has no boot ROM at 0x0 (device data instead)." << endl
-                 << "Pass --boot-rom <Sony NOR image>; its first 0x18000 bytes are used in memory only."
+            cerr << "NX70V: this ROM has no boot ROM at 0x0 (device data instead)." << endl
+                 << "Pass --boot-rom <Sony NOR image>; its first 0x18000 bytes are used in memory "
+                    "only."
                  << endl;
             return false;
         }
@@ -181,8 +183,10 @@ namespace {
 
         if (SessionFile5::IsSessionFile(norOrSessionLen, norOrSessionData.get()) &&
             sessionFile.Deserialize(norOrSessionLen, norOrSessionData.get())) {
-            if (options.forceTg50 || options.forceNx70v)
-                cerr << "--tg50/--nx70v ignored: the session file records its device type" << endl;
+            if (options.forceTg50 || options.forceNx70v || options.bootRom)
+                cerr << "--tg50/--nx70v/--boot-rom ignored: the session file records its device "
+                        "and ROM"
+                     << endl;
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
@@ -220,9 +224,15 @@ namespace {
 
             ramSize = 0;
 
-            if ((options.forceNx70v ||
-                 romInfo.GetDeviceType() == DeviceType5::deviceTypeSonyNX70V) &&
-                !applyNx70vBootRom(options, norOrSessionData.get(), norOrSessionLen))
+            // An NX70V ROM is selected with --nx70v or detected from its header; --boot-rom only
+            // applies to it.
+            const bool nx70v =
+                options.forceNx70v || romInfo.GetDeviceType() == DeviceType5::deviceTypeSonyNX70V;
+            if (options.bootRom && !nx70v) {
+                cerr << "--boot-rom is only used for a PEG-NX70V ROM" << endl;
+                return false;
+            }
+            if (nx70v && !applyNx70vBootRom(options, norOrSessionData.get(), norOrSessionLen))
                 return false;
 
             nor.size = norOrSessionLen;
@@ -484,7 +494,9 @@ int main(int argc, char** argv) {
         .implicit_value(true);
 
     program.add_argument("--boot-rom")
-        .help("with --nx70v: Sony NOR image whose boot ROM (0x0-0x17FFF) is used in memory")
+        .help(
+            "PEG-NX70V ROM (--nx70v or detected): Sony NOR image whose boot ROM (0x0-0x17FFF) is "
+            "used in memory")
         .metavar("<NOR file>");
 
     program.add_argument("--nand", "-n").help("NAND rom file").metavar("<nand file>");
@@ -574,10 +586,6 @@ int main(int argc, char** argv) {
 
     if (options.forceTg50 && options.forceNx70v) {
         cerr << "--tg50 and --nx70v are mutually exclusive" << endl;
-        exit(1);
-    }
-    if (options.bootRom && !options.forceNx70v) {
-        cerr << "--boot-rom requires --nx70v" << endl;
         exit(1);
     }
 

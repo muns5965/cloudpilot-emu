@@ -1,5 +1,5 @@
-// Sony PEG-TG50 staged device peripheral assembly.
-// This does not register a DeviceType5 or replace the E2 device factory.
+// Sony PEG-TG50 / PEG-NX70V peripheral assembly, used by deviceSetup() for deviceTypeSonyTG50 and
+// deviceTypeSonyNX70V.
 #ifndef _DEVICE_SONY_TG50_H_
 #define _DEVICE_SONY_TG50_H_
 #include <cstdint>
