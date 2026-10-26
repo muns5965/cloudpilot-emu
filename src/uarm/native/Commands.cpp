@@ -492,6 +492,10 @@ namespace {
     }
 
     bool parseUint(const string& arg, uint32_t& value) {
+        // istream reads "-N" into an unsigned type as its wrapped value; a valid argument
+        // never contains a minus sign.
+        if (arg.find('-') != string::npos) return false;
+
         istringstream s(arg);
         s >> value;
 
