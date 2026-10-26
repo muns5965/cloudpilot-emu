@@ -18,9 +18,11 @@
             </intent-filter>
         </activity>
 
-        <!-- SDLActivity keeps a single static instance, so only one may exist at a time. -->
+        <!-- SDLActivity keeps a single static instance, so only one may exist at a time. Own
+             process: the native core is reinitialised on every start (EmulatorActivity). -->
         <activity
             android:name=".EmulatorActivity"
+            android:process=":emu"
             android:exported="false"
             android:launchMode="singleTask"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"

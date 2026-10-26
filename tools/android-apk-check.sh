@@ -1,5 +1,5 @@
 #!/bin/bash
-# Static checks on the stage 2-A test APK (no device, no ROM): manifest SDK levels, ABI, native
+# Static checks on the Android test APK (no device, no ROM): manifest SDK levels, ABI, native
 # libraries stored uncompressed and 16 KiB aligned (ZIP and ELF), core entry points in libmain.so,
 # memfd_create binding, no ROM-like files.
 #
@@ -83,7 +83,8 @@ done
 # Core entry points linked into libmain.so
 "$TC/llvm-nm" -DC --defined-only "$WORK/lib/libmain.so" > "$WORK/exports.txt"
 for s in 'SDL_main' 'deviceSetup(' 'cpuInit(' 'MainLoop::Cycle(' 'sonyTG50Touch(' 'ad7873PenInput(' \
-         'palmEpochSeconds(' 'SessionFile5::Deserialize(' 'tg50ucInit(' 'RomInfo5::RomInfo5('; do
+         'palmEpochSeconds(' 'SessionFile5::Deserialize(' 'tg50ucInit(' 'RomInfo5::RomInfo5(' \
+         'SocPXA::SocPXA(' 'SdlRenderer::Draw(' 'SdlEventHandler::HandleEvents(' 'SdlAudioDriver::Start('; do
     grep -qF " T $s" "$WORK/exports.txt" && ok "libmain.so exports $s" || bad "libmain.so lacks $s"
 done
 

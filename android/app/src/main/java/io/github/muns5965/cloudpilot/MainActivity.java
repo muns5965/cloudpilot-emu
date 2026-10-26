@@ -18,8 +18,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * Start screen (stage 2-A test build): pick a ROM with the system file picker, copy it to app
- * storage, and start the SDL test screen with or without it. The ROM is not booted yet.
+ * Start screen (stage 2-B test build): pick a ROM with the system file picker, copy it to app
+ * storage, and start the emulator with it (a TG50 ROM boots; anything else shows the SDL test
+ * screen) or the test screen without a ROM.
  */
 public class MainActivity extends Activity {
     private static final String TAG = "cp-android";
@@ -56,7 +57,7 @@ public class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("CloudpilotEmu Android 시험 빌드 (2-A)\nROM 부팅은 아직 구현되지 않았습니다.");
+        title.setText("CloudpilotEmu Android 시험 빌드 (2-B)\nTG50 ROM만 부팅합니다. 실행할 때마다 처음부터 부팅하며 저장되지 않습니다.");
         title.setTextSize(18);
         layout.addView(title);
 
@@ -80,7 +81,7 @@ public class MainActivity extends Activity {
         layout.addView(runTest);
 
         runWithRom = new Button(this);
-        runWithRom.setText("SDL 시험 화면 (선택한 ROM 헤더 확인)");
+        runWithRom.setText("선택한 ROM 실행 (TG50이면 부팅)");
         runWithRom.setOnClickListener(v -> startEmulator(romFile().getAbsolutePath()));
         layout.addView(runWithRom);
 

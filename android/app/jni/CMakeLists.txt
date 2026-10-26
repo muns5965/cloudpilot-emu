@@ -1,4 +1,4 @@
-# Native part of the Android test APK (stage 2-A): libSDL2.so, libSDL2_image.so and libmain.so
+# Native part of the Android test APK (stage 2-B): libSDL2.so, libSDL2_image.so and libmain.so
 # (android_main.cpp + the OS 5 core), loaded in that order by EmulatorActivity (SDLActivity).
 # SDL and SDL_image sources are fetched by tools/android-fetch-deps.sh into android/deps at pinned commits.
 cmake_minimum_required(VERSION 3.22)
@@ -72,8 +72,15 @@ target_compile_options(uarmcore PRIVATE
     -Wno-constant-conversion -Wno-constant-logical-operand)
 target_compile_definitions(uarmcore PRIVATE _FILE_OFFSET_BITS=64)
 
-# libmain.so: every core object is linked (object library, not an archive).
-add_library(main SHARED ${REPO}/src/uarm/native/android_main.cpp)
+# libmain.so: every core object is linked (object library, not an archive), plus the SDL
+# frontend files of the native build (SOURCE_CXX_NATIVE in src/uarm/Makefile) that need neither
+# the console, the debugger nor NetLib.
+add_library(main SHARED
+    ${REPO}/src/uarm/native/android_main.cpp
+    ${REPO}/src/uarm/native/SdlRenderer.cpp
+    ${REPO}/src/uarm/native/SdlEventHandler.cpp
+    ${REPO}/src/uarm/native/SdlAudioDriver.cpp
+    ${REPO}/src/uarm/native/Silkscreen.cpp)
 set_target_properties(main PROPERTIES CXX_STANDARD 17)
 target_include_directories(main PRIVATE ${CORE_INCLUDES})
 target_compile_options(main PRIVATE -Wextra -Wall -Wno-unused-parameter)
