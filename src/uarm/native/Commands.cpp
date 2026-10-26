@@ -526,7 +526,9 @@ namespace {
             return;
         }
 
-        if (static_cast<int>(x) >= ctx->screenWidth || static_cast<int>(y) >= ctx->screenHeight) {
+        // Compare as unsigned: a large value cast to int would turn negative and pass.
+        if (x >= static_cast<uint32_t>(ctx->screenWidth) ||
+            y >= static_cast<uint32_t>(ctx->screenHeight)) {
             cout << "tap error out-of-range screen=" << ctx->screenWidth << "x" << ctx->screenHeight
                  << endl;
             return;
