@@ -8,7 +8,7 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Native build (`libcommon.a` + `cp-uarm`) | Builds locally, no warnings | GitHub Actions result not checked |
+| Native build (`libcommon.a` + `cp-uarm`) | Builds locally, no warnings | Also built by GitHub Actions on every push to `master` ("Compile native app on Linux", "Compile Windows binaries (MinGW)") |
 | ROM selection | Identified from the header (`sony`/`vrna`); `--tg50` optional | `RomInfo5::GetDeviceType()`, 17 MiB recommended |
 | Boot | Works | Needed GPIO13/14 idle levels and the GPIO0 power-key fix (below) |
 | Setup 1–4, pen calibration | Works | Needed the touch-translation patch fix (below) |
@@ -19,11 +19,11 @@ Tested with a native Linux SDL2 build of `feature/sony-tg50` and a TG50 NOR ROM 
 | Display configuration / skin | Uses E2 `mode_320x320`; the native window drops its 120 px Graffiti silkscreen for TG50 (320×320 window) | TG50 has a QWERTY keyboard and **no silkscreen**. E2's shared configuration is unchanged |
 | AN32502A power, AK4534 codec, Memory Stick | Attached; register models only | No PCM output, no media |
 | Savestates / sessions | Works (native) | See "Savestates" below |
-| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. On-screen keyboard added, not yet hand-tested |
+| Browser/WASM | Works: import, boot, touch, hard buttons; PC keyboard mapped, not yet hand-tested | See "Browser / WASM" below. On-screen keyboard: Memo typed in Chromium (README screenshots) |
 
 ## Remaining work
 
-0. **Browser:** hand test of the on-screen keyboard and PC keyboard; session save/restore.
+0. **Browser:** hand test of the PC keyboard; session save/restore.
 1. **Sleep follow-ups:** done. A Datebook alarm wakes the device from sleep (see "Alarm wake" below).
 2. **Display configuration:** done. The native window hides the E2 silkscreen for TG50 (`graffitiHeight = 0` in `native/main.cpp` only); the browser draws the on-screen keyboard instead.
 3. **Savestates:** done for native sessions; browser save/restore not checked.

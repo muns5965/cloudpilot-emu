@@ -1,6 +1,6 @@
 # Sony CLIÉ NX70V experimental branch
 
-This branch `feature/sony-nx70v` was created from `feature/sony-tg50` so all TG50 work remains available while NX70V investigation is isolated. **It does not yet emulate NX70V hardware.** The existing `--tg50` switch initializes TG50 peripherals, even if handed an NX70V image; that is not an NX70V boot implementation.
+This work started on the branch `feature/sony-nx70v` (created from `feature/sony-tg50`) and is now in `master`. **Current state:** the NX70V runs natively (`--nx70v`, or detected from the ROM header; the known dump needs `--boot-rom`) and in the browser, using the TG50 peripheral models with NX70V settings (see "NX70V settings" below). The dated sections below are the log of how it got there.
 
 ## Inspected NOR image (local file, not committed)
 
@@ -17,7 +17,7 @@ The supplied `nx70v.rar` contains a single `nx70v.rom` raw image. Independently 
 | Company ID | `0x736F6E79` (`sony`) |
 | HAL ID | `0x63726462` (`crdb`) |
 
-These bytes pass the structural header check performed by `RomInfo5::Parse()`, but `RomInfo5::GetDeviceType()` does not yet map Sony NX70V; launching without a device override therefore rejects it. The TG50-only override is **not an appropriate NX70V implementation**.
+These bytes pass the structural header check performed by `RomInfo5::Parse()`. At first `RomInfo5::GetDeviceType()` did not map Sony NX70V; it now does (company `sony`, HAL `crdb`, see "Browser" below).
 
 Reproduce the header check: `python3 tools/probe-nx70v-rom.py /path/to/nx70v.rom`.
 
@@ -26,7 +26,7 @@ Reproduce the header check: `python3 tools/probe-nx70v-rom.py /path/to/nx70v.rom
 - Branch created and isolated from TG50: **done**.
 - Local header parsing of user-supplied ROM: **done**.
 - Native build (`cp-uarm`, scratch copy with diagnostic logging only) and CPU execution with the TG50 peripherals (`--tg50`): **done** (2026-10-23). With a local composite image and four NX70V-specific settings it completes Setup (including pen calibration) and reaches the CLIÉ Launcher; see below.
-- Next: see "Next" at the end of the boot diagnostics. Do not merge into TG50 until hardware differences and boot have been validated.
+- Merged into `master` (`1e0e220a`), the integration branch for TG50 and NX70V.
 
 ## Boot diagnostics (2026-10-23)
 
@@ -167,7 +167,7 @@ Session files work (shared TG50 change): saved after typing a memo and resumed w
 
 ## 한국어
 
-이 브랜치는 `feature/sony-tg50`에서 분기했으며 **NX70V 하드웨어 에뮬레이션은 아직 구현되지 않았습니다.** 첨부 `nx70v.rom`(12MiB)의 Palm OS 헤더(`0x20000`)와 제조사 `Sony Corporation`, Company ID `sony`, HAL ID `crdb`를 실제 확인했습니다. ROM 헤더 형식은 현행 파서와 호환되지만 NX70V 기종 선택 및 전용 주변장치 구현은 없습니다. 기존 `--tg50`으로 실행해도 NX70V 기종 지원이 되는 것은 아닙니다.
+이 작업은 `feature/sony-tg50`에서 분기한 `feature/sony-nx70v` 브랜치에서 시작했고, 지금은 `master`에 있습니다. **현재 상태:** NX70V는 네이티브(`--nx70v` 또는 ROM 헤더로 자동 인식, 알려진 덤프는 `--boot-rom` 필요)와 브라우저에서 실행되며, TG50 주변장치 모델에 NX70V 설정을 더해 씁니다(아래 "NX70V 설정 4가지"). 첨부 `nx70v.rom`(12MiB)의 Palm OS 헤더(`0x20000`)와 제조사 `Sony Corporation`, Company ID `sony`, HAL ID `crdb`를 실제 확인했습니다. 아래 날짜가 붙은 절은 그 과정의 기록입니다.
 
 ### 부팅 진단(2026-10-23, 진단 빌드·로컬 사본만 사용, ROM 수정 없음)
 
@@ -199,7 +199,7 @@ Session files work (shared TG50 change): saved after typing a memo and resumed w
   2. 화면 320×480
   3. Sony 마이컴 포트 A 비트 `0x10`(HOLD) 끄기
   4. 펜 좌표 X·Y 반전, 480줄을 TG50 원시값 범위로 축소
-- **`--nx70v` 사용 시험(2026-10-23)**: F2 주소록·F3 할 일·F4 메모장 실행(F1은 변화 없음). 키 표는 TG50과 같고 a~z 정확. 빠른 입력 누락(키를 약 60ms보다 짧게 누르면 놓침, TG50과 같음)은 키를 최소 3틱(약 100ms) 눌린 상태로 유지하도록 고쳐 해결(키당 40ms·반복 글자 확인). CLIÉ 앨범·계산기(탭으로 `1 + 3 =` → 4)·메모장 동작. 전원 키(Esc)는 변화 없음(TG50과 같음).
+- **`--nx70v` 사용 시험(2026-10-23)**: F1 일정·F2 주소록·F3 할 일·F4 메모장 실행(F1이 처음에 변화 없던 것은 부팅 직후 첫 입력이 사라진 문제로, 컨트롤러 에지 검출 수정으로 해결). 키 표는 TG50과 같고 a~z 정확. 빠른 입력 누락(키를 약 60ms보다 짧게 누르면 놓침, TG50과 같음)은 키를 최소 3틱(약 100ms) 눌린 상태로 유지하도록 고쳐 해결(키당 40ms·반복 글자 확인). CLIÉ 앨범·계산기(탭으로 `1 + 3 =` → 4)·메모장 동작.
 - **절전·복귀**: TG50과 공통 수정으로 동작(Esc로 절전·복귀 2회, 복귀 후 메모장 입력 확인).
 - **세션 파일**: TG50과 공통 수정으로 동작(메모 입력 후 저장·재개, 절전 중 저장 후 Esc로 복귀). NX70V 세션에는 TG50 부트 ROM이 들어간 ROM 이미지가 저장되므로 공유 금지.
 - **다음**: 실기에서 플래시 `0x0`~`0x1FFFF` 재덤프가 가장 확실. CF 카드. (절전 중 알람으로 깨우기는 동작, TG50 문서의 "Alarm wake" 참고.)
@@ -218,6 +218,6 @@ Sources: Sony "PEG-NX70V/NX60 Read This First" (4-667-217-11) and photos of a US
 - `RomInfo5`: company `sony` + HAL `crdb` → `deviceTypeSonyNX70V`, 17 MiB. Native also accepts the ROM without `--nx70v` (it still needs `--boot-rom`).
 - The web stores the ROM with a TG50 boot ROM copied to `0x0`–`0x17FFF` (session settings field "Boot ROM", `web/common/helper/sonyBootRom.ts`), so its header at `0x0` reads TG50. `Uarm::SetDeviceType()` lets the worker start the session device instead of the header's.
 - Keys: Fn = TG50 Blue, Alt = TG50 Red; `<,` `>.` `:;` = TG50 `@_` `.` `,` matrix positions (checked natively; plain/Shift/Fn give `, <` (Fn: none), `. > ?`, `; : &`). The NX70V ROM here is European: Alt + W…P types `é € ß ë ê è Ç ç à`.
-- Verified: combined image started as NX70V natively (Setup, Launcher, first F1 → Date Book); helper checks on the real ROMs; CI build and Pages deploy. Browser run not yet tried by hand.
+- Verified: combined image started as NX70V natively (Setup, Launcher, first F1 → Date Book); helper checks on the real ROMs; CI build and Pages deploy. At the time the browser run had not been tried by hand; later it booted on a phone (README) and, on 2026-10-26, ran in a local browser with the CI build (session restore, taps, sleep and wake, alarm wake with the Reminder).
 - 브라우저 요약: `crdb` 인식, 세션 설정에서 TG50 ROM을 부트 ROM으로 받아 앞부분에 덮어 브라우저에만 보관, 세션 기종을 엔진에 넘김. Fn=Blue, Alt=Red. 이 NX70V ROM은 유럽판.
 

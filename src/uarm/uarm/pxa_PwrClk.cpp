@@ -26,7 +26,8 @@ struct PxaPwrClk {
     // power mgr 270 only
     uint32_t PSTR, PVCR, PUCR, PKWR, PKSR, PCMD[32];
     bool turbo, isPXA270;
-    // deep sleep state (not saved: only the native TG50/NX70V modes enable it, and they have no savestates)
+    // deep sleep state: deepSleepEnabled is set at start (TG50/NX70V only); the rest is saved in
+    // the pxaDeepSleep chunk (pxaPwrClkSaveDeepSleep)
     bool deepSleepEnabled, deepSleep, sleepLevelsValid;
     uint32_t sleepGpioLevels;
 
