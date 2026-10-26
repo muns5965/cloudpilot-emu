@@ -1,28 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Android on-screen extra keys (320 x 80 logical units, drawn at 3x), two rows:
-     power, home, back (jog back), select (jog select) / cursor left, up, down, right.
-     Plain icons, no device artwork. Key areas must match AndroidButtons.cpp. -->
+     power, home, back (jog back), select (jog select), phone keyboard on / off /
+     cursor left, up, down, right. Plain icons, no device artwork.
+     Key areas must match AndroidButtons.cpp. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240">
   <rect width="960" height="240" fill="#9a9a9a"/>
   <g fill="#d9d9d9" stroke="#666666" stroke-width="4">
-    <rect x="14" y="14" width="212" height="92" rx="18"/>
-    <rect x="254" y="14" width="212" height="92" rx="18"/>
-    <rect x="494" y="14" width="212" height="92" rx="18"/>
-    <rect x="734" y="14" width="212" height="92" rx="18"/>
-    <rect x="14" y="134" width="212" height="92" rx="18"/>
-    <rect x="254" y="134" width="212" height="92" rx="18"/>
-    <rect x="494" y="134" width="212" height="92" rx="18"/>
-    <rect x="734" y="134" width="212" height="92" rx="18"/>
+    <rect x="12" y="14" width="168" height="92" rx="18"/>
+    <rect x="204" y="14" width="168" height="92" rx="18"/>
+    <rect x="396" y="14" width="168" height="92" rx="18"/>
+    <rect x="588" y="14" width="168" height="92" rx="18"/>
+    <rect x="780" y="14" width="168" height="92" rx="18"/>
+    <rect x="12" y="134" width="216" height="92" rx="18"/>
+    <rect x="252" y="134" width="216" height="92" rx="18"/>
+    <rect x="492" y="134" width="216" height="92" rx="18"/>
+    <rect x="732" y="134" width="216" height="92" rx="18"/>
   </g>
   <g fill="none" stroke="#333333" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 102 42 A 26 26 0 1 0 138 42"/>
-    <path d="M 120 30 L 120 60"/>
-    <path d="M 330 62 L 360 34 L 390 62"/>
-    <path d="M 340 54 L 340 86 L 380 86 L 380 54"/>
-    <path d="M 628 60 L 572 60"/>
-    <path d="M 592 40 L 572 60 L 592 80"/>
-    <circle cx="840" cy="60" r="24"/>
-    <circle cx="840" cy="60" r="6" fill="#333333"/>
+    <path d="M 78 42 A 26 26 0 1 0 114 42"/>
+    <path d="M 96 30 L 96 60"/>
+    <path d="M 258 62 L 288 34 L 318 62"/>
+    <path d="M 268 54 L 268 86 L 308 86 L 308 54"/>
+    <path d="M 508 60 L 452 60"/>
+    <path d="M 472 40 L 452 60 L 472 80"/>
+    <circle cx="672" cy="60" r="24"/>
+    <circle cx="672" cy="60" r="6" fill="#333333"/>
+    <rect x="826" y="36" width="76" height="48" rx="6"/>
+    <path d="M 836 48 L 836.5 48"/>
+    <path d="M 850 48 L 850.5 48"/>
+    <path d="M 864 48 L 864.5 48"/>
+    <path d="M 878 48 L 878.5 48"/>
+    <path d="M 892 48 L 892.5 48"/>
+    <path d="M 836 60 L 836.5 60"/>
+    <path d="M 850 60 L 850.5 60"/>
+    <path d="M 864 60 L 864.5 60"/>
+    <path d="M 878 60 L 878.5 60"/>
+    <path d="M 892 60 L 892.5 60"/>
+    <path d="M 844 73 L 884 73"/>
     <path d="M 98 180 L 136 156 L 136 204 Z" fill="#333333"/>
     <path d="M 360 158 L 336 196 L 384 196 Z" fill="#333333"/>
     <path d="M 600 202 L 576 164 L 624 164 Z" fill="#333333"/>

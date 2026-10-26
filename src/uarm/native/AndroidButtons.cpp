@@ -16,7 +16,8 @@ namespace {
     // Hard buttons strip: 60 units per button (web layout buttonWidth for a 320x320 screen),
     // the middle 80 units split into the rocker's top half and bottom half.
     constexpr int kStripMid = B::kStripTop + B::kStripHeight / 2;
-    // Extra keys: two rows of four (extra-keys.svg).
+    // Extra keys (extra-keys.svg): five in the first row, four in the second.
+    constexpr int kKey1Width = B::kWidth / 5;
     constexpr int kKeyWidth = B::kWidth / 4;
     constexpr int kRow1 = B::kKeysTop;
     constexpr int kRow2 = B::kKeysTop + B::kKeyRowHeight;
@@ -24,20 +25,21 @@ namespace {
 
     // Keycodes as mapped by SdlEventHandler for the TG50 (hardware keyboard mode).
     constexpr B::Button kButtons[] = {
-        {{0, B::kStripTop, 60, B::kStripHeight}, SDLK_F1},            // hard 1
-        {{60, B::kStripTop, 60, B::kStripHeight}, SDLK_F2},           // hard 2
-        {{120, B::kStripTop, 80, B::kStripHeight / 2}, SDLK_PAGEUP},  // rocker up: page up
-        {{120, kStripMid, 80, B::kStripHeight / 2}, SDLK_PAGEDOWN},   // rocker down: page down
-        {{200, B::kStripTop, 60, B::kStripHeight}, SDLK_F3},          // hard 3
-        {{260, B::kStripTop, 60, B::kStripHeight}, SDLK_F4},          // hard 4
-        {{0 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_ESCAPE},      // power
-        {{1 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_HOME},        // home
-        {{2 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_END},         // back (jog back)
-        {{3 * kKeyWidth, kRow1, kKeyWidth, kKeyH}, SDLK_F11},         // select (jog select)
-        {{0 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_LEFT},        // cursor left
-        {{1 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_UP},          // cursor up
-        {{2 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_DOWN},        // cursor down
-        {{3 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_RIGHT},       // cursor right
+        {{0, B::kStripTop, 60, B::kStripHeight}, SDLK_F1},                 // hard 1
+        {{60, B::kStripTop, 60, B::kStripHeight}, SDLK_F2},                // hard 2
+        {{120, B::kStripTop, 80, B::kStripHeight / 2}, SDLK_PAGEUP},       // rocker up: page up
+        {{120, kStripMid, 80, B::kStripHeight / 2}, SDLK_PAGEDOWN},        // rocker down: page down
+        {{200, B::kStripTop, 60, B::kStripHeight}, SDLK_F3},               // hard 3
+        {{260, B::kStripTop, 60, B::kStripHeight}, SDLK_F4},               // hard 4
+        {{0 * kKey1Width, kRow1, kKey1Width, kKeyH}, SDLK_ESCAPE},         // power
+        {{1 * kKey1Width, kRow1, kKey1Width, kKeyH}, SDLK_HOME},           // home
+        {{2 * kKey1Width, kRow1, kKey1Width, kKeyH}, SDLK_END},            // back (jog back)
+        {{3 * kKey1Width, kRow1, kKey1Width, kKeyH}, SDLK_F11},            // select (jog select)
+        {{4 * kKey1Width, kRow1, kKey1Width, kKeyH}, B::kKeyboardToggle},  // phone keyboard
+        {{0 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_LEFT},             // cursor left
+        {{1 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_UP},               // cursor up
+        {{2 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_DOWN},             // cursor down
+        {{3 * kKeyWidth, kRow2, kKeyWidth, kKeyH}, SDLK_RIGHT},            // cursor right
     };
 
     SDL_Texture* rasterize(SDL_Renderer* renderer, const unsigned char* svg, size_t size, int width,
@@ -176,6 +178,13 @@ bool AndroidButtons::PushKeyEvents() {
     const Button* const wasPressed = drawnPressed;
 
     for (const KeyEvent& keyEvent : events) {
+        drawnPressed = keyEvent.down ? keyEvent.button : nullptr;
+
+        if (keyEvent.button->key == kKeyboardToggle) {
+            if (keyEvent.down) ToggleKeyboard();
+            continue;
+        }
+
         SDL_Event event{};
         event.type = keyEvent.down ? SDL_KEYDOWN : SDL_KEYUP;
         event.key.state = keyEvent.down ? SDL_PRESSED : SDL_RELEASED;
@@ -183,9 +192,23 @@ bool AndroidButtons::PushKeyEvents() {
         event.key.keysym.scancode = SDL_GetScancodeFromKey(keyEvent.button->key);
 
         if (SDL_PushEvent(&event) < 0) SDL_Log("cp-android: key event lost: %s", SDL_GetError());
-
-        drawnPressed = keyEvent.down ? keyEvent.button : nullptr;
     }
 
     return drawnPressed != wasPressed;
+}
+
+void AndroidButtons::ToggleKeyboard() {
+    // Phone keyboard: SDL turns typed ASCII characters into key presses (with Shift for capitals)
+    // and Backspace / Enter into keys, which SdlEventHandler maps to the TG50 keyboard. Other
+    // characters (Hangul, ...) produce no key events and do not reach the ROM.
+    SDL_Window* window = SDL_RenderGetWindow(renderer);
+    const bool shown = window && SDL_IsScreenKeyboardShown(window);
+
+    if (shown) {
+        SDL_StopTextInput();
+    } else {
+        SDL_StartTextInput();
+    }
+
+    SDL_Log("cp-android: phone keyboard %s", shown ? "off" : "on");
 }

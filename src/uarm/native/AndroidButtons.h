@@ -9,14 +9,15 @@
 //               (not TG50 artwork); regions as in the web version's determineButton():
 //               hard 1 | hard 2 | page up / page down | hard 3 | hard 4
 //               (the rocker scrolls as on other Palm devices; on the TG50 that is the page keys)
-//   y 380..420  extra keys: power, home, back (jog back), select (jog select)
+//   y 380..420  extra keys: power, home, back (jog back), select (jog select), phone keyboard
 //   y 420..460  cursor keys of the TG50 keyboard: left, up, down, right (text editing)
 //
 // A press on a button becomes an SDL key event with the keycode SdlEventHandler already maps for
 // the TG50 (F1-F4, PageUp, PageDown, Escape, Home, End, F11, arrows), so key handling stays in
-// SdlEventHandler. One press is one key down / key up: a held key is not repeated here. The event
-// filter (Filter(), called on the thread that sends the touch, the Android UI thread) only records
-// presses and releases and drops the mouse event; the emulator thread pushes the key events
+// SdlEventHandler. One press is one key down / key up: a held key is not repeated here (the TG50
+// ROM repeats held keys itself). The keyboard button shows / hides the phone keyboard instead. The
+// event filter (Filter(), called on the thread that sends the touch, the Android UI thread) only
+// records presses and releases and drops the mouse event; the emulator thread pushes the key events
 // (PushKeyEvents()), in order. Releases are never dropped: a press that moves off its button, is
 // cancelled, or is still held when the app goes to the background is released.
 
@@ -35,6 +36,9 @@ class AndroidButtons {
     static constexpr int kKeyRowHeight = 40;
     static constexpr int kKeysHeight = 2 * kKeyRowHeight;  // must match extra-keys.svg
     static constexpr int kHeight = kKeysTop + kKeysHeight;
+
+    // Not a key: shows / hides the phone keyboard (emulator thread, in PushKeyEvents()).
+    static constexpr SDL_Keycode kKeyboardToggle = SDLK_UNKNOWN;
 
     struct Button {
         SDL_Rect area;    // logical units
@@ -65,6 +69,7 @@ class AndroidButtons {
     int FilterEvent(SDL_Event* event);
     const Button* ButtonAt(float x, float y) const;
     void Release();  // with mutex held
+    void ToggleKeyboard();
 
    private:
     SDL_Renderer* renderer;
