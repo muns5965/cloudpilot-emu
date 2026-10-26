@@ -6,6 +6,7 @@
 #include "mmiodev_TG50uc.h"
 #include "mmiodev_MemoryStickController.h"
 #include "sspdev_AD7873.h"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -105,8 +106,13 @@ void sonyTG50Touch(SonyTG50* dev, int x, int y) {
         x = 319 - x;
         y = 319 - y;
     }
-    ad7873PenInput(dev->touch,
-                   x >= 0 && y >= 0 ? static_cast<int16_t>(3200 - 10 * x) : -1,
+    // The ROM's touch driver reads an X channel value below 160 as "pen up" (measured: 159 is
+    // dropped, 160 is accepted), and 3200 - 10 * x is 10..150 for the outer 15 columns (TG50 right
+    // edge, NX70V left edge). Hold those at 160: taps there land on the nearest accepted column,
+    // and every other value (and so an existing pen calibration) stays the same.
+    constexpr int kMinTouchXRaw = 160;
+    const int xRaw = std::max(3200 - 10 * x, kMinTouchXRaw);
+    ad7873PenInput(dev->touch, x >= 0 && y >= 0 ? static_cast<int16_t>(xRaw) : -1,
                    x >= 0 && y >= 0 ? static_cast<int16_t>(3200 - 10 * y) : -1);
     ad7873Periodic(dev->touch);
 }
