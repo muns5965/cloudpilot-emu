@@ -84,7 +84,8 @@ done
 "$TC/llvm-nm" -DC --defined-only "$WORK/lib/libmain.so" > "$WORK/exports.txt"
 for s in 'SDL_main' 'deviceSetup(' 'cpuInit(' 'MainLoop::Cycle(' 'sonyTG50Touch(' 'ad7873PenInput(' \
          'palmEpochSeconds(' 'SessionFile5::Deserialize(' 'tg50ucInit(' 'RomInfo5::RomInfo5(' \
-         'SocPXA::SocPXA(' 'SdlRenderer::Draw(' 'SdlEventHandler::HandleEvents(' 'SdlAudioDriver::Start('; do
+         'SocPXA::SocPXA(' 'SdlRenderer::Draw(' 'SdlEventHandler::HandleEvents(' 'SdlAudioDriver::Start(' \
+         'AndroidButtons::PushKeyEvents(' 'SdlRenderer::SetBeforePresent('; do
     grep -qF " T $s" "$WORK/exports.txt" && ok "libmain.so exports $s" || bad "libmain.so lacks $s"
 done
 

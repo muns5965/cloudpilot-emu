@@ -1,4 +1,4 @@
-# Stage 2-B: build the arm64-v8a test APK (debug-signed) and check it statically.
+# Stage 2-C: build the arm64-v8a test APK (debug-signed) and check it statically.
 # No ROM, no device test, no deploy or release. Runs on verify/android-* branches only.
 name: Android APK check
 
@@ -48,8 +48,8 @@ jobs:
 
       - name: Check APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk cloudpilot-android-2b-arm64-v8a.apk
-          tools/android-apk-check.sh cloudpilot-android-2b-arm64-v8a.apk apkcheck 2>&1 | tee apk-check.log
+          cp android/app/build/outputs/apk/debug/app-debug.apk cloudpilot-android-2c-arm64-v8a.apk
+          tools/android-apk-check.sh cloudpilot-android-2c-arm64-v8a.apk apkcheck 2>&1 | tee apk-check.log
           exit ${PIPESTATUS[0]}
 
       # Results as annotations (readable through the checks API without the log archive).
@@ -75,9 +75,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-apk-2b-arm64-v8a
+          name: android-apk-2c-arm64-v8a
           path: |
-            cloudpilot-android-2b-arm64-v8a.apk
+            cloudpilot-android-2c-arm64-v8a.apk
             apk-check.log
             gradle.log
             deps.log

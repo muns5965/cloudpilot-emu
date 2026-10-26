@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Android on-screen extra keys row (320 x 40 logical units, drawn at 3x): Power, Home, Back,
+     Select, Page Up, Page Down. Plain icons, no device artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="120" viewBox="0 0 960 120">
+  <rect width="960" height="120" fill="#9a9a9a"/>
+  <g fill="#d9d9d9" stroke="#666666" stroke-width="4">
+    <rect x="14" y="14" width="132" height="92" rx="18"/>
+    <rect x="174" y="14" width="132" height="92" rx="18"/>
+    <rect x="334" y="14" width="132" height="92" rx="18"/>
+    <rect x="494" y="14" width="132" height="92" rx="18"/>
+    <rect x="654" y="14" width="132" height="92" rx="18"/>
+    <rect x="814" y="14" width="132" height="92" rx="18"/>
+  </g>
+  <g fill="none" stroke="#333333" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Power: open circle and bar -->
+    <path d="M 62 42 A 26 26 0 1 0 98 42"/>
+    <path d="M 80 30 L 80 60"/>
+    <!-- Home: house -->
+    <path d="M 210 62 L 240 34 L 270 62"/>
+    <path d="M 220 54 L 220 86 L 260 86 L 260 54"/>
+    <!-- Back: arrow to the left -->
+    <path d="M 428 60 L 372 60"/>
+    <path d="M 392 40 L 372 60 L 392 80"/>
+    <!-- Select: ring and dot -->
+    <circle cx="560" cy="60" r="24"/>
+    <circle cx="560" cy="60" r="6" fill="#333333"/>
+    <!-- Page up: double chevron up -->
+    <path d="M 696 58 L 720 36 L 744 58"/>
+    <path d="M 696 82 L 720 60 L 744 82"/>
+    <!-- Page down: double chevron down -->
+    <path d="M 856 38 L 880 60 L 904 38"/>
+    <path d="M 856 62 L 880 84 L 904 62"/>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# Native part of the Android test APK (stage 2-B): libSDL2.so, libSDL2_image.so and libmain.so
+# Native part of the Android test APK (stage 2-C): libSDL2.so, libSDL2_image.so and libmain.so
 # (android_main.cpp + the OS 5 core), loaded in that order by EmulatorActivity (SDLActivity).
 # SDL and SDL_image sources are fetched by tools/android-fetch-deps.sh into android/deps at pinned commits.
 cmake_minimum_required(VERSION 3.22)
@@ -75,8 +75,28 @@ target_compile_definitions(uarmcore PRIVATE _FILE_OFFSET_BITS=64)
 # libmain.so: every core object is linked (object library, not an archive), plus the SDL
 # frontend files of the native build (SOURCE_CXX_NATIVE in src/uarm/Makefile) that need neither
 # the console, the debugger nor NetLib.
+# On-screen button artwork, embedded as C++ arrays: the CLIE NR70 hard buttons strip of the web
+# version (src/skins) and the extra keys row (extra-keys.svg, this directory).
+function(embed_files out)
+    set(code "#include <cstddef>\n")
+    while(ARGN)
+        list(POP_FRONT ARGN name file)
+        file(READ ${file} hex HEX)
+        string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," hex "${hex}")
+        string(APPEND code "extern const unsigned char ${name}[] = {${hex}};\n")
+        string(APPEND code "extern const size_t ${name}Size = sizeof(${name});\n")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${file})
+    endwhile()
+    file(GENERATE OUTPUT ${out} CONTENT "${code}")
+endfunction()
+embed_files(${CMAKE_CURRENT_BINARY_DIR}/android_skins.cpp
+    kNr70Svg ${REPO}/src/skins/originals/hard-buttons/clie-nr70.svg
+    kExtraKeysSvg ${CMAKE_CURRENT_SOURCE_DIR}/extra-keys.svg)
+
 add_library(main SHARED
     ${REPO}/src/uarm/native/android_main.cpp
+    ${REPO}/src/uarm/native/AndroidButtons.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/android_skins.cpp
     ${REPO}/src/uarm/native/SdlRenderer.cpp
     ${REPO}/src/uarm/native/SdlEventHandler.cpp
     ${REPO}/src/uarm/native/SdlAudioDriver.cpp

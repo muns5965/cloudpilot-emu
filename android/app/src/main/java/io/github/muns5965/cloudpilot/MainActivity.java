@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("CloudpilotEmu Android 시험 빌드 (2-B)\nTG50 ROM만 부팅합니다. 실행할 때마다 처음부터 부팅하며 저장되지 않습니다.");
+        title.setText("CloudpilotEmu Android 시험 빌드 (2-C)\nTG50 ROM만 부팅합니다. 실행할 때마다 처음부터 부팅하며 저장되지 않습니다.");
         title.setTextSize(18);
         layout.addView(title);
 

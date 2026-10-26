@@ -2,7 +2,8 @@
 //
 // Stage 2-B: a ROM whose header identifies a Sony PEG-TG50 is booted, following the order of
 // native/main.cpp run() (SocPXA, MainLoop, SdlRenderer, SdlEventHandler, SdlAudioDriver) without
-// the console, debugger, NetLib, SD card and sessions. Anything else (no ROM, unreadable, invalid,
+// the console, debugger, NetLib, SD card and sessions, with on-screen buttons below the LCD
+// (AndroidButtons). Anything else (no ROM, unreadable, invalid,
 // another device) shows the stage 2-A test screen, whose colour gives the result.
 // Logs go to logcat: this file under SDL/APP, the core's stdout/stderr under cp-core.
 
@@ -17,6 +18,7 @@
 #include <sstream>
 #include <vector>
 
+#include "AndroidButtons.h"
 #include "MainLoop.h"
 #include "Rotation.h"
 #include "SdlAudioDriver.h"
@@ -243,27 +245,6 @@ namespace {
 
     // ---- stage 2-B TG50 boot -------------------------------------------------------------------
 
-    struct LcdArea {
-        SDL_Renderer* renderer;
-        int width, height;
-    };
-
-    // The LCD is letterboxed with SDL_RenderSetLogicalSize. SoC::PenDown clamps coordinates
-    // to the screen, so a press on the black border would land on the nearest LCD edge: drop
-    // presses outside the LCD. The filter runs before SDL's renderer event watch converts mouse
-    // coordinates, so it sees window coordinates. Motion and release are left alone.
-    int SDLCALL dropPressOutsideLcd(void* userdata, SDL_Event* event) {
-        if (event->type != SDL_MOUSEBUTTONDOWN) return 1;
-
-        const LcdArea* lcd = static_cast<const LcdArea*>(userdata);
-        float x, y;
-        SDL_RenderWindowToLogical(lcd->renderer, event->button.x, event->button.y, &x, &y);
-        if (x >= 0 && y >= 0 && x < lcd->width && y < lcd->height) return 1;
-
-        SDL_Log("cp-android: press outside the LCD ignored (%.1f %.1f)", x, y);
-        return 0;
-    }
-
     int bootTg50(std::vector<uint8_t>& nor) {
         const DeviceType5 deviceType = DeviceType5::deviceTypeSonyTG50;
         const uint32_t ramSize = 17ul << 20;  // native/main.cpp default for Sony devices
@@ -288,6 +269,12 @@ namespace {
             deviceConfigurationDisplayConfigForMode(displayMode);
         // The TG50 has a keyboard instead of a silkscreen (as in native/main.cpp).
         displayConfiguration.graffitiHeight = 0;
+        if (displayConfiguration.width != AndroidButtons::kWidth ||
+            displayConfiguration.height != AndroidButtons::kLcdHeight) {
+            SDL_Log("cp-android: unexpected LCD size %ux%u", displayConfiguration.width,
+                    displayConfiguration.height);
+            return 1;
+        }
 
         SDL_Log("cp-android: booting TG50, RAM %u bytes, LCD %ux%u", ramSize,
                 displayConfiguration.width, displayConfiguration.height);
@@ -304,13 +291,15 @@ namespace {
         mainLoop.SetCyclesPerSecondLimit(MIPS * 1000000);
 
         const Rotation rotation = Rotation::portrait_0;
-        const int scale = 1;  // SDL scales the logical LCD size to the phone screen
+        // SDL scales the logical size (LCD at 0,0 and the on-screen buttons below it) to the
+        // phone screen; SdlRenderer draws the LCD at scale 1.
+        const int scale = 1;
 
         // Portrait only in this stage (the Palm screen is square; rotation is not supported yet).
         SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
-        SDL_Window* window = SDL_CreateWindow(
-            "CloudpilotEmu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            displayConfiguration.width, displayConfiguration.height, SDL_WINDOW_ALLOW_HIGHDPI);
+        SDL_Window* window = SDL_CreateWindow("CloudpilotEmu", SDL_WINDOWPOS_UNDEFINED,
+                                              SDL_WINDOWPOS_UNDEFINED, AndroidButtons::kWidth,
+                                              AndroidButtons::kHeight, SDL_WINDOW_ALLOW_HIGHDPI);
         if (!window) {
             SDL_Log("cp-android: window failed: %s", SDL_GetError());
             return 1;
@@ -319,8 +308,8 @@ namespace {
         auto sdlRenderer =
             std::make_unique<SdlRenderer>(window, soc, scale, displayConfiguration, rotation);
         SDL_Renderer* renderer = SDL_GetRenderer(window);
-        if (!renderer || SDL_RenderSetLogicalSize(renderer, displayConfiguration.width,
-                                                  displayConfiguration.height) != 0) {
+        if (!renderer || SDL_RenderSetLogicalSize(renderer, AndroidButtons::kWidth,
+                                                  AndroidButtons::kHeight) != 0) {
             SDL_Log("cp-android: renderer setup failed: %s", SDL_GetError());
             return 1;
         }
@@ -332,14 +321,15 @@ namespace {
         float scaleX, scaleY;
         SDL_RenderGetViewport(renderer, &viewport);
         SDL_RenderGetScale(renderer, &scaleX, &scaleY);
-        SDL_Log(
-            "cp-android: window %dx%d, output %dx%d, LCD viewport %d,%d %dx%d, scale %.3f x %.3f",
-            windowW, windowH, outputW, outputH, viewport.x, viewport.y, viewport.w, viewport.h,
-            scaleX, scaleY);
+        SDL_Log("cp-android: window %dx%d, output %dx%d, viewport %d,%d %dx%d, scale %.3f x %.3f",
+                windowW, windowH, outputW, outputH, viewport.x, viewport.y, viewport.w, viewport.h,
+                scaleX, scaleY);
 
-        LcdArea lcdArea{renderer, static_cast<int>(displayConfiguration.width),
-                        static_cast<int>(displayConfiguration.height)};
-        SDL_SetEventFilter(dropPressOutsideLcd, &lcdArea);
+        // On-screen buttons: drawn before each present, presses recorded by the event filter
+        // (LCD presses pass through as pen input; anything else outside the LCD is dropped).
+        AndroidButtons buttons(renderer);
+        sdlRenderer->SetBeforePresent([&buttons](SDL_Renderer* r) { buttons.Draw(r); });
+        SDL_SetEventFilter(AndroidButtons::Filter, &buttons);
 
         SdlEventHandler sdlEventHandler(soc, scale, displayConfiguration, rotation, true);
 
@@ -355,7 +345,10 @@ namespace {
 
             mainLoop.Cycle(now);
 
-            sdlRenderer->Draw(sdlEventHandler.RedrawRequested());
+            // Button presses become SDL key events, handled by HandleEvents() below.
+            const bool buttonsChanged = buttons.PushKeyEvents();
+
+            sdlRenderer->Draw(sdlEventHandler.RedrawRequested() || buttonsChanged);
             sdlEventHandler.ClearRedrawRequested();
 
             sdlEventHandler.HandleEvents();
@@ -377,6 +370,7 @@ namespace {
 
         SDL_Log("cp-android: emulator loop ended");
         SDL_SetEventFilter(nullptr, nullptr);
+        sdlRenderer->SetBeforePresent(nullptr);
         audioDriver.Pause();
 
         return 0;

@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 #include "Rotation.h"
@@ -17,6 +18,10 @@ class SdlRenderer {
     ~SdlRenderer();
 
     void Draw(bool forceRedraw);
+
+    // Optional: called by Draw() after the screen has been drawn and before it is presented, on
+    // the renderer's thread (Android: on-screen buttons). Not set: the output is unchanged.
+    void SetBeforePresent(std::function<void(SDL_Renderer*)> callback);
 
     // Saves the device screen as last drawn (device orientation and size, before the window
     // rotation and scale) to a PNG file. With the LCD off the saved screen is white, as in the
@@ -38,6 +43,8 @@ class SdlRenderer {
     bool lcdEnabled{true};
 
     uint32_t flushPipelineCounter{0};
+
+    std::function<void(SDL_Renderer*)> beforePresent;
 
     SoC* soc{nullptr};
 

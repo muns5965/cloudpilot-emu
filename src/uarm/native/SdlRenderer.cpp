@@ -174,9 +174,15 @@ void SdlRenderer::Draw(bool forceRedraw) {
         }
     }
 
+    if (beforePresent) beforePresent(renderer);
+
     SDL_RenderPresent(renderer);
 
     soc->ResetPendingFrame();
+}
+
+void SdlRenderer::SetBeforePresent(std::function<void(SDL_Renderer*)> callback) {
+    beforePresent = std::move(callback);
 }
 
 bool SdlRenderer::SaveScreenshot(const char* path, bool& lcdOn, std::string& error) {
