@@ -1,0 +1,67 @@
+# Build-only check of the WASM core and the PWA for verification branches.
+# Same toolchain and build steps as fork-pages.yml, but nothing is deployed: no Pages
+# upload or deploy, no pwa-build push. The PWA build is kept as an Actions artifact.
+name: WASM check (no deploy)
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/**"]
+env:
+  EM_VERSION: 6.0.0
+  NODE_VERSION: 24
+  EM_CACHE_FOLDER: emsdk
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+      - name: Setup cache
+        uses: actions/cache@v4
+        with:
+          path: ${{env.EM_CACHE_FOLDER}}
+          key: ${{env.EM_VERSION}}-${{ runner.os }}
+      - name: Setup emscripten
+        uses: agriyakhetarpal/setup-emsdk@update-to-cache-v4
+        with:
+          version: ${{env.EM_VERSION}}
+          actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
+      - name: Setup wabt
+        run: sudo apt-get install wabt
+      - name: Build wasm
+        run: make -Csrc -j2 emscripten
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{env.NODE_VERSION}}
+      - name: Install node deps
+        working-directory: web
+        run: yarn install
+      - name: Lint
+        working-directory: web
+        run: yarn lint
+      - name: Test
+        working-directory: web
+        run: yarn test
+      - name: Build PWA
+        working-directory: web
+        run: |
+          yarn run gen-revision
+          yarn build-preview --base-href "/${{ github.event.repository.name }}/"
+          yarn generate-worker
+      - name: Check that no ROM or session file is in the build
+        run: |
+          found=$(find web/build-pwa -type f \( -iname '*.rom' -o -iname '*.nor' -o -iname '*.nand' \
+            -o -iname '*.bin' -o -iname '*.img' -o -iname '*.ses' -o -iname '*.zip' -o -iname '*.prc' \
+            -o -iname '*.pdb' \))
+          if [ -n "$found" ]; then echo "$found"; exit 1; fi
+      - name: Upload the PWA build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-build-${{ github.sha }}
+          path: web/build-pwa
+          retention-days: 7
