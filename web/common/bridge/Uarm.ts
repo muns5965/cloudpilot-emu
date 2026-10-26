@@ -69,7 +69,7 @@ function mapDbInstallResult(result: DbInstallResultUarm): DbInstallResult {
     result satisfies never;
 }
 
-export function mapButton(button: PalmButton): KeyId {
+export function mapButton(button: PalmButton, deviceType?: DeviceType5): KeyId {
     switch (button) {
         case PalmButton.cal:
             return KeyId.keyIdHard1;
@@ -83,11 +83,13 @@ export function mapButton(button: PalmButton): KeyId {
         case PalmButton.notes:
             return KeyId.keyIdHard4;
 
+        // The TG50 core maps keyIdUp / keyIdDown to the cursor keys of its keyboard; the scroll
+        // buttons (what the rocker is on other devices) are its page keys.
         case PalmButton.up:
-            return KeyId.keyIdUp;
+            return deviceType === DeviceType5.deviceTypeSonyTG50 ? KeyId.keyIdPageUp : KeyId.keyIdUp;
 
         case PalmButton.down:
-            return KeyId.keyIdDown;
+            return deviceType === DeviceType5.deviceTypeSonyTG50 ? KeyId.keyIdPageDown : KeyId.keyIdDown;
 
         case PalmButton.power:
             return KeyId.keyIdPower;
@@ -190,13 +192,13 @@ export class Uarm {
 
     @guard()
     buttonUp(button: PalmButton): void {
-        const key = mapButton(button);
+        const key = mapButton(button, this.uarm.GetDeviceType());
         if (key >= 0) this.uarm.KeyUp(key);
     }
 
     @guard()
     buttonDown(button: PalmButton): void {
-        const key = mapButton(button);
+        const key = mapButton(button, this.uarm.GetDeviceType());
         if (key >= 0) this.uarm.KeyDown(key);
     }
 
