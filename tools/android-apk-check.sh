@@ -6,8 +6,8 @@
 # usage: ANDROID_HOME=<sdk> ANDROID_NDK_HOME=<ndk> tools/android-apk-check.sh <apk> <work-dir>
 set -uo pipefail
 
-APK=$1
-WORK=$2
+APK=$(realpath "$1")
+WORK=$(realpath -m "$2")
 BT=$ANDROID_HOME/build-tools/35.0.0
 TC=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
 LIBS="libSDL2.so libSDL2_image.so libmain.so"
@@ -21,8 +21,8 @@ echo "apk: $(stat -c %s "$APK") bytes"
 
 # Manifest
 "$BT/aapt2" dump badging "$APK" > "$WORK/badging.txt"
-grep -E "^(package|sdkVersion|targetSdkVersion|native-code|launchable-activity)" "$WORK/badging.txt"
-grep -qx "sdkVersion:'26'" "$WORK/badging.txt" && ok "minSdk 26" || bad "minSdk is not 26"
+grep -E "^(package|minSdkVersion|sdkVersion|targetSdkVersion|native-code|launchable-activity)" "$WORK/badging.txt"
+grep -qE "^(minSdkVersion|sdkVersion):'26'$" "$WORK/badging.txt" && ok "minSdk 26" || bad "minSdk is not 26"
 grep -qx "targetSdkVersion:'35'" "$WORK/badging.txt" && ok "targetSdk 35" || bad "targetSdk is not 35"
 grep -qx "native-code: 'arm64-v8a'" "$WORK/badging.txt" && ok "native code arm64-v8a only" \
     || bad "native-code is not arm64-v8a only"
