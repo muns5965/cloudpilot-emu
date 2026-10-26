@@ -93,10 +93,15 @@ echo "--- memfd_create"
 for lib in $LIBS; do
     "$TC/llvm-readelf" --dyn-syms -W "$WORK/lib/$lib" | awk -v l="$lib" '$NF ~ /^memfd_create/ {print l": type "$4", bind "$5", ndx "$7", "$NF}'
 done
-SYSROOT_LIB=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android
-for a in "$SYSROOT_LIB"/libc++_static.a "$SYSROOT_LIB"/libc++abi.a; do
-    "$TC/llvm-nm" -A "$a" 2>/dev/null | grep -w memfd_create | sed "s|$SYSROOT_LIB/||"
+for lib in $LIBS; do
+    echo "$lib relocations: $("$TC/llvm-readelf" -rW "$WORK/lib/$lib" | grep -w memfd_create | awk '{print $3}' | sort | uniq -c | tr '\n' ' ')"
 done
+# Which NDK static library or object references it (aarch64 runtime libraries).
+find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64" -name '*.a' \( -path '*aarch64*' -o -path '*/lib/clang/*' \) |
+while read -r a; do
+    "$TC/llvm-nm" -A "$a" 2>/dev/null | grep -w memfd_create | grep -v -E '/(x86|i686|arm-|riscv)' \
+        | sed "s|$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/||"
+done | head -10
 "$TC/llvm-objdump" -d --no-show-raw-insn "$WORK/lib/libmain.so" > "$WORK/libmain.dis"
 grep -n 'memfd_create' "$WORK/libmain.dis" | head -5
 grep -n -E 'bl\s.*<memfd_create@plt>' "$WORK/libmain.dis" | cut -d: -f1 | while read -r n; do
