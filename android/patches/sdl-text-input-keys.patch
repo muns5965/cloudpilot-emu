@@ -1,0 +1,44 @@
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 974044f..cb133a8 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -2048,7 +2048,10 @@ class SDLInputConnection extends BaseInputConnection {
+         /* FIXME: This doesn't handle graphemes, like '🌬️' */
+         for (offset = matchLength; offset < mCommittedText.length(); ) {
+             int codePoint = mCommittedText.codePointAt(offset);
+-            nativeGenerateScancodeForUnichar('\b');
++            /* CloudpilotEmu: only characters that were sent as keys are deleted with a key */
++            if (isKeyChar(codePoint)) {
++                nativeGenerateScancodeForUnichar('\b');
++            }
+             offset += Character.charCount(codePoint);
+         }
+ 
+@@ -2062,7 +2065,8 @@ class SDLInputConnection extends BaseInputConnection {
+                     }
+                 }
+                 /* Higher code points don't generate simulated scancodes */
+-                if (codePoint < 128) {
++                /* CloudpilotEmu: only characters the TG50 keyboard types (see isKeyChar) */
++                if (isKeyChar(codePoint)) {
+                     nativeGenerateScancodeForUnichar((char)codePoint);
+                 }
+                 offset += Character.charCount(codePoint);
+@@ -2072,6 +2076,17 @@ class SDLInputConnection extends BaseInputConnection {
+         mCommittedText = text;
+     }
+ 
++    /*
++     * CloudpilotEmu: characters sent as key presses, and so deleted with a backspace key when the
++     * IME removes them. Everything else (Hangul being composed, other symbols) reaches neither the
++     * emulator nor its backspaces: a Hangul syllable replacing its jamo while being composed must
++     * not delete text in the Palm application. Must match the keys the TG50 keyboard types.
++     */
++    static boolean isKeyChar(int c) {
++        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
++               c == ' ' || c == '.' || c == ',' || c == '-' || c == '\n';
++    }
++
+     public static native void nativeCommitText(String text, int newCursorPosition);
+ 
+     public static native void nativeGenerateScancodeForUnichar(char c);

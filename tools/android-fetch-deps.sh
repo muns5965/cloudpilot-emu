@@ -21,6 +21,7 @@ fetch SDL_image release-2.8.8 c1bf2245b0ba63a25afe2f8574d305feca25af77
 #   sdl-text-input-keys.patch  phone keyboard: only characters the TG50 keyboard types are sent as
 #                              keys and deleted with backspace (Hangul composition deleted text)
 for p in "$DEPS/../patches"/sdl-*.patch; do
+    [ -f "$p" ] || { echo "missing SDL patch: $p"; exit 1; }
     git -C "$DEPS/SDL" apply "$p"
     echo "applied $(basename "$p")"
 done

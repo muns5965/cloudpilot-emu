@@ -4,3 +4,5 @@ build/
 app/build/
 app/.cxx/
 local.properties
+# SDL patches applied by tools/android-fetch-deps.sh (the root .gitignore excludes *.patch)
+!patches/*.patch
