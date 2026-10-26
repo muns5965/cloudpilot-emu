@@ -298,11 +298,12 @@ static bool tg50ucPrvMemAccessF(void* userData, uint32_t pa, uint_fast8_t size, 
 			*(uint32_t*)buf = val;
 		
 		if (handled) {
-			
+#ifdef TG50_TRACE_UC	// every handled access (keyboard scans, IRQ handling): too frequent by default
 			if (write)
 				fprintf(stderr, " * UC 0x%08lx -> [0x%08lx]\n", (unsigned long)val, (unsigned long)pa);
 			else
 				fprintf(stderr, " * UC [0x%08lx] -> 0x%08lx\n", (unsigned long)pa, (unsigned long)val);
+#endif
 		}
 		else {
 			
