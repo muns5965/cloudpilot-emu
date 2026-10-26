@@ -1,0 +1,85 @@
+# Stage 2-A: build the arm64-v8a test APK (debug-signed) and check it statically.
+# No ROM, no device test, no deploy or release. Runs on verify/android-* branches only.
+name: Android APK check
+
+on:
+  push:
+    branches: ["verify/android-**"]
+
+permissions:
+  contents: read
+
+env:
+  NDK_VERSION: 27.2.12479018
+  BUILD_TOOLS: 35.0.0
+  CMAKE_VERSION: 3.22.1
+  PLATFORM: android-35
+  GRADLE_VERSION: 8.10.2
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install pinned SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" "build-tools;$BUILD_TOOLS" "platforms;$PLATFORM" > /dev/null
+          NDK="$ANDROID_HOME/ndk/$NDK_VERSION"
+          grep -q "Pkg.Revision = $NDK_VERSION" "$NDK/source.properties"
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+
+      - name: Fetch SDL2 and SDL2_image (pinned commits)
+        run: tools/android-fetch-deps.sh | tee deps.log
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug 2>&1 | tee ../gradle.log; exit ${PIPESTATUS[0]}
+
+      - name: Check APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk cloudpilot-android-2a-arm64-v8a.apk
+          tools/android-apk-check.sh cloudpilot-android-2a-arm64-v8a.apk apkcheck 2>&1 | tee apk-check.log
+          exit ${PIPESTATUS[0]}
+
+      # Results as annotations (readable through the checks API without the log archive).
+      - name: Summary
+        if: always()
+        run: |
+          note() { printf '::notice title=%s::%s\n' "$1" "$(head -c 3800 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"; }
+          cat deps.log 2>/dev/null | note deps || true
+          grep -v -E '^(call at|[ 0-9a-f]+:|$)' apk-check.log 2>/dev/null | note apk-check || true
+          sed -n '/^--- memfd_create/,/^--- result/p' apk-check.log 2>/dev/null | note memfd_create || true
+          grep -E 'warning:|error:|FAILED|BUILD (SUCCESSFUL|FAILED)|What went wrong' gradle.log 2>/dev/null \
+            | sed "s|$PWD/||" | sort | uniq -c | sort -rn | note gradle || true
+          grep -A15 'What went wrong' gradle.log 2>/dev/null | note gradle-error || true
+          grep -E 'OS 5 core:' -r android/app/.cxx 2>/dev/null | head -2 | note cmake || true
+
+      - name: Check for ROM files
+        if: always()
+        run: |
+          if find . -path ./android/deps -prune -o -path ./.git -prune -o -type f \
+               \( -iname '*.rom' -o -iname '*.nor' -o -iname '*.img' -o -iname '*.ses' \) -print | grep .; then exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-apk-2a-arm64-v8a
+          path: |
+            cloudpilot-android-2a-arm64-v8a.apk
+            apk-check.log
+            gradle.log
+            deps.log
+            apkcheck/badging.txt
+            apkcheck/zipalign.txt
+          retention-days: 14
