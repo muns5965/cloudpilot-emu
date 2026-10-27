@@ -1,6 +1,7 @@
 #include "AndroidButtons.h"
 
 #include <SDL_image.h>
+#include <SDL_system.h>
 
 #include <cstddef>
 
@@ -118,6 +119,17 @@ void AndroidButtons::Release() {
 }
 
 int AndroidButtons::FilterEvent(SDL_Event* event) {
+    // Android back (key or gesture): SDLActivity hands it to SDL as AC_BACK and keeps it from the
+    // system, so run the system back here, on release: EmulatorActivity finishes and the session
+    // is saved on quit.
+    if ((event->type == SDL_KEYDOWN || event->type == SDL_KEYUP) &&
+        event->key.keysym.scancode == SDL_SCANCODE_AC_BACK) {
+#ifdef __ANDROID__
+        if (event->type == SDL_KEYUP) SDL_AndroidBackButton();
+#endif
+        return 0;
+    }
+
     switch (event->type) {
         case SDL_MOUSEBUTTONDOWN: {
             if (event->button.button != SDL_BUTTON_LEFT) return 1;
