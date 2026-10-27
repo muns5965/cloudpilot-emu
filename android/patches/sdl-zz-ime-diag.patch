@@ -1,0 +1,210 @@
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index cb133a8..294db5b 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -1362,6 +1362,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             }
+         }
+ 
++        SDLImeDiag.key("toSDL", event, null);  // CloudpilotEmu diagnostic
+         if (event.getAction() == KeyEvent.ACTION_DOWN) {
+             if (isTextInputEvent(event)) {
+                 if (ic != null) {
+@@ -1958,6 +1959,7 @@ class SDLInputConnection extends BaseInputConnection {
+     public SDLInputConnection(View targetView, boolean fullEditor) {
+         super(targetView, fullEditor);
+         mEditText = new EditText(SDL.getContext());
++        SDLImeDiag.call("ic.new", "", null);  // CloudpilotEmu diagnostic
+     }
+ 
+     @Override
+@@ -1967,6 +1969,7 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean sendKeyEvent(KeyEvent event) {
++        SDLImeDiag.key("ic.sendKeyEvent", event, getEditable());  // CloudpilotEmu diagnostic
+         /*
+          * This used to handle the keycodes from soft keyboard (and IME-translated input from hardkeyboard)
+          * However, as of Ice Cream Sandwich and later, almost all soft keyboard doesn't generate key presses
+@@ -1990,6 +1993,7 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean commitText(CharSequence text, int newCursorPosition) {
++        SDLImeDiag.call("ic.commitText", "text " + SDLImeDiag.classes(text), getEditable());
+         if (!super.commitText(text, newCursorPosition)) {
+             return false;
+         }
+@@ -1999,6 +2003,7 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean setComposingText(CharSequence text, int newCursorPosition) {
++        SDLImeDiag.call("ic.setComposingText", "text " + SDLImeDiag.classes(text), getEditable());
+         if (!super.setComposingText(text, newCursorPosition)) {
+             return false;
+         }
+@@ -2008,6 +2013,7 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean deleteSurroundingText(int beforeLength, int afterLength) {
++        SDLImeDiag.call("ic.deleteSurroundingText", beforeLength + "," + afterLength, getEditable());
+         if (Build.VERSION.SDK_INT <= 29 /* Android 10.0 (Q) */) {
+             // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
+             // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
+@@ -2027,6 +2033,33 @@ class SDLInputConnection extends BaseInputConnection {
+         return true;
+     }
+ 
++    /* CloudpilotEmu diagnostic: IME calls SDL does not override, logged and passed on unchanged. */
++    @Override
++    public boolean deleteSurroundingTextInCodePoints(int beforeLength, int afterLength) {
++        SDLImeDiag.call("ic.deleteSurroundingTextInCodePoints", beforeLength + "," + afterLength, getEditable());
++        boolean r = super.deleteSurroundingTextInCodePoints(beforeLength, afterLength);
++        SDLImeDiag.after("ic.deleteSurroundingTextInCodePoints", r, getEditable());
++        return r;
++    }
++
++    @Override
++    public boolean finishComposingText() {
++        SDLImeDiag.call("ic.finishComposingText", "", getEditable());
++        return super.finishComposingText();
++    }
++
++    @Override
++    public boolean setComposingRegion(int start, int end) {
++        SDLImeDiag.call("ic.setComposingRegion", start + "," + end, getEditable());
++        return super.setComposingRegion(start, end);
++    }
++
++    @Override
++    public boolean setSelection(int start, int end) {
++        SDLImeDiag.call("ic.setSelection", start + "," + end, getEditable());
++        return super.setSelection(start, end);
++    }
++
+     protected void updateText() {
+         final Editable content = getEditable();
+         if (content == null) {
+@@ -2034,6 +2067,7 @@ class SDLInputConnection extends BaseInputConnection {
+         }
+ 
+         String text = content.toString();
++        int diagRemoved = 0, diagRemovedKey = 0, diagAdded = 0, diagAddedKey = 0;  // CloudpilotEmu diagnostic
+         int compareLength = Math.min(text.length(), mCommittedText.length());
+         int matchLength, offset;
+ 
+@@ -2049,7 +2083,9 @@ class SDLInputConnection extends BaseInputConnection {
+         for (offset = matchLength; offset < mCommittedText.length(); ) {
+             int codePoint = mCommittedText.codePointAt(offset);
+             /* CloudpilotEmu: only characters that were sent as keys are deleted with a key */
++            diagRemoved++;
+             if (isKeyChar(codePoint)) {
++                diagRemovedKey++;
+                 nativeGenerateScancodeForUnichar('\b');
+             }
+             offset += Character.charCount(codePoint);
+@@ -2061,18 +2097,22 @@ class SDLInputConnection extends BaseInputConnection {
+                 int codePoint = pendingText.codePointAt(offset);
+                 if (codePoint == '\n') {
+                     if (SDLActivity.onNativeSoftReturnKey()) {
++                        SDLImeDiag.update(diagRemoved, diagRemovedKey, diagAdded, diagAddedKey, mCommittedText.length(), text.length(), "soft return");
+                         return;
+                     }
+                 }
+                 /* Higher code points don't generate simulated scancodes */
+                 /* CloudpilotEmu: only characters the TG50 keyboard types (see isKeyChar) */
++                diagAdded++;
+                 if (isKeyChar(codePoint)) {
++                    diagAddedKey++;
+                     nativeGenerateScancodeForUnichar((char)codePoint);
+                 }
+                 offset += Character.charCount(codePoint);
+             }
+             SDLInputConnection.nativeCommitText(pendingText, 0);
+         }
++        SDLImeDiag.update(diagRemoved, diagRemovedKey, diagAdded, diagAddedKey, mCommittedText.length(), text.length(), "");
+         mCommittedText = text;
+     }
+ 
+@@ -2133,3 +2173,82 @@ class SDLClipboardHandler implements
+     }
+ }
+ 
++
++/*
++ * CloudpilotEmu diagnostic build only (verify/android-ime-diag): records what the IME sends and
++ * what reaches SDL (and so the Palm application), without the typed text: call, key code, editable
++ * length, selection / composing span and character classes (key = TG50 keyboard character, other =
++ * anything else, e.g. Hangul). Logged as cp-ime and kept as the last 60 entries in
++ * files/ime-diag.txt, which the start screen shows.
++ */
++class SDLImeDiag {
++    private static final int MAX = 60;
++    private static final java.util.ArrayDeque<String> lines = new java.util.ArrayDeque<>();
++    private static int seq = 0;
++    private static long start = 0;
++
++    static String classes(CharSequence text) {
++        if (text == null) return "null";
++        int key = 0, other = 0;
++        for (int i = 0; i < text.length(); ) {
++            int c = Character.codePointAt(text, i);
++            if (SDLInputConnection.isKeyChar(c)) key++; else other++;
++            i += Character.charCount(c);
++        }
++        return "len " + text.length() + " (key " + key + ", other " + other + ")";
++    }
++
++    private static String state(Editable e) {
++        if (e == null) return "";
++        return " | box " + e.length() + " sel " + Selection.getSelectionStart(e) + "-" + Selection.getSelectionEnd(e)
++            + " comp " + BaseInputConnection.getComposingSpanStart(e) + "-" + BaseInputConnection.getComposingSpanEnd(e);
++    }
++
++    static void key(String where, KeyEvent ev, Editable e) {
++        String action = ev.getAction() == KeyEvent.ACTION_DOWN ? "down" : ev.getAction() == KeyEvent.ACTION_UP ? "up" : "act" + ev.getAction();
++        add(where + " " + action + " " + KeyEvent.keyCodeToString(ev.getKeyCode()) + " rep " + ev.getRepeatCount()
++            + " src 0x" + Integer.toHexString(ev.getSource()) + state(e));
++    }
++
++    static void call(String where, String args, Editable e) {
++        add(where + "(" + args + ")" + state(e));
++    }
++
++    static void after(String where, boolean result, Editable e) {
++        add("  " + where + " -> " + result + state(e) + " (no updateText)");
++    }
++
++    static void update(int removed, int removedKey, int added, int addedKey, int before, int after, String note) {
++        add("  updateText: removed " + removed + " (key " + removedKey + " = BS to SDL), added "
++            + added + " (key " + addedKey + " = to SDL), committed " + before + " -> " + after + (note.isEmpty() ? "" : " " + note));
++    }
++
++    private static synchronized void add(String line) {
++        long now = android.os.SystemClock.uptimeMillis();
++        if (seq == 0) start = now;
++        seq++;
++        String entry = "#" + seq + " +" + (now - start) + "ms " + line;
++        Log.d("cp-ime", entry);
++        lines.addLast(entry);
++        while (lines.size() > MAX) lines.removeFirst();
++        write();
++    }
++
++    private static void write() {
++        Context context = SDL.getContext();
++        if (context == null) return;
++        StringBuilder b = new StringBuilder();
++        String ime = android.provider.Settings.Secure.getString(context.getContentResolver(),
++            android.provider.Settings.Secure.DEFAULT_INPUT_METHOD);
++        b.append("Android ").append(Build.VERSION.SDK_INT).append(", IME ").append(ime).append('\n');
++        for (String l : lines) b.append(l).append('\n');
++        java.io.File file = new java.io.File(context.getFilesDir(), "ime-diag.txt");
++        java.io.File tmp = new java.io.File(context.getFilesDir(), "ime-diag.txt.tmp");
++        try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) {
++            out.write(b.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
++        } catch (java.io.IOException ex) {
++            return;
++        }
++        tmp.renameTo(file);
++    }
++}

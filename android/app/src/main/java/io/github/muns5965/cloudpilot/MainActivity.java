@@ -66,7 +66,7 @@ public class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("CloudpilotEmu Android 시험 빌드 (2-E)\nTG50 ROM만 부팅합니다. 백그라운드로 가거나 종료할 때 세션을 저장하고, 다음 실행 때 이어서 시작합니다.");
+        title.setText("CloudpilotEmu Android 입력 진단 빌드 (2-E1-diag)\nTG50 ROM만 부팅합니다. 백그라운드로 가거나 종료할 때 세션을 저장하고, 다음 실행 때 이어서 시작합니다.");
         title.setTextSize(18);
         layout.addView(title);
 
@@ -101,6 +101,12 @@ public class MainActivity extends Activity {
                 .show());
         layout.addView(deleteSession);
 
+        // Diagnostic build only: IME events recorded by the emulator (files/ime-diag.txt).
+        Button imeDiag = new Button(this);
+        imeDiag.setText("입력 진단 기록 보기");
+        imeDiag.setOnClickListener(v -> showImeDiag());
+        layout.addView(imeDiag);
+
         Button runTest = new Button(this);
         runTest.setText("SDL 시험 화면 (ROM·세션 없이)");
         runTest.setOnClickListener(v -> startEmulator(false));
@@ -117,6 +123,36 @@ public class MainActivity extends Activity {
             intent.putExtra(EmulatorActivity.EXTRA_SESSION, sessionFile().getAbsolutePath());
         }
         startActivity(intent);
+    }
+
+    private void showImeDiag() {
+        File file = new File(getFilesDir(), "ime-diag.txt");
+        String text;
+        try (InputStream in = new java.io.FileInputStream(file)) {
+            byte[] data = new byte[(int) Math.min(file.length(), 256 * 1024)];
+            int n = 0, r;
+            while (n < data.length && (r = in.read(data, n, data.length - n)) > 0) n += r;
+            text = new String(data, 0, n, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            text = "기록 없음 (에뮬레이터에서 휴대폰 키보드를 쓰면 기록됩니다)";
+        }
+
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextSize(11);
+        view.setTypeface(android.graphics.Typeface.MONOSPACE);
+        view.setTextIsSelectable(true);
+        final int pad = (int) (8 * getResources().getDisplayMetrics().density);
+        view.setPadding(pad, pad, pad, pad);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(view);
+
+        new AlertDialog.Builder(this)
+                .setTitle("입력 진단 기록 (최근 60건)")
+                .setView(scroll)
+                .setPositiveButton("닫기", null)
+                .setNeutralButton("지우기", (d, w) -> file.delete())
+                .show();
     }
 
     @Override
