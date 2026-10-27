@@ -69,6 +69,10 @@ function mapDbInstallResult(result: DbInstallResultUarm): DbInstallResult {
     result satisfies never;
 }
 
+function isSonyKeyboardDevice(deviceType?: DeviceType5): boolean {
+    return deviceType === DeviceType5.deviceTypeSonyTG50 || deviceType === DeviceType5.deviceTypeSonyNX70V;
+}
+
 export function mapButton(button: PalmButton, deviceType?: DeviceType5): KeyId {
     switch (button) {
         case PalmButton.cal:
@@ -83,13 +87,13 @@ export function mapButton(button: PalmButton, deviceType?: DeviceType5): KeyId {
         case PalmButton.notes:
             return KeyId.keyIdHard4;
 
-        // The TG50 core maps keyIdUp / keyIdDown to the cursor keys of its keyboard; the scroll
-        // buttons (what the rocker is on other devices) are its page keys.
+        // The TG50 core (also used for the NX70V) maps keyIdUp / keyIdDown to the cursor keys of
+        // its keyboard; the scroll buttons (what the rocker is on other devices) are its page keys.
         case PalmButton.up:
-            return deviceType === DeviceType5.deviceTypeSonyTG50 ? KeyId.keyIdPageUp : KeyId.keyIdUp;
+            return isSonyKeyboardDevice(deviceType) ? KeyId.keyIdPageUp : KeyId.keyIdUp;
 
         case PalmButton.down:
-            return deviceType === DeviceType5.deviceTypeSonyTG50 ? KeyId.keyIdPageDown : KeyId.keyIdDown;
+            return isSonyKeyboardDevice(deviceType) ? KeyId.keyIdPageDown : KeyId.keyIdDown;
 
         case PalmButton.power:
             return KeyId.keyIdPower;
