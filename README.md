@@ -79,7 +79,7 @@ See the TG50 branch README for building:
 
 # CloudpilotEmu — Sony CLIÉ PEG-NX70V 조사 브랜치
 
-> **실험 단계입니다.** NX70V 작업과 시험은 이 브랜치에서 하고, 마친 변경은 브라우저 버전을 배포하는 [`master`](https://github.com/muns5965/cloudpilot-emu)로 합칩니다. NX70V는 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 에서도 실행됩니다([브라우저 실행](#브라우저-실행) 참고, TG50도 같은 주소). 네이티브 빌드에 `--nx70v` 모드가 있으며, NX70V Palm OS가 펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 들어갑니다. 알려진 덤프에 작은 부트 ROM이 없어서, 실행할 때 TG50 NOR 이미지의 부트 ROM을 빌려 씁니다(`--boot-rom`). 이 브랜치는 [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50)에서 갈라져 나왔고, 그 TG50 코드(`--tg50` 실행 경로와 TG50 장치 모델)를 바탕으로 씁니다. NX70V는 TG50 장치 코드를 그대로 쓰고 NX70V 차이 4가지만 따로 둡니다. TG50 모델은 원본 [uARM](https://github.com/uARM-Palm/uARM)에서 이식했고, 원본 uARM에는 NX70V 모델이 없어 NX70V 지원은 새로 만든 것입니다.
+> **실험 단계입니다.** NX70V 작업과 시험은 이 브랜치에서 하고, 마친 변경은 브라우저 버전을 배포하는 [`master`](https://github.com/muns5965/cloudpilot-emu)로 합칩니다. NX70V는 브라우저 **[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** 에서도 실행됩니다([브라우저 실행](#브라우저-실행) 참고, TG50도 같은 주소). 네이티브 빌드에 `--nx70v` 모드가 있으며, NX70V Palm OS가 펜 보정을 포함한 Setup을 마치고 CLIÉ 런처까지 들어갑니다. 알려진 덤프에 작은 부트 ROM이 없어서, 실행할 때 TG50 NOR 이미지의 부트 ROM을 빌려 씁니다(`--boot-rom`). 이 브랜치는 [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50)에서 갈라져 나왔고, 그 TG50 코드(`--tg50` 실행 경로와 TG50 장치 모델)를 바탕으로 씁니다. NX70V는 TG50 장치 코드를 그대로 쓰고 기종별 설정 4가지만 따로 둡니다([TG50과 NX70V의 차이](#tg50과-nx70v의-차이)). TG50 모델은 원본 [uARM](https://github.com/uARM-Palm/uARM)에서 이식했고, 원본 uARM에는 NX70V 모델이 없어 NX70V 지원은 새로 만든 것입니다.
 
 [**NX70V 조사 기록(영문·한국어)**](docs/sony-nx70v-port.md) · [**TG50 브랜치 README**](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md) · [**TG50 기술 문서(영문)**](docs/sony-tg50-port.md) · [**CloudpilotEmu 기존 README(영문)**](doc/README-upstream.md) · [**원본 저장소**](https://github.com/cloudpilot-emu/cloudpilot-emu)
 
@@ -112,22 +112,27 @@ NX70V ROM: Palm OS 5.0, Sony, HAL ID `crdb`, 12MiB. 저장소에 포함하지 �
 | 브라우저 | **부팅 확인**(휴대폰 사용자 시험): 일정(Date Book), 가상 그래피티 영역. 화면 키보드 입력 확인(Fn → `2`, Alt → `é`, Shift → `>`) | 기종 `PEG-NX70V`, 세션 설정에서 TG50 ROM을 부트 ROM으로 지정, NX70V 배열 화면 키보드 |
 | 세션 파일 | **동작** | TG50과 공통: `save-session <파일>` 후 세션 파일로 실행(`--nx70v`·`--boot-rom` 불필요). 절전 중 저장도 가능 |
 
-## `--nx70v`의 NX70V 차이
+## TG50과 NX70V의 차이
 
-| # | 설정 | 값 |
-| --- | --- | --- |
-| 1 | `0x10000000` CF 슬롯 컨트롤러 | 최소 모델: `+0x10` = `0xC0`(카드 없음), 나머지 쓰기 수용 |
-| 2 | 화면 | 320×480 |
-| 3 | Sony 마이컴 포트 A | 비트 `0x10`(HOLD 스위치) 끄기 |
-| 4 | 펜 좌표 | TG50 대비 X·Y 반전, 480줄을 TG50 원시값 범위로 축소 |
+NX70V는 현재 에뮬레이터에서 TG50 장치 모델을 기반으로 구현하며, 다음 네 가지 설정을 기종별로 구분합니다(`--nx70v`로 실행하거나 세션의 기종이 `PEG-NX70V`일 때). 아래 값은 현재 에뮬레이터 구현 기준이며, 실제 두 기기의 하드웨어 차이가 이 네 가지뿐이라는 뜻은 아닙니다.
 
-`src/uarm/uarm/deviceSonyTG50.cpp`(기종 구분 플래그), `sony_tg50_hardware.h`, `device_configuration.cpp`에 구현. 아직 없는 것: CF 카드 자체(매뉴얼상 이 슬롯은 PEGA-WL100 같은 CF 네트워크 카드 전용이고 출고 때 빈 보호 카드가 꽂혀 있음), 접힘·HOLD 스위치 조작.
+| # | 항목 | TG50 | NX70V | 구현 위치 |
+| --- | --- | --- | --- | --- |
+| 1 | `0x10000000`(CS4) | 쓰지 않음(장치 없음) | CF 슬롯 컨트롤러 최소 모델: 상태 `+0x10` = `0xC0`(카드 없음), 나머지 쓰기 수용 | `deviceSonyTG50.cpp` `nx70vCfSlotAccess`, `sony_tg50_hardware.h` |
+| 2 | 화면 | 320×320 | 320×480 | `device_configuration.cpp` |
+| 3 | Sony 마이컴 포트 A 비트 `0x10`(HOLD 스위치) | 1(TG50에서 "HOLD 꺼짐") | 0(극성이 반대라 NX70V에서 "HOLD 꺼짐") | `deviceSonyTG50.cpp`, `sony_tg50_hardware.h` |
+| 4 | 펜 좌표 → 터치 칩 원시값 | 320×320을 그대로 변환(`3200 − 10×좌표`) | X·Y를 반대로 하고 480줄을 TG50의 320줄 범위로 축소한 뒤 같은 변환 | `deviceSonyTG50.cpp` `sonyTG50Touch` |
+
+기종 구분은 `sonyTG50Initialize(…, nx70v)` 플래그 하나로 합니다. 3번 TG50 값은 코드의 설정 기준이며, 실제 마이컴 초기값을 따로 덤프해 확인하지는 않았습니다. 아직 없는 것: CF 카드 자체(매뉴얼상 이 슬롯은 PEGA-WL100 같은 CF 네트워크 카드 전용이고 출고 때 빈 보호 카드가 꽂혀 있음), 접힘·HOLD 스위치 조작.
+
+## 알려진 제약
+
+- **부트 ROM**: 현재 확보한 NX70V 덤프에는 별도의 부트 ROM이 없어, 실행 시 TG50 NOR 이미지의 부트 ROM(`0x0`~`0x17FFF`)을 사용합니다(`--boot-rom`, 브라우저는 세션 설정에서 지정). 현재 추가 덤프 계획은 없습니다. 향후 자체 부트 ROM이 포함된 NX70V 덤프(`0x0`에 헤더)를 확보하면 별도 부트 ROM 지정 없이 실행할 수 있을 것으로 예상되나, 해당 구성은 아직 시험하지 않았습니다.
 
 ## 다음 단계
 
-1. 부팅은 TG50 부트 ROM을 빌려 씀(새로 덤프할 NX70V 실기가 없음). 기기 자체 부트 ROM이 들어 있는 덤프(`0x0`에 헤더)가 있으면 네이티브·브라우저 모두 그대로 사용.
-2. CF 네트워크 카드(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음).
-3. 브라우저 직접 시험(부팅, Fn·Alt 포함 키보드, 세션).
+1. 브라우저에서 세션 저장·복원 시험(부팅 및 Fn·Alt·Shift를 포함한 화면 키보드는 확인됨)
+2. CF 네트워크 카드 지원 검토(메모리 카드를 받지 않는 슬롯이라 우선순위 낮음)
 
 ## 브라우저 실행
 
