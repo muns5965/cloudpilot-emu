@@ -34,49 +34,49 @@ namespace {
         const size_t slash = path.rfind('/');
         return slash == std::string::npos ? std::string(".") : path.substr(0, slash ? slash : 1);
     }
-
-    bool writeFileDurable(const std::string& path, const uint8_t* data, size_t size) {
-        const std::string tmp = path + ".tmp";
-
-        const int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
-        if (fd < 0) {
-            SDL_Log("cp-android: session: cannot create %s: %s", tmp.c_str(), strerror(errno));
-            return false;
-        }
-
-        bool ok = true;
-        for (size_t written = 0; ok && written < size;) {
-            const ssize_t n = write(fd, data + written, size - written);
-            if (n < 0 && errno == EINTR) continue;
-            if (n <= 0) {
-                SDL_Log("cp-android: session: write failed: %s", strerror(errno));
-                ok = false;
-            } else {
-                written += static_cast<size_t>(n);
-            }
-        }
-
-        if (ok && fsync(fd) != 0) {
-            SDL_Log("cp-android: session: fsync failed: %s", strerror(errno));
-            ok = false;
-        }
-        if (close(fd) != 0) ok = false;
-
-        if (!ok || rename(tmp.c_str(), path.c_str()) != 0) {
-            if (ok) SDL_Log("cp-android: session: rename failed: %s", strerror(errno));
-            unlink(tmp.c_str());
-            return false;
-        }
-
-        // The new file is in place; a failed directory sync is only logged.
-        const int dir = open(directoryOf(path).c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-        if (dir < 0 || fsync(dir) != 0)
-            SDL_Log("cp-android: session: directory sync failed: %s", strerror(errno));
-        if (dir >= 0) close(dir);
-
-        return true;
-    }
 }  // namespace
+
+bool WriteFileDurable(const std::string& path, const uint8_t* data, size_t size) {
+    const std::string tmp = path + ".tmp";
+
+    const int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    if (fd < 0) {
+        SDL_Log("cp-android: session: cannot create %s: %s", tmp.c_str(), strerror(errno));
+        return false;
+    }
+
+    bool ok = true;
+    for (size_t written = 0; ok && written < size;) {
+        const ssize_t n = write(fd, data + written, size - written);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) {
+            SDL_Log("cp-android: session: write failed: %s", strerror(errno));
+            ok = false;
+        } else {
+            written += static_cast<size_t>(n);
+        }
+    }
+
+    if (ok && fsync(fd) != 0) {
+        SDL_Log("cp-android: session: fsync failed: %s", strerror(errno));
+        ok = false;
+    }
+    if (close(fd) != 0) ok = false;
+
+    if (!ok || rename(tmp.c_str(), path.c_str()) != 0) {
+        if (ok) SDL_Log("cp-android: session: rename failed: %s", strerror(errno));
+        unlink(tmp.c_str());
+        return false;
+    }
+
+    // The new file is in place; a failed directory sync is only logged.
+    const int dir = open(directoryOf(path).c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dir < 0 || fsync(dir) != 0)
+        SDL_Log("cp-android: session: directory sync failed: %s", strerror(errno));
+    if (dir >= 0) close(dir);
+
+    return true;
+}
 
 void Tg50Image::ColdBoot() {
     memory.clear();
@@ -174,7 +174,7 @@ bool SaveSession(SoC* soc, const std::string& path) {
     }
 
     const bool ok =
-        writeFileDurable(path, reinterpret_cast<const uint8_t*>(session.GetSerializedSession()),
+        WriteFileDurable(path, reinterpret_cast<const uint8_t*>(session.GetSerializedSession()),
                          session.GetSerializedSessionSize());
 
     SDL_Log("cp-android: session: %s %s (%zu bytes, %llu ms)", ok ? "saved" : "NOT saved",

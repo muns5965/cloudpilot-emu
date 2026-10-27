@@ -96,6 +96,7 @@ embed_files(${CMAKE_CURRENT_BINARY_DIR}/android_skins.cpp
 add_library(main SHARED
     ${REPO}/src/uarm/native/android_main.cpp
     ${REPO}/src/uarm/native/AndroidButtons.cpp
+    ${REPO}/src/uarm/native/AndroidInstall.cpp
     ${REPO}/src/uarm/native/AndroidSession.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/android_skins.cpp
     ${REPO}/src/uarm/native/SdlRenderer.cpp

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "AndroidButtons.h"
+#include "AndroidInstall.h"
 #include "AndroidSession.h"
 #include "MainLoop.h"
 #include "Rotation.h"
@@ -293,8 +294,9 @@ namespace {
 
     // Boots image (cold from its NOR, or from the session state) in the order of native/main.cpp
     // run(). sessionPath empty: no saving. The session is saved when the app goes to the background
-    // and when the emulator quits.
-    BootResult bootTg50(Tg50Image& image, const std::string& sessionPath) {
+    // and when the emulator quits. installDir: the PRC / PDB queue (AndroidInstall), empty: none.
+    BootResult bootTg50(Tg50Image& image, const std::string& sessionPath,
+                        const std::string& installDir) {
         const DeviceType5 deviceType = DeviceType5::deviceTypeSonyTG50;
         // native/main.cpp: the session's RAM size, else 17 MiB for Sony devices
         const uint32_t ramSize = image.fromSession && image.ramSize ? image.ramSize : 17ul << 20;
@@ -358,6 +360,11 @@ namespace {
 
         MainLoop mainLoop(soc);
         mainLoop.SetCyclesPerSecondLimit(MIPS * 1000000);
+
+        // Queued PRC / PDB files, installed once the Palm OS UI is up (stage 2-F).
+        std::unique_ptr<AndroidInstall> install;
+        if (!installDir.empty())
+            install = std::make_unique<AndroidInstall>(soc, installDir, sessionPath);
 
         const Rotation rotation = Rotation::portrait_0;
         // SDL scales the logical size (LCD at 0,0 and the on-screen buttons below it) to the
@@ -438,6 +445,9 @@ namespace {
 
             mainLoop.Cycle(now);
 
+            // Between cycles, with the CPU stopped (an install runs the Palm OS until it is done).
+            if (install) install->Step(now);
+
             // Button presses become SDL key events, handled by HandleEvents() below.
             const bool buttonsChanged = buttons.PushKeyEvents();
 
@@ -499,6 +509,13 @@ int main(int argc, char* argv[]) {
 
     const char* romPath = argc > 1 && argv[1][0] ? argv[1] : nullptr;
     std::string sessionPath = argc > 2 ? argv[2] : "";
+    // The install queue lives next to the session: <files>/install (MainActivity).
+    std::string installDir;
+    if (!sessionPath.empty()) {
+        const size_t slash = sessionPath.rfind('/');
+        installDir = (slash == std::string::npos ? std::string(".") : sessionPath.substr(0, slash)) +
+                     "/install";
+    }
 
     Tg50Image image;
     RomState romState = RomState::none;
@@ -525,7 +542,7 @@ int main(int argc, char* argv[]) {
 
     int result;
     if (romState == RomState::tg50) {
-        BootResult boot = bootTg50(image, sessionPath);
+        BootResult boot = bootTg50(image, sessionPath, installDir);
 
         if (boot == BootResult::badSession) {
             // The session state is unusable: keep the file aside, boot its NOR (or the ROM) cold.
@@ -535,7 +552,7 @@ int main(int argc, char* argv[]) {
                 if (readRom(romPath, image.nor) != RomState::tg50) image.nor.clear();
             }
             image.ColdBoot();
-            boot = image.nor.empty() ? BootResult::failed : bootTg50(image, sessionPath);
+            boot = image.nor.empty() ? BootResult::failed : bootTg50(image, sessionPath, installDir);
         }
 
         result = boot == BootResult::ok ? 0 : 1;

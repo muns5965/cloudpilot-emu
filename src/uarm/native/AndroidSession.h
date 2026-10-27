@@ -43,4 +43,8 @@ bool QuarantineSession(const std::string& path);
 // session is left as it was.
 bool SaveSession(SoC* soc, const std::string& path);
 
+// Writes <path>.tmp, fsyncs it, renames it over <path> and fsyncs the directory. On failure
+// <path> is left as it was. Also used for the install status file (AndroidInstall).
+bool WriteFileDurable(const std::string& path, const uint8_t* data, size_t size);
+
 #endif  // _ANDROID_SESSION_H_
