@@ -1,5 +1,5 @@
 diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
-index cb133a8..8ee4160 100644
+index 081fff0..5af85aa 100644
 --- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
 +++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
 @@ -530,6 +530,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
@@ -42,15 +42,15 @@ index cb133a8..8ee4160 100644
                  SDLActivity.onNativeKeyboardFocusLost();
              }
          }
-@@ -1958,6 +1963,7 @@ class SDLInputConnection extends BaseInputConnection {
-     public SDLInputConnection(View targetView, boolean fullEditor) {
+@@ -1961,6 +1966,7 @@ class SDLInputConnection extends BaseInputConnection {
          super(targetView, fullEditor);
          mEditText = new EditText(SDL.getContext());
+         mView = targetView;
 +        SDLImeDiag.call("ic.new", "", null);  // CloudpilotEmu diagnostic
      }
  
      @Override
-@@ -1967,6 +1973,7 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -1970,6 +1976,7 @@ class SDLInputConnection extends BaseInputConnection {
  
      @Override
      public boolean sendKeyEvent(KeyEvent event) {
@@ -58,7 +58,28 @@ index cb133a8..8ee4160 100644
          /*
           * This used to handle the keycodes from soft keyboard (and IME-translated input from hardkeyboard)
           * However, as of Ice Cream Sandwich and later, almost all soft keyboard doesn't generate key presses
-@@ -1990,6 +1997,7 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2002,6 +2009,7 @@ class SDLInputConnection extends BaseInputConnection {
+         if (keyCode == KeyEvent.KEYCODE_DEL) {
+             if (down) {
+                 mDeleteInEditable = deleteInEditable();
++                SDLImeDiag.call("  DEL", mDeleteInEditable ? "in editable, key not passed on" : "nothing in editable, key to SDL", getEditable());  // CloudpilotEmu diagnostic
+             }
+             if (mDeleteInEditable) {
+                 return true;
+@@ -2014,10 +2022,12 @@ class SDLInputConnection extends BaseInputConnection {
+             }
+             if (down) {
+                 addToEditableWithoutKeys("\n");
++                SDLImeDiag.call("  ENTER", "key to SDL, newline added to editable (committed " + mCommittedText.length() + ")", getEditable());  // CloudpilotEmu diagnostic
+             }
+         }
+ 
+         if (down && movesCursor(keyCode)) {
++            SDLImeDiag.call("  cursor key", "editable reset, IME restart", null);  // CloudpilotEmu diagnostic
+             resetEditable();
+         }
+ 
+@@ -2100,6 +2110,7 @@ class SDLInputConnection extends BaseInputConnection {
  
      @Override
      public boolean commitText(CharSequence text, int newCursorPosition) {
@@ -66,7 +87,7 @@ index cb133a8..8ee4160 100644
          if (!super.commitText(text, newCursorPosition)) {
              return false;
          }
-@@ -1999,6 +2007,7 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2109,6 +2120,7 @@ class SDLInputConnection extends BaseInputConnection {
  
      @Override
      public boolean setComposingText(CharSequence text, int newCursorPosition) {
@@ -74,7 +95,7 @@ index cb133a8..8ee4160 100644
          if (!super.setComposingText(text, newCursorPosition)) {
              return false;
          }
-@@ -2008,6 +2017,7 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2118,6 +2130,7 @@ class SDLInputConnection extends BaseInputConnection {
  
      @Override
      public boolean deleteSurroundingText(int beforeLength, int afterLength) {
@@ -82,7 +103,7 @@ index cb133a8..8ee4160 100644
          if (Build.VERSION.SDK_INT <= 29 /* Android 10.0 (Q) */) {
              // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
              // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
-@@ -2027,6 +2037,33 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2137,6 +2150,33 @@ class SDLInputConnection extends BaseInputConnection {
          return true;
      }
  
@@ -116,7 +137,7 @@ index cb133a8..8ee4160 100644
      protected void updateText() {
          final Editable content = getEditable();
          if (content == null) {
-@@ -2034,6 +2071,7 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2144,6 +2184,7 @@ class SDLInputConnection extends BaseInputConnection {
          }
  
          String text = content.toString();
@@ -124,7 +145,7 @@ index cb133a8..8ee4160 100644
          int compareLength = Math.min(text.length(), mCommittedText.length());
          int matchLength, offset;
  
-@@ -2049,7 +2087,9 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2159,7 +2200,9 @@ class SDLInputConnection extends BaseInputConnection {
          for (offset = matchLength; offset < mCommittedText.length(); ) {
              int codePoint = mCommittedText.codePointAt(offset);
              /* CloudpilotEmu: only characters that were sent as keys are deleted with a key */
@@ -134,7 +155,7 @@ index cb133a8..8ee4160 100644
                  nativeGenerateScancodeForUnichar('\b');
              }
              offset += Character.charCount(codePoint);
-@@ -2061,18 +2101,22 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2171,18 +2214,22 @@ class SDLInputConnection extends BaseInputConnection {
                  int codePoint = pendingText.codePointAt(offset);
                  if (codePoint == '\n') {
                      if (SDLActivity.onNativeSoftReturnKey()) {
@@ -157,7 +178,7 @@ index cb133a8..8ee4160 100644
          mCommittedText = text;
      }
  
-@@ -2133,3 +2177,82 @@ class SDLClipboardHandler implements
+@@ -2243,3 +2290,87 @@ class SDLClipboardHandler implements
      }
  }
  
@@ -228,7 +249,12 @@ index cb133a8..8ee4160 100644
 +        StringBuilder b = new StringBuilder();
 +        String ime = android.provider.Settings.Secure.getString(context.getContentResolver(),
 +            android.provider.Settings.Secure.DEFAULT_INPUT_METHOD);
-+        b.append("Android ").append(Build.VERSION.SDK_INT).append(", IME ").append(ime).append('\n');
++        String version = "?";
++        try {
++            version = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
++        } catch (Exception ex) {
++        }
++        b.append("App ").append(version).append(", Android ").append(Build.VERSION.SDK_INT).append(", IME ").append(ime).append('\n');
 +        for (String l : lines) b.append(l).append('\n');
 +        java.io.File file = new java.io.File(context.getFilesDir(), "ime-diag.txt");
 +        java.io.File tmp = new java.io.File(context.getFilesDir(), "ime-diag.txt.tmp");

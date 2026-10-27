@@ -1,8 +1,145 @@
 diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
-index 974044f..cb133a8 100644
+index 974044f..081fff0 100644
 --- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
 +++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
-@@ -2048,7 +2048,10 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -1954,10 +1954,13 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     protected EditText mEditText;
+     protected String mCommittedText = "";
++    protected View mView;               /* CloudpilotEmu */
++    protected boolean mDeleteInEditable; /* CloudpilotEmu: the current backspace key was handled here */
+ 
+     public SDLInputConnection(View targetView, boolean fullEditor) {
+         super(targetView, fullEditor);
+         mEditText = new EditText(SDL.getContext());
++        mView = targetView;
+     }
+ 
+     @Override
+@@ -1979,15 +1982,122 @@ class SDLInputConnection extends BaseInputConnection {
+          * as we do with physical keyboards, let's just use it to hide the keyboard.
+          */
+ 
++        /*
++         * CloudpilotEmu: keep the editable in step with what the emulator received, for keys the
++         * IME sends as key events (see updateText()):
++         * - Backspace deletes in the editable when there is text before the cursor (or a
++         *   selection): updateText() then sends a backspace only for TG50 keyboard characters, so
++         *   deleting Hangul that never reached the emulator deletes nothing there. The key event
++         *   itself (down, repeats and up) is not passed on. With nothing to delete in the editable
++         *   (e.g. text that was there before the keyboard was shown) the key goes to the emulator.
++         * - Enter goes to the emulator once, as before; a newline is added to the editable and to
++         *   mCommittedText together, so updateText() does not send it again.
++         * - Keys that move the emulator's cursor (arrows, home, end, page, forward delete): the
++         *   editable no longer matches the text around that cursor, so it is emptied and the IME
++         *   restarted; later backspaces go to the emulator. Modifier keys change nothing here.
++         */
++        final int keyCode = event.getKeyCode();
++        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
++
++        if (keyCode == KeyEvent.KEYCODE_DEL) {
++            if (down) {
++                mDeleteInEditable = deleteInEditable();
++            }
++            if (mDeleteInEditable) {
++                return true;
++            }
++        }
++
+         if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
+             if (SDLActivity.onNativeSoftReturnKey()) {
+                 return true;
+             }
++            if (down) {
++                addToEditableWithoutKeys("\n");
++            }
++        }
++
++        if (down && movesCursor(keyCode)) {
++            resetEditable();
+         }
+ 
+         return super.sendKeyEvent(event);
+     }
+ 
++    /* CloudpilotEmu: see sendKeyEvent(). Returns false if there is nothing to delete. */
++    protected boolean deleteInEditable() {
++        final Editable content = getEditable();
++        if (content == null) {
++            return false;
++        }
++        final int a = Selection.getSelectionStart(content), b = Selection.getSelectionEnd(content);
++        if (a < 0 || b < 0) {
++            return false;
++        }
++        int start = Math.min(a, b), end = Math.max(a, b);
++        if (start == end) {
++            if (end == 0) {
++                return false;
++            }
++            start = Character.offsetByCodePoints(content, end, -1);
++        }
++        content.delete(start, end);
++        updateText();
++        return true;
++    }
++
++    /* CloudpilotEmu: text the emulator already received as a key, added to the editable only. */
++    protected void addToEditableWithoutKeys(String text) {
++        final Editable content = getEditable();
++        if (content == null) {
++            return;
++        }
++        updateText();  /* nothing pending normally */
++        final int a = Selection.getSelectionStart(content), b = Selection.getSelectionEnd(content);
++        if (a < 0 || a != b) {
++            resetEditable();  /* a selection: the emulator's result is not known here */
++            return;
++        }
++        content.insert(b, text);
++        mCommittedText = content.toString();
++    }
++
++    /* CloudpilotEmu: forget the editable; the IME is restarted so it does not keep the old text. */
++    protected void resetEditable() {
++        final Editable content = getEditable();
++        if (content != null) {
++            content.clear();
++        }
++        mCommittedText = "";
++        final View view = mView;
++        if (view != null) {
++            view.post(() -> {
++                InputMethodManager imm = (InputMethodManager) view.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
++                if (imm != null) {
++                    imm.restartInput(view);
++                }
++            });
++        }
++    }
++
++    static boolean movesCursor(int keyCode) {
++        switch (keyCode) {
++            case KeyEvent.KEYCODE_DPAD_LEFT:
++            case KeyEvent.KEYCODE_DPAD_RIGHT:
++            case KeyEvent.KEYCODE_DPAD_UP:
++            case KeyEvent.KEYCODE_DPAD_DOWN:
++            case KeyEvent.KEYCODE_MOVE_HOME:
++            case KeyEvent.KEYCODE_MOVE_END:
++            case KeyEvent.KEYCODE_PAGE_UP:
++            case KeyEvent.KEYCODE_PAGE_DOWN:
++            case KeyEvent.KEYCODE_FORWARD_DEL:
++            case KeyEvent.KEYCODE_TAB:
++                return true;
++            default:
++                return false;
++        }
++    }
++
+     @Override
+     public boolean commitText(CharSequence text, int newCursorPosition) {
+         if (!super.commitText(text, newCursorPosition)) {
+@@ -2048,7 +2158,10 @@ class SDLInputConnection extends BaseInputConnection {
          /* FIXME: This doesn't handle graphemes, like '🌬️' */
          for (offset = matchLength; offset < mCommittedText.length(); ) {
              int codePoint = mCommittedText.codePointAt(offset);
@@ -14,7 +151,7 @@ index 974044f..cb133a8 100644
              offset += Character.charCount(codePoint);
          }
  
-@@ -2062,7 +2065,8 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2062,7 +2175,8 @@ class SDLInputConnection extends BaseInputConnection {
                      }
                  }
                  /* Higher code points don't generate simulated scancodes */
@@ -24,7 +161,7 @@ index 974044f..cb133a8 100644
                      nativeGenerateScancodeForUnichar((char)codePoint);
                  }
                  offset += Character.charCount(codePoint);
-@@ -2072,6 +2076,17 @@ class SDLInputConnection extends BaseInputConnection {
+@@ -2072,6 +2186,17 @@ class SDLInputConnection extends BaseInputConnection {
          mCommittedText = text;
      }
  
