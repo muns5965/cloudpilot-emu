@@ -16,20 +16,20 @@ Browser build (`master` 0fd3d89) in Chromium: Memo typed with the on-screen keyb
 
 ## Status (2026-10-23)
 
-Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c…860b94f`).
+Tested with a TG50 NOR ROM whose SHA-256 matches the uARM reference (`c6d5985c…860b94f`). Status: **works (where)** = implemented and tested in the environment named (native = Linux build, browser = this fork's web version); **untested** = implemented, not tested there; **in development**; **not implemented** / known limit.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| ROM detection | **Works** | Header company `sony`, HAL `vrna` → TG50, 17 MiB RAM (`src/common/rom_info5.cpp`) |
-| Boot, Setup, pen calibration, Launcher | **Works** | Boot fixes: [technical notes](docs/sony-tg50-port.md) |
-| Touch (AD7873) | **Works** | Calibrated by Palm OS itself |
-| QWERTY keyboard (Sony controller matrix) | **Works** | Typing in Memo Pad; fast typing (40 ms per key) is correct |
-| Hard buttons, jog dial keys | **Works** | |
-| Power key, sleep/resume | **Works** | Sleep turns the screen off; the next press resumes. A Date Book alarm wakes it and shows the Reminder (native) |
-| Session files | **Works** | Native: also while asleep. Browser: state is resumed after closing and reopening (tested in Chromium) |
+| ROM detection | **Works** (native, browser) | Header company `sony`, HAL `vrna` → TG50, 17 MiB RAM (`src/common/rom_info5.cpp`) |
+| Boot, Setup, pen calibration, Launcher | **Works** (native, browser) | Boot fixes: [technical notes](docs/sony-tg50-port.md) |
+| Touch (AD7873) | **Works** (native, browser) | Calibrated by Palm OS itself |
+| QWERTY keyboard (Sony controller matrix) | **Works** (native, browser) | Typing in Memo Pad; fast typing (40 ms per key) is correct (tested natively) |
+| Hard buttons, jog dial keys | **Works** (native, browser) | |
+| Power key, sleep/resume | **Works** (native) | Sleep turns the screen off; the next press resumes. A Date Book alarm wakes it and shows the Reminder (native) |
+| Session files | **Works** (native, PC browser); phone browser **untested** | Native: also while asleep. Browser: state is resumed after closing and reopening (tested in Chromium on a PC) |
 | Browser | **Works** (user test on a phone): ROM import, boot, touch, hard buttons, on-screen keyboard | PC keyboard in the browser tested in Chromium (letters, Shift, digits, key repeat, release on focus loss) |
-| Native window | Works | Screen only (320×320), no silkscreen |
-| Audio (AK4534), Memory Stick | Register models only | No sound, no media |
+| Native window | **Works** (native) | Screen only (320×320), no silkscreen |
+| Audio (AK4534), Memory Stick | **Not implemented** (register models only) | No sound, no media |
 | CI | **Passing** | Native build, controller compile check, browser build and deployment |
 
 ## Browser
@@ -70,10 +70,10 @@ The ROM is identified automatically; `--tg50` forces TG50. Type `save-session <f
 
 ## Next
 
-1. Phone check of browser session resume.
+1. Phone browser: session resume after closing and reopening (**untested**).
 2. Audio and Memory Stick.
 
-NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) (native only so far).
+NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) (native and browser). An Android APK for the TG50 is **in development** on `verify/android-apk` (not merged into `master`, no release); see the [main README](https://github.com/muns5965/cloudpilot-emu/blob/master/README.md#branches).
 
 ## Notes
 
@@ -99,20 +99,20 @@ NX70V work continues on [`feature/sony-nx70v`](https://github.com/muns5965/cloud
 
 ## 현황(2026-10-23)
 
-uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했습니다.
+uARM 기준 해시(`c6d5985c…860b94f`)와 같은 TG50 NOR ROM으로 확인했습니다. 상태 표기: **동작(환경)** = 구현하고 적힌 환경에서 시험함(네이티브 = Linux 빌드, 브라우저 = 이 포크의 웹 버전) · **미검증** = 구현했으나 그 환경에서 시험하지 않음 · **개발 중** · **미구현**·알려진 제약.
 
 | 항목 | 상태 | 비고 |
 | --- | --- | --- |
-| ROM 인식 | **동작** | 헤더 회사 `sony`, HAL `vrna` → TG50, RAM 17MiB(`src/common/rom_info5.cpp`) |
-| 부팅, Setup, 펜 보정, 런처 | **동작** | 부팅 문제 해결 과정: [기술 문서](docs/sony-tg50-port.md) |
-| 터치(AD7873) | **동작** | Palm OS 자체 보정 사용 |
-| QWERTY 키보드(Sony 마이컴 매트릭스) | **동작** | 메모장 입력 확인, 빠른 입력(키당 40ms)도 정확 |
-| 하드 버튼, 조그 다이얼 키 | **동작** | |
-| 전원 키, 절전·복귀 | **동작** | 절전하면 화면이 꺼지고 다시 누르면 복귀. Date Book 알람 시각에 저절로 켜져 알림 표시(네이티브) |
-| 세션 파일 | **동작** | 네이티브: 절전 중 저장도 가능. 브라우저: 닫았다 다시 열면 이어서 실행(Chromium 확인) |
+| ROM 인식 | **동작**(네이티브, 브라우저) | 헤더 회사 `sony`, HAL `vrna` → TG50, RAM 17MiB(`src/common/rom_info5.cpp`) |
+| 부팅, Setup, 펜 보정, 런처 | **동작**(네이티브, 브라우저) | 부팅 문제 해결 과정: [기술 문서](docs/sony-tg50-port.md) |
+| 터치(AD7873) | **동작**(네이티브, 브라우저) | Palm OS 자체 보정 사용 |
+| QWERTY 키보드(Sony 마이컴 매트릭스) | **동작**(네이티브, 브라우저) | 메모장 입력 확인, 빠른 입력(키당 40ms)도 정확(네이티브에서 시험) |
+| 하드 버튼, 조그 다이얼 키 | **동작**(네이티브, 브라우저) | |
+| 전원 키, 절전·복귀 | **동작**(네이티브) | 절전하면 화면이 꺼지고 다시 누르면 복귀. Date Book 알람 시각에 저절로 켜져 알림 표시(네이티브) |
+| 세션 파일 | **동작**(네이티브, PC 브라우저), 휴대폰 브라우저 **미검증** | 네이티브: 절전 중 저장도 가능. 브라우저: 닫았다 다시 열면 이어서 실행(PC Chromium 확인) |
 | 브라우저 | **동작**(휴대폰에서 사용자 시험): ROM 불러오기, 부팅, 터치, 하드 버튼, 화면 키보드 | 브라우저 PC 키보드는 Chromium에서 시험(글자, Shift, 숫자, 키 반복, 포커스 잃을 때 키 해제) |
-| 네이티브 창 | 동작 | 화면만 표시(320×320), 실크스크린 없음 |
-| 오디오(AK4534), Memory Stick | 레지스터 모델만 | 소리·카드 없음 |
+| 네이티브 창 | **동작**(네이티브) | 화면만 표시(320×320), 실크스크린 없음 |
+| 오디오(AK4534), Memory Stick | **미구현**(레지스터 모델만) | 소리·카드 없음 |
 | CI | **통과** | 네이티브 빌드, 마이컴 컴파일 검사, 브라우저 빌드·배포 |
 
 ## 브라우저 실행
@@ -153,10 +153,10 @@ ROM은 자동 인식되며 `--tg50`으로 강제할 수도 있습니다. 터미�
 
 ## 다음 단계
 
-1. 휴대폰에서 브라우저 세션 이어하기 확인.
+1. 휴대폰 브라우저: 닫았다 다시 열었을 때 세션 이어하기(**미검증**).
 2. 오디오와 Memory Stick.
 
-NX70V 작업은 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v)에서 진행합니다(아직 네이티브 전용).
+NX70V 작업은 [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v)에서 진행합니다(네이티브, 브라우저). TG50용 Android APK는 `verify/android-apk`에서 **개발 중**입니다(`master`에 합치지 않았고 배포하지 않음). [메인 README](https://github.com/muns5965/cloudpilot-emu/blob/master/README.md#브랜치) 참고.
 
 ## 참고
 
