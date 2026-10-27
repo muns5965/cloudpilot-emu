@@ -137,6 +137,17 @@ public class MainActivity extends Activity {
             text = "기록 없음 (에뮬레이터에서 휴대폰 키보드를 쓰면 기록됩니다)";
         }
 
+        // Copied to the clipboard on opening, to paste it into a report.
+        boolean copied = false;
+        if (file.isFile()) {
+            android.content.ClipboardManager clipboard =
+                    (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("ime-diag", text));
+                copied = true;
+            }
+        }
+
         TextView view = new TextView(this);
         view.setText(text);
         view.setTextSize(11);
@@ -148,7 +159,7 @@ public class MainActivity extends Activity {
         scroll.addView(view);
 
         new AlertDialog.Builder(this)
-                .setTitle("입력 진단 기록 (최근 60건)")
+                .setTitle(copied ? "입력 진단 기록 (최근 60건, 복사됨)" : "입력 진단 기록 (최근 60건)")
                 .setView(scroll)
                 .setPositiveButton("닫기", null)
                 .setNeutralButton("지우기", (d, w) -> file.delete())
