@@ -86,7 +86,8 @@ void SdlRenderer::Draw(bool forceRedraw) {
         return;
     if (frame || forceRedraw || lcdEnabled != wasLcdEnabled) flushPipelineCounter = 0;
 
-    frame += firstDirtyLine * displayConfiguration.width;
+    // no pending frame: firstDirtyLine is not set, and an offset added to a null frame would make it non-null
+    if (frame) frame += firstDirtyLine * displayConfiguration.width;
 
     if (frame) {
         uint8_t* pixels;
