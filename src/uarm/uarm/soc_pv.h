@@ -30,7 +30,7 @@ class SocPV : public SocGeneric<SocPV> {
 
    public:
     SocPV(uint32_t ramSize, void *romData, const uint32_t romSize, DisplayMode displayMode,
-          int gdbPort);
+          int gdbPort, bool sonyVz90SharedPage = false);
 
     uint32_t *GetPendingFrame(uint32_t &firstDirtyLine, uint32_t &lastDirtyLine) override;
     void ResetPendingFrame() override;
@@ -71,6 +71,12 @@ class SocPV : public SocGeneric<SocPV> {
     MemoryBuffer bufferTinyRam;
     MemoryBuffer bufferClut;
     ArmRam *tinyRam{nullptr};
+
+    // VZ90 images (ROM token vz9p, or the local option --pv-sony-vz90-page): the 4KB Sony shared page the VZ90 DAL
+    // maps at 0x3F843000 (VA == PA). Plain zero-filled RAM, part of the memory buffer, kept across reset.
+    bool sonyVz90SharedPage{false};
+    MemoryBuffer bufferSonyShared;
+    ArmRam *sonyShared{nullptr};
 
     PvTimer *timer{nullptr};
     PvIc *ic{nullptr};

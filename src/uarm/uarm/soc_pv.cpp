@@ -41,6 +41,9 @@
 #define PV_TINYRAM_BASE 0xffff0000
 #define PV_TINYRAM_SIZE 0x00000100
 
+#define PV_SONY_VZ90_SHARED_BASE 0x3f843000
+#define PV_SONY_VZ90_SHARED_SIZE 0x00001000
+
 #define UART_DEBUG_BASE 0x30000100
 #define UART_BASE 0x30000110
 
@@ -64,8 +67,8 @@ namespace {
 }  // namespace
 
 SocPV::SocPV(uint32_t ramSize, void *romData, const uint32_t romSize, DisplayMode displayMode,
-             int gdbPort)
-    : displayMode(displayMode) {
+             int gdbPort, bool sonyVz90SharedPage)
+    : sonyVz90SharedPage(sonyVz90SharedPage), displayMode(displayMode) {
     ramSize = sanitizeRamSize((ramSize));
     this->ramSize = ramSize;
 
@@ -83,6 +86,13 @@ SocPV::SocPV(uint32_t ramSize, void *romData, const uint32_t romSize, DisplayMod
 
     ram = ramInit(mem, this, RAM_BASE, ramSize, &bufferMemory, true);
     tinyRam = ramInit(mem, this, PV_TINYRAM_BASE, PV_TINYRAM_SIZE, &bufferTinyRam, false);
+    if (sonyVz90SharedPage) {
+        // ramInit -> memRegionAdd refuses (fatal ERR) any overlap with an existing region
+        sonyShared = ramInit(mem, this, PV_SONY_VZ90_SHARED_BASE, PV_SONY_VZ90_SHARED_SIZE,
+                             &bufferSonyShared, false);
+        fprintf(stderr, "PV: VZ90 Sony shared page RAM at 0x%08x, %u bytes\n",
+                PV_SONY_VZ90_SHARED_BASE, PV_SONY_VZ90_SHARED_SIZE);
+    }
     rom = romInit(mem, ROM_BASE, romData, romSize);
 
     void *peepholeBuffer = romGetPeepholeBuffer(rom);
@@ -222,7 +232,8 @@ void SocPV::OnSave(T &savestate) {
 }
 
 void SocPV::AllocateBuffers() {
-    size_t memoryBufferSize = ramSize + 2 * MEMORY_BUFFER_GRANULARITY;
+    size_t memoryBufferSize =
+        ramSize + (sonyVz90SharedPage ? 3 : 2) * MEMORY_BUFFER_GRANULARITY;
 
     bool success = memoryBufferAllocate(&bufferMemory, memoryBufferSize);
 
@@ -234,6 +245,12 @@ void SocPV::AllocateBuffers() {
 
     success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferClut, offset,
                                                   MEMORY_BUFFER_GRANULARITY);
+    offset += MEMORY_BUFFER_GRANULARITY;
+
+    if (sonyVz90SharedPage) {
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSonyShared, offset,
+                                                      MEMORY_BUFFER_GRANULARITY);
+    }
 
     if (!success) ERR("failed to allocate memory buffer");
 }

@@ -37,6 +37,7 @@
 #include "session/session_file5.h"
 #include "soc_PXA.h"
 #include "soc_pv.h"
+#include "vz90_pv_image.h"
 
 using namespace std;
 
@@ -55,6 +56,8 @@ struct Options {
     optional<string> bootRom;
     optional<DisplayMode> displayMode;
     bool network;
+    bool pvSonyVz90SharedPage;
+    optional<string> vz90Dal;
 };
 
 namespace {
@@ -187,6 +190,8 @@ namespace {
                 cerr << "--tg50/--nx70v/--boot-rom ignored: the session file records its device "
                         "and ROM"
                      << endl;
+            if (options.vz90Dal)
+                cerr << "--vz90-dal ignored: the session file holds its rebuilt VZ90 ROM" << endl;
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
@@ -205,6 +210,39 @@ namespace {
 
             romInfo = RomInfo5(nor.data, nor.size);
         } else {
+            // An original Sony VZ90 ROM (sony/bone) is rebuilt in memory into a PV image with the
+            // independent DAL given by --vz90-dal; the file itself is only read.
+            if (Vz90IsCandidate(norOrSessionData.get(), norOrSessionLen)) {
+                if (options.forceTg50 || options.forceNx70v || options.bootRom) {
+                    cerr << "--tg50/--nx70v/--boot-rom cannot be used with a VZ90 ROM" << endl;
+                    return false;
+                }
+                if (!options.vz90Dal) {
+                    cerr << "original VZ90 ROM: the DAL bundle is required (--vz90-dal <bundle>)"
+                         << endl;
+                    return false;
+                }
+                size_t dalLen{0};
+                unique_ptr<uint8_t[]> dalData;
+                if (!util::ReadFile(*options.vz90Dal, dalData, dalLen)) return false;
+
+                Vz90Image image;
+                string message;
+                const Vz90Status status =
+                    Vz90BuildPvImage(norOrSessionData.get(), norOrSessionLen,
+                                     {dalData.get(), dalLen}, Vz90Options(), image, message);
+                if (status != Vz90Status::ok) {
+                    cerr << Vz90StatusName(status) << ": " << message << endl;
+                    return false;
+                }
+                cerr << message << endl;
+                norOrSessionData = std::move(image.data);
+                norOrSessionLen = image.size;
+            } else if (options.vz90Dal) {
+                cerr << "--vz90-dal is only used for an original VZ90 ROM" << endl;
+                return false;
+            }
+
             romInfo = RomInfo5(norOrSessionData.get(), norOrSessionLen);
             if (!romInfo.IsValid()) {
                 cerr << "provided file is neither a support ROM nor a session image" << endl;
@@ -337,9 +375,24 @@ namespace {
         // (the web version does the same).
         if (deviceType == DeviceType5::deviceTypeSonyTG50) displayConfiguration.graffitiHeight = 0;
 
+        if (options.pvSonyVz90SharedPage && deviceType != DeviceType5::deviceTypePV) {
+            cerr << "--pv-sony-vz90-page requires a PV ROM" << endl;
+            return false;
+        }
+
+        // VZ90 run environment: a PV image rebuilt from an original VZ90 ROM carries the ROM token
+        // vz9p = "VZ90" (also inside a saved session); it runs with the Sony shared page. This is
+        // decided before the SoC is created because the page is part of the saved memory.
+        const bool vz90Marker = deviceType == DeviceType5::deviceTypePV &&
+                                Vz90HasMarker(static_cast<uint8_t*>(nor.data), nor.size);
+        const bool vz90SharedPage = options.pvSonyVz90SharedPage || vz90Marker;
+        if (vz90Marker && !options.pvSonyVz90SharedPage)
+            cerr << "VZ90 image: Sony shared page enabled" << endl;
+
         SoC* soc =
             (deviceType == DeviceType5::deviceTypePV)
-                ? static_cast<SoC*>(new SocPV(ramSize, nor.data, nor.size, *displayMode, gdbPort))
+                ? static_cast<SoC*>(new SocPV(ramSize, nor.data, nor.size, *displayMode, gdbPort,
+                                                   vz90SharedPage))
                 : static_cast<SoC*>(new SocPXA(deviceType, ramSize, nor.data, nor.size,
                                                reinterpret_cast<uint8_t*>(nand.data), nand.size,
                                                gdbPort, deviceGetSocRev()));
@@ -514,6 +567,15 @@ int main(int argc, char** argv) {
         .default_value(false)
         .implicit_value(true);
 
+    program.add_argument("--pv-sony-vz90-page")
+        .help("PV only, local VZ90 test: add the 4KB Sony shared RAM page at 0x3F843000")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--vz90-dal")
+        .help("DAL bundle used to run an original Sony VZ90 ROM (pv-vz90-dal)")
+        .metavar("<bundle>");
+
     program.add_argument("--gdb")
         .help("listen for GDB")
         .metavar("<port>")
@@ -582,7 +644,9 @@ int main(int argc, char** argv) {
                        .forceNx70v = program.get<bool>("--nx70v"),
                        .bootRom = program.present("--boot-rom"),
                        .displayMode = program.present<DisplayMode>("--display"),
-                       .network = program.get<bool>("--net")};
+                       .network = program.get<bool>("--net"),
+                       .pvSonyVz90SharedPage = program.get<bool>("--pv-sony-vz90-page"),
+                       .vz90Dal = program.present("--vz90-dal")};
 
     if (options.forceTg50 && options.forceNx70v) {
         cerr << "--tg50 and --nx70v are mutually exclusive" << endl;
