@@ -22,6 +22,7 @@ SOURCE_CXX = 						\
 	md5.cpp							\
 	rom_info5.cpp					\
 	vz90_pv_image.cpp				\
+	vz90_builder.cpp				\
 	session/rle.cpp					\
 	session/session_file5.cpp		\
 	savestate/Chunk.cpp				\

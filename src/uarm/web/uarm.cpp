@@ -21,6 +21,7 @@
 #include "soc_PXA.h"
 #include "soc_pv.h"
 #include "system_state.h"
+#include "vz90_pv_image.h"
 
 using namespace std;
 
@@ -117,8 +118,14 @@ bool Uarm::Launch(unsigned int romSize, void* romData) {
         memset(nandStub.get(), 0xff, NAND_SIZE);
     }
 
+    // VZ90 run environment: a PV image rebuilt from an original VZ90 ROM carries the ROM token vz9p = "VZ90" (also
+    // inside a saved session) and runs with the Sony shared page; other PV ROMs keep running without it
+    const bool vz90SharedPage =
+        deviceType == deviceTypePV && Vz90HasMarker(static_cast<const uint8_t*>(romData), romSize);
+    if (vz90SharedPage) cout << "VZ90 image: Sony shared page enabled" << endl;
+
     soc = deviceType == deviceTypePV
-              ? static_cast<SoC*>(new SocPV(ramSize, romData, romSize, *displayMode, 0))
+              ? static_cast<SoC*>(new SocPV(ramSize, romData, romSize, *displayMode, 0, vz90SharedPage))
               :
 
               static_cast<SoC*>(new SocPXA(deviceType, ramSize, romData, romSize,

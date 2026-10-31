@@ -17,6 +17,7 @@ import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
 import { SessionMetadata } from '@common/model/SessionMetadata';
 import { ModalController, PopoverController } from '@ionic/angular';
+import { Vz90Status } from '@native-common/index';
 
 import { DragDropClient, DragDropService } from '@pwa//service/drag-drop.service';
 import { HelpComponent } from '@pwa/component/help/help.component';
@@ -395,6 +396,15 @@ export class SessionsPage implements DragDropClient, OnInit {
                 this.lastSessionTouched = session.id;
             }
         } else {
+            // An original Sony VZ90 ROM is rebuilt in memory with a DAL bundle the user selects; only the rebuilt
+            // image goes on (and is stored once the session settings are confirmed). Cancelling stores nothing.
+            if (await this.nativeSupportService.isVz90Candidate(content)) {
+                const rebuilt = await this.rebuildVz90Rom(content);
+                if (!rebuilt) return;
+
+                content = rebuilt;
+            }
+
             const romInfo = await this.nativeSupportService.getRomInfo(content);
 
             if (!romInfo) {
@@ -534,6 +544,41 @@ export class SessionsPage implements DragDropClient, OnInit {
         return doContinue;
     }
 
+    private async rebuildVz90Rom(rom: Uint8Array): Promise<Uint8Array | undefined> {
+        let selectDal = false;
+
+        await this.alertService.message(
+            'DAL bundle required',
+            `
+                This is an original Sony PEG-VZ90 ROM. It runs on the PV platform with a separate DAL bundle
+                (pv-vz90-dal), from which a PV image is built in this browser. The ROM file itself is not changed.
+                Select the DAL bundle to continue.
+            `,
+            { 'Select DAL bundle': () => (selectDal = true) },
+            'Cancel',
+        );
+        if (!selectDal) return undefined;
+
+        // no callback when the file dialog is dismissed: nothing has been stored at this point
+        const dalFile = await new Promise<FileDescriptor>((resolve) => this.fileService.openFile(resolve));
+
+        let dalBundle: Uint8Array;
+        try {
+            dalBundle = await dalFile.getContent();
+        } catch (e) {
+            console.warn(e);
+
+            await this.alertService.errorMessage(`Unable to open ${dalFile.name}.`);
+            return undefined;
+        }
+
+        const result = await this.nativeSupportService.buildVz90Image(rom, dalBundle);
+        if (result.status === Vz90Status.ok && result.image) return result.image;
+
+        await this.alertService.errorMessage(vz90ErrorMessage(result.status, result.message));
+        return undefined;
+    }
+
     private async continueWithoutBootRom(): Promise<boolean> {
         let doContinue = true;
 
@@ -593,4 +638,21 @@ export class SessionsPage implements DragDropClient, OnInit {
     currentSessionId: Signal<number | undefined>;
 
     private currentSessionOverride = signal<number | undefined>(undefined);
+}
+
+function vz90ErrorMessage(status: Vz90Status, detail: string): string {
+    switch (status) {
+        case Vz90Status.errUnsupportedVariant:
+            return `This VZ90 ROM variant is not supported (${detail}).`;
+
+        case Vz90Status.errDalMismatch:
+            return `The selected file is not a valid VZ90 DAL bundle (${detail}).`;
+
+        case Vz90Status.errNoMemory:
+            return 'Not enough memory to build the VZ90 image.';
+
+        case Vz90Status.errBadRom:
+        default:
+            return `This is not a valid original VZ90 ROM image (${detail}).`;
+    }
 }

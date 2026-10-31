@@ -7,7 +7,7 @@ import { deviceDimensions } from '@common/helper/deviceProperties';
 import { identifySessionEngine } from '@common/helper/sessionfile';
 import { ScreenSize } from '@common/model/Dimensions';
 import { EngineType } from '@common/model/EngineType';
-import { DeviceType5 } from '@native-common/index';
+import { DeviceType5, Vz90Status } from '@native-common/index';
 import createModule, {
     CardSupportLevel,
     Cloudpilot as CloudpilotNative,
@@ -78,6 +78,14 @@ export interface RomInfoUarm {
 }
 
 export type RomInfo = RomInfoCloudpilot | RomInfoUarm;
+
+// Result of rebuilding an original Sony VZ90 ROM into a PV image (vz90_pv_image.h); message comes from the
+// native builder, and image is only present when status is ok.
+export interface Vz90BuildResult {
+    status: Vz90Status;
+    message: string;
+    image?: Uint8Array;
+}
 
 export interface Frame {
     bpp: number;
@@ -238,6 +246,57 @@ export class Cloudpilot {
             return this.getRomInfoUarm(buffer, rom.length);
         } finally {
             this.cloudpilot.Free(buffer);
+        }
+    }
+
+    // An original Sony VZ90 ROM (first card sony/bone) that has to be rebuilt with a DAL bundle before use. Only a
+    // candidate: variant and structure are checked by buildVz90Image.
+    @guard()
+    isVz90Candidate(rom: Uint8Array): boolean {
+        const builder = new this.module.Vz90Builder();
+        const buffer = this.copyIn(rom);
+
+        try {
+            return builder.IsCandidate(buffer, rom.length);
+        } finally {
+            this.cloudpilot.Free(buffer);
+            this.module.destroy(builder);
+        }
+    }
+
+    // Rebuild an original VZ90 ROM into a PV image with the given DAL bundle. Neither input is modified; all native
+    // buffers are released before returning, also on failure.
+    @guard()
+    buildVz90Image(rom: Uint8Array, dalBundle: Uint8Array): Vz90BuildResult {
+        const builder = new this.module.Vz90Builder();
+        let romBuffer: VoidPtr | undefined;
+        let dalBuffer: VoidPtr | undefined;
+
+        try {
+            romBuffer = this.copyIn(rom);
+            dalBuffer = this.copyIn(dalBundle);
+
+            const status = builder.Build(romBuffer, rom.length, dalBuffer, dalBundle.length);
+            const message = builder.GetMessage();
+
+            // the inputs are no longer needed; release them before copying the image out (memory peak)
+            this.cloudpilot.Free(romBuffer);
+            this.cloudpilot.Free(dalBuffer);
+            romBuffer = dalBuffer = undefined;
+
+            if (status !== Vz90Status.ok) return { status, message };
+
+            // HEAPU8 is read after the native calls: memory growth may have replaced the view
+            const ptr = this.module.getPointer(builder.GetImage());
+            const image = this.module.HEAPU8.slice(ptr, ptr + builder.GetImageSize());
+
+            return { status, message, image };
+        } finally {
+            if (romBuffer !== undefined) this.cloudpilot.Free(romBuffer);
+            if (dalBuffer !== undefined) this.cloudpilot.Free(dalBuffer);
+
+            builder.ReleaseImage();
+            this.module.destroy(builder);
         }
     }
 

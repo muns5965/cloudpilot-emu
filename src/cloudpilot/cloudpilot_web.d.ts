@@ -7,26 +7,30 @@ import {
     ZipfileWalker as ZipfileWalkerImpl,
     SessionFile5 as SessionFile5Impl,
     RomInfo5 as RomInfo5Impl,
+    Vz90Builder as Vz90BuilderImpl,
     ModuleWithGunzipContext,
     ModuleWithZipfileWalker,
     ModuleWithSessionFile5,
     ModuleWithRomInfo5,
+    ModuleWithVz90Builder,
 } from '../common/web/common';
 
 export * from './web/binding/binding';
-export { GunzipState, ZipfileWalkerState } from '../common/web/common';
+export { GunzipState, ZipfileWalkerState, Vz90Status } from '../common/web/common';
 
 export type GunzipContext = GunzipContextImpl<VoidPtr>;
 export type ZipfileWalker = ZipfileWalkerImpl<VoidPtr>;
 export type SessionFile5 = SessionFile5Impl<VoidPtr>;
 export type RomInfo5 = RomInfo5Impl<VoidPtr>;
+export type Vz90Builder = Vz90BuilderImpl<VoidPtr>;
 
 export interface Module
     extends EmscriptenModule,
         ModuleWithGunzipContext<VoidPtr>,
         ModuleWithZipfileWalker<VoidPtr>,
         ModuleWithSessionFile5<VoidPtr>,
-        ModuleWithRomInfo5<VoidPtr> {
+        ModuleWithRomInfo5<VoidPtr>,
+        ModuleWithVz90Builder<VoidPtr> {
     addFunction: typeof addFunction;
     getPointer(ptr: VoidPtr): number;
     UTF8ToString: typeof UTF8ToString;
@@ -45,6 +49,7 @@ export interface Module
     destroy(gunzipContext: GunzipContext): void;
     destroy(sessionFile5: SessionFile5): void;
     destroy(romInfo5: RomInfo5): void;
+    destroy(vz90Builder: Vz90Builder): void;
 }
 
 declare const createModule: (moduleOverrides: Partial<Module>) => Promise<Module>;

@@ -17,6 +17,7 @@
 #include "ZipfileWalker.h"
 #include "rom_info5.h"
 #include "session/session_file5.h"
+#include "vz90_builder.h"
 
 // clang-format off
 #include "binding/binding.cpp"

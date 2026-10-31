@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@angular/core';
-import { CardSupportLevel, Cloudpilot, RomInfo, SessionImage } from '@common/bridge/Cloudpilot';
+import { CardSupportLevel, Cloudpilot, RomInfo, SessionImage, Vz90BuildResult } from '@common/bridge/Cloudpilot';
 import { slotType } from '@common/helper/deviceProperties';
 import { DeviceId } from '@common/model/DeviceId';
 import { SlotType } from '@common/model/SlotType';
@@ -56,6 +56,14 @@ export class NativeSupportService {
 
     getRomInfo(rom: Uint8Array): Promise<RomInfo | undefined> {
         return this.cloudpilot.then((cp) => cp.getRomInfo(rom));
+    }
+
+    isVz90Candidate(rom: Uint8Array): Promise<boolean> {
+        return this.cloudpilot.then((cp) => cp.isVz90Candidate(rom));
+    }
+
+    buildVz90Image(rom: Uint8Array, dalBundle: Uint8Array): Promise<Vz90BuildResult> {
+        return this.cloudpilot.then((cp) => cp.buildVz90Image(rom, dalBundle));
     }
 
     getCardSupportLevel(size: number): Promise<CardSupportLevel> {

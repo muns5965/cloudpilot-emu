@@ -1,0 +1,14 @@
+interface Vz90Builder {
+    void Vz90Builder();
+
+    boolean IsCandidate([Const] VoidPtr rom, long size);
+    boolean HasMarker([Const] VoidPtr image, long size);
+
+    long Build([Const] VoidPtr rom, long romSize, [Const] VoidPtr dal, long dalSize);
+
+    VoidPtr GetImage();
+    long GetImageSize();
+    void ReleaseImage();
+
+    [Const] DOMString GetMessage();
+};

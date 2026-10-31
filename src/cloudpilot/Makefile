@@ -14,7 +14,8 @@ WEBIDL_BINDING_SRC = \
 	../common/web/gunzip.idl \
 	../common/web/zipfile_walker.idl \
 	../common/web/session_file5.idl \
-	../common/web/rom_info5.idl
+	../common/web/rom_info5.idl \
+	../common/web/vz90_builder.idl
 
 INCLUDE = \
 	-I../common \

@@ -133,6 +133,28 @@ export interface RomInfo5<VoidPtr> {
     GetRecommendedRamSize(): number;
 }
 
+// values of Vz90Status in vz90_pv_image.h
+export const enum Vz90Status {
+    ok = 0,
+    errBadRom = 1,
+    errUnsupportedVariant = 2,
+    errDalMismatch = 3,
+    errNoMemory = 4,
+}
+
+export interface Vz90Builder<VoidPtr> {
+    IsCandidate(rom: VoidPtr, size: number): boolean;
+    HasMarker(image: VoidPtr, size: number): boolean;
+
+    Build(rom: VoidPtr, romSize: number, dal: VoidPtr, dalSize: number): Vz90Status;
+
+    GetImage(): VoidPtr;
+    GetImageSize(): number;
+    ReleaseImage(): void;
+
+    GetMessage(): string;
+}
+
 export interface ModuleWithGunzipContext<VoidPtr> {
     GunzipContext: {
         new (data: VoidPtr, size: number, slizeSize: number): GunzipContext<VoidPtr>;
@@ -166,5 +188,11 @@ export interface ModuleWithSessionFile5<VoidPtr> {
 export interface ModuleWithRomInfo5<VoidPtr> {
     RomInfo5: {
         new (buffer: VoidPtr, size: number): RomInfo5<VoidPtr>;
+    };
+}
+
+export interface ModuleWithVz90Builder<VoidPtr> {
+    Vz90Builder: {
+        new (): Vz90Builder<VoidPtr>;
     };
 }
