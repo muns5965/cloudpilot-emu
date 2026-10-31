@@ -1,4 +1,5 @@
 #include "pace.h"
+#include "diag.h"
 
 #include <cstdlib>
 
@@ -156,6 +157,10 @@ namespace {
     template <int size>
     void pace_put_le(uint32_t addr, uint32_t value) {
         if (fsr != 0) return;
+
+#ifdef UARM_DIAG
+        if (addr < 0x1000) diagLowWrite(addr, size, value, regs.pc, regs.lastOpcode);
+#endif
 
         lastAddr = addr;
         wasWrite = true;

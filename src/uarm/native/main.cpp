@@ -18,6 +18,7 @@
 #include "FileUtil.h"
 #include "Logging.h"
 #include "MainLoop.h"
+#include "diag.h"
 #include "NetlibNative.h"
 #include "Rotation.h"
 #include "SdlAudioDriver.h"
@@ -475,6 +476,9 @@ namespace {
             if (!options.disableAudio) soc->SetPcmSuspended(audioDriver.GetAudioBackpressure());
 
             mainLoop.Cycle(now);
+#ifdef UARM_DIAG
+            diagSummary(now, mainLoop.GetCurrentIps(), mainLoop.GetCurrentIpsMax());
+#endif
 
             sdlRenderer->Draw(sdlEventHandler.RedrawRequested());
             sdlEventHandler.ClearRedrawRequested();

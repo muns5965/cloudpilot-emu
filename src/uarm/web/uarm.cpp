@@ -21,6 +21,7 @@
 #include "soc_PXA.h"
 #include "soc_pv.h"
 #include "system_state.h"
+#include "diag.h"
 #include "vz90_pv_image.h"
 
 using namespace std;
@@ -165,7 +166,15 @@ bool Uarm::Launch(unsigned int romSize, void* romData) {
     return true;
 }
 
-double Uarm::Cycle(uint64_t now) { return mainLoop->Cycle(now); }
+double Uarm::Cycle(uint64_t now) {
+    const double result = mainLoop->Cycle(now);
+
+#ifdef UARM_DIAG
+    diagSummary(now, mainLoop->GetCurrentIps(), mainLoop->GetCurrentIpsMax());
+#endif
+
+    return result;
+}
 
 void* Uarm::GetFrame() { return soc->GetPendingFrame(firstDirtyLine, lastDirtyLine); }
 

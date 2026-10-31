@@ -25,6 +25,7 @@
 #include "peephole.h"
 #include "savestate/savestateAll.h"
 #include "system_state.h"
+#include "diag.h"
 
 #pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
 
@@ -427,6 +428,10 @@ static void cpuPrvHandleMemErr(struct ArmCpu *cpu, uint32_t addr, bool write, bo
     if (cpu->memorySystemKind == ARM_MEMORY_SYSTEM_MMU) {
         cp15MMUSetFaultStatus(cpu->cp15.cp15mmu, addr, fsr);
     }
+
+#ifdef UARM_DIAG
+    diagMemAbort(addr, write, instrFetch, cpu->curInstrPC, cpuPrvMaterializeCPSR(cpu));
+#endif
 
     if (instrFetch) {
         // handle prefetch abort (LR is addr of aborted instr + 4)
@@ -880,6 +885,25 @@ static void cpuPrvHandlePaceMemoryFault(struct ArmCpu *cpu) {
     paceGetMemeryFault(&addr, &wasWrite, &fsr);
     cpuPrvHandleMemErr(cpu, addr, wasWrite, false, fsr);
 
+#ifdef UARM_DIAG
+    diagPaceFault(addr, wasWrite);
+    {   // 68k frame chain (A6 links: saved A6, return address) for the caller of the faulting function; big-endian
+        auto rd = [&](uint32_t a) -> uint32_t {
+            uint32_t v = 0;
+            if (a < 0x20000000u || a > 0x2ffffffcu) return 0;
+            cpuMemOpExternal(cpu, &v, a, 4, false);
+            return __builtin_bswap32(v);
+        };
+        uint32_t a6 = paceGetAreg(6);
+        printf("[diag] pace-frames");
+        for (int i = 0; i < 8 && a6; i++) {
+            printf(" a6=%08x ret=%08x", a6, rd(a6 + 4));
+            a6 = rd(a6);
+        }
+        printf("\n");
+    }
+#endif
+
 #ifndef __EMSCRIPTEN__
     fprintf(stderr, "memory fault in PACE %s at 0x%08x\n", wasWrite ? "writing" : "reading", addr);
 #endif
@@ -1014,6 +1038,10 @@ static void execFn_invalid(struct ArmCpu *cpu, uint32_t instr) {
     fprintf(stderr, "Invalid instr 0x%08lx seen at 0x%08lx with CPSR 0x%08lx\n",
             (unsigned long)instr, (unsigned long)cpu->curInstrPC,
             (unsigned long)cpuPrvMaterializeCPSR(cpu));
+
+#ifdef UARM_DIAG
+    diagUndefined(cpu->curInstrPC, instr, cpuPrvMaterializeCPSR(cpu));
+#endif
 
     cpuPrvException(cpu, cpu->vectorBase + ARM_VECTOR_OFFT_UND, cpu->curInstrPC + (wasT ? 2 : 4),
                     ARM_SR_MODE_UND | ARM_SR_I);
@@ -3226,6 +3254,40 @@ static void initStatic() {
     for (int i = 0; i < 128; i++) table_immShiftImm[i] = cpuPrvImmShiftImmTableEntry(i);
 }
 
+#ifdef UARM_DIAG
+static struct ArmCpu *gDiagCpu = nullptr;
+uint32_t diagCpuPc(void) { return gDiagCpu ? gDiagCpu->curInstrPC : 0; }
+
+// how the running guest maps virtual address 0: with an MMU the first-level descriptor, the domain setting and the
+// result of a privileged read and write translation; with the MPU (PV) whether the MPU is on and allows the access.
+// Printed only when it changes. The answer is whatever page tables the guest's own DAL built.
+void diagVa0(void) {
+    struct ArmCpu *cpu = gDiagCpu;
+    if (!cpu) return;
+    static char last[256];
+    char line[256];
+    if (cpu->memorySystemKind == ARM_MEMORY_SYSTEM_MMU) {
+        struct ArmMmu *mmu = cpu->memorySystem.mmu;
+        const bool on = mmuIsOn(mmu);
+        const uint32_t ttp = mmuGetTTP(mmu);
+        uint32_t l1 = 0;
+        const bool l1ok = on && ttp != MMU_DISABLED_TTP && memAccess(cpu->mem, ttp & ~0x3fffu, 4, false, &l1);
+        const MMUTranslateResult w = mmuTranslate(mmu, 0, true, true), r = mmuTranslate(mmu, 0, true, false);
+        snprintf(line, sizeof(line),
+                 "[diag] va0 mmu=%d ttp=%08x l1[0]=%s%08x dacr=%08x read=%s pa=%08x fsr=%02x write=%s pa=%08x fsr=%02x vectors=%08x",
+                 on, ttp, l1ok ? "" : "?", l1, mmuGetDomainCfg(mmu), MMU_TRANSLATE_RESULT_OK(r) ? "ok" : "fault",
+                 MMU_TRANSLATE_RESULT_PA(r), MMU_TRANSLATE_RESULT_FSR(r), MMU_TRANSLATE_RESULT_OK(w) ? "ok" : "fault",
+                 MMU_TRANSLATE_RESULT_PA(w), MMU_TRANSLATE_RESULT_FSR(w), cpu->vectorBase);
+    } else {
+        struct ArmMpu *mpu = cpu->memorySystem.mpu;
+        snprintf(line, sizeof(line), "[diag] va0 mpu=%d read=%s write=%s vectors=%08x", mpuIsEnabled(mpu),
+                 MPU_TEST_RESULT_OK(mpuTestAddress(mpu, 0, true, false)) ? "ok" : "denied",
+                 MPU_TEST_RESULT_OK(mpuTestAddress(mpu, 0, true, true)) ? "ok" : "denied", cpu->vectorBase);
+    }
+    if (strcmp(line, last)) { strcpy(last, line); printf("%s\n", line); }
+}
+#endif
+
 struct ArmCpu *cpuInit(uint32_t pc, struct ArmMem *mem, uint8_t memorySystemKind, bool xscale,
                        bool omap, int debugPort, uint32_t cpuid, uint32_t cacheId,
                        struct PatchDispatch *patchDispatch, struct PacePatch *pacePatch,
@@ -3271,6 +3333,10 @@ struct ArmCpu *cpuInit(uint32_t pc, struct ArmMem *mem, uint8_t memorySystemKind
     if (!xscale) cpu->CPAR = 0xffff;
 
     cpuReset(cpu, pc);
+
+#ifdef UARM_DIAG
+    gDiagCpu = cpu;
+#endif
 
     return cpu;
 }

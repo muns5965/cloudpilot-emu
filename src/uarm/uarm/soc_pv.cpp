@@ -27,6 +27,7 @@
 #include "pv_keys.h"
 #include "pv_rtc.h"
 #include "pv_sysctl.h"
+#include "diag.h"
 #include "pv_timer.h"
 #include "pv_touch.h"
 #include "pv_uart.h"
@@ -102,6 +103,9 @@ SocPV::SocPV(uint32_t ramSize, void *romData, const uint32_t romSize, DisplayMod
         sonyLow = ramInit(mem, this, PV_SONY_VZ90_LOW_BASE, PV_SONY_VZ90_LOW_SIZE, &bufferSonyLow, false);
         fprintf(stderr, "PV: VZ90 low RAM at 0x%08x, %u bytes\n", PV_SONY_VZ90_LOW_BASE,
                 PV_SONY_VZ90_LOW_SIZE);
+#ifdef UARM_DIAG
+        diagWatchRam("low0", PV_SONY_VZ90_LOW_BASE, bufferSonyLow.buffer, PV_SONY_VZ90_LOW_SIZE);
+#endif
     }
     rom = romInit(mem, ROM_BASE, romData, romSize);
 

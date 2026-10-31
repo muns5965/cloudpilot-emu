@@ -8,6 +8,7 @@
 #include "RAM.h"
 #include "ROM.h"
 #include "cputil.h"
+#include "diag.h"
 
 #define NUM_MEM_REGIONS 128
 
@@ -114,6 +115,10 @@ bool memAccess(struct ArmMem *mem, uint32_t addr, void *buf) {
         }
     }
 
+#ifdef UARM_DIAG
+    if (i < NUM_MEM_REGIONS) diagMmio(addr, size, write, ret, buf);
+#endif
+
     return ret;
 }
 
@@ -148,6 +153,10 @@ bool memAccess(struct ArmMem *mem, uint32_t addr, uint_fast8_t size, bool write,
             break;
         }
     }
+
+#ifdef UARM_DIAG
+    if (i < NUM_MEM_REGIONS) diagMmio(addr, size, write, ret, buf);
+#endif
 
     return ret;
 }

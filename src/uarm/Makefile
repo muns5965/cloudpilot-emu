@@ -73,6 +73,7 @@ SOURCE_CXX =		 					\
 	uarm/keys.cpp 						\
 	uarm/gdbstub.cpp 					\
 	uarm/ROM.cpp						\
+	uarm/diag.cpp						\
 	uarm/RAM.cpp						\
 	uarm/memory_buffer.cpp				\
 	uarm/mem.cpp						\
