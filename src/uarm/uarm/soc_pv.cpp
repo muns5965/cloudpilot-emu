@@ -44,6 +44,13 @@
 #define PV_SONY_VZ90_SHARED_BASE 0x3f843000
 #define PV_SONY_VZ90_SHARED_SIZE 0x00001000
 
+// VZ90 images: Sony's own DALs map virtual address 0 to writable DRAM (TG50/NZ90: L1[0] = 0xA0000C0A, a 1 MB
+// section, measured on TG50 at run time); Sony 68k code relies on it (CLIE Organizer writes one byte to address 0 on
+// the Memo button path). PV has no address translation (MPU only, VA == PA), so the equivalent is RAM at physical 0.
+// Only the first 4KB, zero-filled, for VZ90 images only; part of the memory buffer like the shared page.
+#define PV_SONY_VZ90_LOW_BASE 0x00000000
+#define PV_SONY_VZ90_LOW_SIZE 0x00001000
+
 #define UART_DEBUG_BASE 0x30000100
 #define UART_BASE 0x30000110
 
@@ -92,6 +99,9 @@ SocPV::SocPV(uint32_t ramSize, void *romData, const uint32_t romSize, DisplayMod
                              &bufferSonyShared, false);
         fprintf(stderr, "PV: VZ90 Sony shared page RAM at 0x%08x, %u bytes\n",
                 PV_SONY_VZ90_SHARED_BASE, PV_SONY_VZ90_SHARED_SIZE);
+        sonyLow = ramInit(mem, this, PV_SONY_VZ90_LOW_BASE, PV_SONY_VZ90_LOW_SIZE, &bufferSonyLow, false);
+        fprintf(stderr, "PV: VZ90 low RAM at 0x%08x, %u bytes\n", PV_SONY_VZ90_LOW_BASE,
+                PV_SONY_VZ90_LOW_SIZE);
     }
     rom = romInit(mem, ROM_BASE, romData, romSize);
 
@@ -233,7 +243,7 @@ void SocPV::OnSave(T &savestate) {
 
 void SocPV::AllocateBuffers() {
     size_t memoryBufferSize =
-        ramSize + (sonyVz90SharedPage ? 3 : 2) * MEMORY_BUFFER_GRANULARITY;
+        ramSize + (sonyVz90SharedPage ? 4 : 2) * MEMORY_BUFFER_GRANULARITY;
 
     bool success = memoryBufferAllocate(&bufferMemory, memoryBufferSize);
 
@@ -249,6 +259,9 @@ void SocPV::AllocateBuffers() {
 
     if (sonyVz90SharedPage) {
         success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSonyShared, offset,
+                                                      MEMORY_BUFFER_GRANULARITY);
+        offset += MEMORY_BUFFER_GRANULARITY;
+        success = success && memoryBufferGetSubBuffer(&bufferMemory, &bufferSonyLow, offset,
                                                       MEMORY_BUFFER_GRANULARITY);
     }
 

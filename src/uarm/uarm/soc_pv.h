@@ -77,6 +77,9 @@ class SocPV : public SocGeneric<SocPV> {
     bool sonyVz90SharedPage{false};
     MemoryBuffer bufferSonyShared;
     ArmRam *sonyShared{nullptr};
+    // VZ90 images (same switch): 4KB RAM at physical 0, as Sony's DALs map VA 0 to DRAM (soc_pv.cpp)
+    MemoryBuffer bufferSonyLow;
+    ArmRam *sonyLow{nullptr};
 
     PvTimer *timer{nullptr};
     PvIc *ic{nullptr};
