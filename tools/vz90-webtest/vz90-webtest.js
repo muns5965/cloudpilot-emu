@@ -261,7 +261,15 @@ const LAUNCHER_ROWS = [18, 290];            // icon grid of the launcher
 // one test step: action, wait, screen; expect = 'change' | 'same' | null
 // step status: PASS, KNOWN_FAILURE (a KNOWN fault reproduced; not counted as passed), NEW_FAILURE,
 // UNEXPECTED_PASS (a step expected to show a known fault did not), NOT_RUN (recorded by the caller)
-async function step(ctx, name, action, { wait = 4000, expect = null, ref = null, tolerance = 0.002, rows = [0, 455], expectKnown = false } = {}) {
+// mask: device-unit rectangles [x0, y0, x1, y1] left out of the comparison (both images), for content that changes
+// by itself, such as a creation date
+function masked(img, mask) {
+    if (!mask || !img) return img;
+    const data = Buffer.from(img.data);
+    for (const [x0, y0, x1, y1] of mask) for (let y = y0 >> 1; y < y1 >> 1; y++) for (let x = x0 >> 1; x < x1 >> 1; x++) data.fill(0, (y * 160 + x) * 3, (y * 160 + x) * 3 + 3);
+    return { ...img, data };
+}
+async function step(ctx, name, action, { wait = 4000, expect = null, ref = null, tolerance = 0.002, rows = [0, 455], expectKnown = false, mask = null } = {}) {
     const { page, s, log } = ctx;
     s.step = name;
     const before = ctx.last || (await screen(page));
@@ -270,7 +278,7 @@ async function step(ctx, name, action, { wait = 4000, expect = null, ref = null,
     if (action) await action();
     await sleep(wait);
     const after = await screen(page);
-    const d = diff(ref || before, after, ...rows);
+    const d = diff(masked(ref || before, mask), masked(after, mask), ...rows);
     let ok = true, note = `diff ${(d * 100).toFixed(2)}%`;
     if (expect === 'change' && d <= tolerance) { ok = false; s.fail('no response (screen unchanged after input)', note); }
     if (expect === 'same' && d > tolerance) { ok = false; s.fail('screen differs from reference', note); }
@@ -358,6 +366,10 @@ const GOLDEN = {
     todoChecked: { file: 'golden-todo-checked', what: 'ToDo list: new item てすと at the end, checked (completed)', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
     todoReopen: { file: 'golden-todo-reopen', what: 'ToDo list reopened and scrolled down: てすと still checked', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
     todoDisplay: { file: 'golden-todo-display', what: 'ToDo display settings: completed items shown (完了した項目を表示 checked)', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
+    memoList: { file: 'golden-memo-list', what: 'Memo Pad list: てすと first (selected after saving), then メモ帳の使い方; date column masked', inputs: () => JSON.stringify({ ORG_MEMO, ORG_ROWS }) },
+    memoListReopen: { file: 'golden-memo-list-reopen', what: 'Memo Pad list reopened: てすと first, not selected; date column masked', inputs: () => JSON.stringify({ ORG_MEMO, ORG_ROWS }) },
+    memoListRelaunch: { file: 'golden-memo-list-relaunch', what: 'Memo Pad list after the session relaunch (saved while the list was shown after closing てすと); date column masked', inputs: () => JSON.stringify({ ORG_MEMO, ORG_ROWS }) },
+    memoText: { file: 'golden-memo-text', what: 'Memo てすと opened: its text is てすと', inputs: () => JSON.stringify({ ORG_MEMO, ORG_ROWS }) },
     deletedReopen: { file: 'golden-deleted-reopen', what: 'Address list reopened after the delete: only the hint entry', inputs: () => JSON.stringify({ ORG_EDIT, ORG_ROWS }) },
 };
 function writeGoldenManifest(work, verified, g = GOLDEN.calc) {
@@ -382,7 +394,7 @@ function verifyGolden() {
     writeGoldenManifest(O.work, true, g); console.log(`golden image ${g.file} marked verified (${g.what})`); return true;
 }
 // a golden-image step: creates the image (unverified) when missing, compares only a verified one
-async function goldenStep(ctx, name, g, cur, rows) {
+async function goldenStep(ctx, name, g, cur, rows, mask = null) {
     const { s } = ctx, work = path.dirname(ctx.log.dir), raw = path.join(work, g.file + '.raw');
     if (goldenState(work, g).state === 'missing') {
         fs.writeFileSync(raw, cur.data); fs.writeFileSync(path.join(work, g.file + '.png'), cur.png);
@@ -390,7 +402,7 @@ async function goldenStep(ctx, name, g, cur, rows) {
         console.log(`  note ${name}: golden image created, NOT verified - check ${path.join(work, g.file + '.png')} (${g.what}), then run "verify-golden ${Object.keys(GOLDEN).find((k) => GOLDEN[k] === g)}"`);
     }
     const st = goldenState(work, g);
-    if (st.state === 'verified') return step(ctx, name, null, { wait: 0, expect: 'same', ref: { data: fs.readFileSync(raw) }, tolerance: 0.002, rows });
+    if (st.state === 'verified') return step(ctx, name, null, { wait: 0, expect: 'same', ref: { data: fs.readFileSync(raw) }, tolerance: 0.002, rows, mask });
     if (st.state === 'unverified') { ctx.log.steps.push({ name, status: 'NOT_RUN', ok: false, ms: 0, note: 'golden image not verified' }); console.log(`  ${'NOT_RUN'.padEnd(15)} ${name}  golden image not verified`); return; }
     ctx.log.steps.push({ name, status: 'NEW_FAILURE', ok: false, ms: 0, note: st.why }); console.log(`  ${'NEW_FAILURE'.padEnd(15)} ${name}  ${st.why}`); s.fail('golden image invalid', st.why);
 }
@@ -535,7 +547,58 @@ async function organizerTodo(ctx, ref, base) {
     await step(ctx, 'T8 display settings', () => tap(page, ...E.displaySettings), { wait: 2500, expect: 'change' });
     await goldenStep(ctx, 'T8 completed items shown (golden)', GOLDEN.todoDisplay, await screen(page), ORG_ROWS);
     await step(ctx, 'T8 close settings', () => tap(page, ...E.dialogCancel), { wait: 2000, expect: 'change' });
-    await backToLauncher(ctx, ref, 'T8 end home');
+    if (await backToLauncher(ctx, ref, 'T8 end home')) await organizerMemo(ctx, ref, base);
+}
+
+// T9: CLIE Organizer Memo Pad (メモ帳, the text memo; 手書きメモ is a separate tab, not covered): a new memo typed
+// on the kana keyboard, the list and the memo text checked right away, after reopening and after a session relaunch.
+// The list shows each memo's creation date (today), so that column is masked in the list comparisons.
+// Tab selection: the Memo button opens the tab after the one used last (Address, ToDo, 手書きメモ, メモ帳, 便利情報;
+// 便利情報 scrolls the tab column away), so T9 always leaves the Organizer on the Address tab and enters
+// メモ帳 through it: Memo button, Address tab, メモ帳 tab (as placed while Address is active, input area shown).
+const ORG_MEMO = {
+    memoTab: [308, 262],            // メモ帳 tab while Address is the active tab
+    newMemo: [14, 304],             // "new" icon of the Memo Pad list
+    back: [14, 304],                // memo screen: back to the list
+    firstRow: [182, 60],            // first list row
+    dateMask: [[174, 48, 286, 290]],
+};
+async function openMemoPad(ctx, label) {
+    const { page } = ctx;
+    await step(ctx, `${label} Address tab`, () => tap(page, ...ORG_ENTRY.addressTab), { wait: 2500 });
+    await step(ctx, `${label} メモ帳 tab`, () => tap(page, ...ORG_MEMO.memoTab), { wait: 3000, expect: 'change' });
+}
+async function checkMemo(ctx, label, gList) {
+    const { page } = ctx, E = ORG_MEMO;
+    await goldenStep(ctx, `${label} list (golden)`, gList, await screen(page), ORG_ROWS, E.dateMask);
+    await step(ctx, `${label} open てすと`, () => tap(page, ...E.firstRow), { wait: 3000, expect: 'change' });
+    await goldenStep(ctx, `${label} text (golden)`, GOLDEN.memoText, await screen(page), ORG_ROWS);
+    await step(ctx, `${label} back to list`, () => tap(page, ...E.back), { wait: 3000, expect: 'change' });
+}
+async function organizerMemo(ctx, ref, base) {
+    const { page } = ctx, E = ORG_MEMO, K = ORG_ENTRY;
+    await step(ctx, 'T9 memo button', () => tap(page, ...MEMO_BUTTON), { wait: 7000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: 0.3 });
+    if (!inputAreaShown(await screen(page))) await step(ctx, 'T9 show input area', () => tap(page, ...K.showInputArea), { wait: 2500, expect: 'change' });
+    await openMemoPad(ctx, 'T9');
+    await step(ctx, 'T9 new memo', () => tap(page, ...E.newMemo), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T9 kana keyboard', () => tap(page, ...K.keyboard), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T9 kana page', () => tap(page, ...ORG_TODO.kanaTab), { wait: 1500 });
+    await step(ctx, 'T9 type てすと', async () => { for (const k of K.kana) { await tap(page, ...k); await sleep(700); } }, { wait: 1200, expect: 'change', tolerance: 0.0005 });
+    await step(ctx, 'T9 keyboard done', () => tap(page, ...K.keyboardDone), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T9 save memo', () => tap(page, ...E.back), { wait: 3000, expect: 'change' });
+    await checkMemo(ctx, 'T9 saved', GOLDEN.memoList);
+    // reopen: leave on the Address tab, home, Memo button, Address, メモ帳
+    await step(ctx, 'T9 leave on Address', () => tap(page, ...K.addressTab), { wait: 2500, expect: 'change' });
+    if (!(await backToLauncher(ctx, ref, 'T9 home'))) return;
+    await step(ctx, 'T9 reopen', () => tap(page, ...MEMO_BUTTON), { wait: 7000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: 0.3 });
+    await openMemoPad(ctx, 'T9 reopen');
+    await checkMemo(ctx, 'T9 reopened', GOLDEN.memoListReopen);
+    // session saved while the Memo Pad list is shown, relaunched: the same list
+    ctx.s.step = 'T9 save session'; await tabSessions(page); await sleep(5000);
+    await launchSession(page, base.name); await sleep(6000);
+    await checkMemo(ctx, 'T9 relaunched', GOLDEN.memoListRelaunch);
+    await step(ctx, 'T9 end on Address', () => tap(page, ...K.addressTab), { wait: 2500, expect: 'change' });
+    await backToLauncher(ctx, ref, 'T9 end home');
 }
 // home returns to the launcher; the launcher scrolls to show the application launched last, so the check allows
 // up to three taps on its scroll-up arrow before comparing (no other input)
