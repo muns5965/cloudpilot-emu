@@ -355,6 +355,9 @@ const GOLDEN = {
     edited: { file: 'golden-edited', what: 'Address list right after editing: 2てすと first and selected, てすと gone', inputs: () => JSON.stringify({ ORG_EDIT, ORG_ROWS }) },
     editedReopen: { file: 'golden-edited-reopen', what: 'Address list reopened: 2てすと first, not selected', inputs: () => JSON.stringify({ ORG_EDIT, ORG_ROWS }) },
     deleted: { file: 'golden-deleted', what: 'Address list right after deleting 2てすと: only the hint entry, selected', inputs: () => JSON.stringify({ ORG_EDIT, ORG_ROWS }) },
+    todoChecked: { file: 'golden-todo-checked', what: 'ToDo list: new item てすと at the end, checked (completed)', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
+    todoReopen: { file: 'golden-todo-reopen', what: 'ToDo list reopened and scrolled down: てすと still checked', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
+    todoDisplay: { file: 'golden-todo-display', what: 'ToDo display settings: completed items shown (完了した項目を表示 checked)', inputs: () => JSON.stringify({ ORG_TODO, ORG_ROWS }) },
     deletedReopen: { file: 'golden-deleted-reopen', what: 'Address list reopened after the delete: only the hint entry', inputs: () => JSON.stringify({ ORG_EDIT, ORG_ROWS }) },
 };
 function writeGoldenManifest(work, verified, g = GOLDEN.calc) {
@@ -477,7 +480,62 @@ async function organizerEdit(ctx, ref, base) {
     await goldenStep(ctx, 'T7 after delete (golden)', GOLDEN.deleted, await screen(page), ORG_ROWS);
     if (!(await reopenAddress(ctx, ref, base, 'T7 deleted', GOLDEN.deletedReopen, false))) return;
     if (!(await reopenAddress(ctx, ref, base, 'T7 deleted relaunch', GOLDEN.deletedReopen, true))) return;
-    await backToLauncher(ctx, ref, 'T7 end home');
+    if (await backToLauncher(ctx, ref, 'T7 end home')) await organizerTodo(ctx, ref, base);
+}
+
+// T8: CLIE Organizer ToDo: a new item typed on the kana keyboard and checked as completed; the completed state is
+// checked right away, after reopening and after a session relaunch (the list is scrolled down to the item), and
+// the display setting that keeps completed items visible is recorded, so a vanished item would not be mistaken for
+// a lost one. The Memo button opens the next tab on each press, so the steps select Address first (its tab is at
+// the same place in every layout), then ToDo below it. Coordinates measured with explore (input area shown).
+const ORG_TODO = {
+    todoTab: [308, 163],            // ToDo tab while Address is the active tab
+    newItem: [14, 304],             // "new" icon of the ToDo list
+    newItemCheck: [10, 243],        // check box of the new item (last row after the list scrolled to it)
+    kanaTab: [111, 292],            // keyboard "かな" page (T7 leaves the keyboard on the digit page)
+    scrollDown: [287, 262],         // list scroll arrow, 4 taps reach the end
+    menu: [37, 465], optionsMenu: [182, 13], displaySettings: [150, 64], dialogCancel: [135, 292],
+};
+async function openTodo(ctx, label) {
+    const { page } = ctx;
+    await step(ctx, `${label} Address tab`, () => tap(page, ...ORG_ENTRY.addressTab), { wait: 2500 });
+    await step(ctx, `${label} ToDo tab`, () => tap(page, ...ORG_TODO.todoTab), { wait: 3000, expect: 'change' });
+}
+async function scrollTodoEnd(ctx, label) {
+    await step(ctx, `${label} scroll to the end`, async () => { for (let i = 0; i < 4; i++) { await tap(ctx.page, ...ORG_TODO.scrollDown); await sleep(800); } }, { wait: 1500 });
+}
+async function organizerTodo(ctx, ref, base) {
+    const { page } = ctx, E = ORG_TODO, K = ORG_ENTRY;
+    await step(ctx, 'T8 memo button', () => tap(page, ...MEMO_BUTTON), { wait: 7000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: 0.3 });
+    await openTodo(ctx, 'T8');
+    if (!inputAreaShown(await screen(page))) await step(ctx, 'T8 show input area', () => tap(page, ...K.showInputArea), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T8 new item', () => tap(page, ...E.newItem), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T8 kana keyboard', () => tap(page, ...K.keyboard), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T8 kana page', () => tap(page, ...E.kanaTab), { wait: 1500 });
+    // three kana in the keyboard's text line change 0.18-0.24 % of the screen (measured), close to the default
+    // 0.2 % threshold: lower threshold here; the typed text itself is judged by the golden image after the check
+    await step(ctx, 'T8 type てすと', async () => { for (const k of K.kana) { await tap(page, ...k); await sleep(700); } }, { wait: 1200, expect: 'change', tolerance: 0.0005 });
+    await step(ctx, 'T8 keyboard done', () => tap(page, ...K.keyboardDone), { wait: 2500, expect: 'change' });
+    // the check mark changes a few pixels only: lower threshold (measured 0.07 % for the change)
+    await step(ctx, 'T8 check as completed', () => tap(page, ...E.newItemCheck), { wait: 2500, expect: 'change', tolerance: 0.0003 });
+    await goldenStep(ctx, 'T8 completed item (golden)', GOLDEN.todoChecked, await screen(page), ORG_ROWS);
+    // reopen
+    if (!(await backToLauncher(ctx, ref, 'T8 home'))) return;
+    await step(ctx, 'T8 reopen', () => tap(page, ...MEMO_BUTTON), { wait: 7000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: 0.3 });
+    await openTodo(ctx, 'T8 reopen'); await scrollTodoEnd(ctx, 'T8 reopen');
+    await goldenStep(ctx, 'T8 completed after reopen (golden)', GOLDEN.todoReopen, await screen(page), ORG_ROWS);
+    // session relaunch
+    ctx.s.step = 'T8 save session'; await tabSessions(page); await sleep(5000);
+    await launchSession(page, base.name); await sleep(6000);
+    await openTodo(ctx, 'T8 relaunch'); await scrollTodoEnd(ctx, 'T8 relaunch');
+    await goldenStep(ctx, 'T8 completed after session relaunch (golden)', GOLDEN.todoReopen, await screen(page), ORG_ROWS);
+    // the display setting that keeps completed items in the list
+    await step(ctx, 'T8 menu', () => tap(page, ...E.menu), { wait: 2000, expect: 'change' });
+    await step(ctx, 'T8 options menu', () => tap(page, ...E.optionsMenu), { wait: 1500, expect: 'change' });
+    await step(ctx, 'T8 display settings', () => tap(page, ...E.displaySettings), { wait: 2500, expect: 'change' });
+    await goldenStep(ctx, 'T8 completed items shown (golden)', GOLDEN.todoDisplay, await screen(page), ORG_ROWS);
+    await step(ctx, 'T8 close settings', () => tap(page, ...E.dialogCancel), { wait: 2000, expect: 'change' });
+    await backToLauncher(ctx, ref, 'T8 end home');
 }
 // home returns to the launcher; the launcher scrolls to show the application launched last, so the check allows
 // up to three taps on its scroll-up arrow before comparing (no other input)
