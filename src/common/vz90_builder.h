@@ -23,6 +23,14 @@ class Vz90Builder {
     // returns a Vz90Status value (0 = ok); GetMessage() describes the result
     long Build(const void* rom, long romSize, const void* dal, long dalSize);
 
+    // check a DAL bundle without building; on success GetDalBuildId()/GetDalSha256() describe it (Vz90Status value)
+    long DescribeDal(const void* dal, long dalSize);
+    const char* GetDalBuildId() const;
+    const char* GetDalSha256() const;
+
+    // 1 = the PV image (a saved VZ90 session) carries this DAL, 0 = another DAL, -1 = cannot tell
+    long ImageHasDal(const void* image, long size, const void* dal, long dalSize) const;
+
     void* GetImage();
     long GetImageSize() const;
     void ReleaseImage();
@@ -32,6 +40,8 @@ class Vz90Builder {
    private:
     Vz90Image image;
     std::string message;
+    std::string dalBuildId;
+    std::string dalSha256;
 
     Vz90Builder(const Vz90Builder&) = delete;
     Vz90Builder& operator=(const Vz90Builder&) = delete;

@@ -7,7 +7,9 @@ import { SnapshotContainer } from '@common/engine/Snapshot';
 import { LoaderHandle } from '@common/helper/Loader';
 import { isIOS } from '@common/helper/browser';
 import { SchedulerKind } from '@common/helper/scheduler';
+import { DeviceId } from '@common/model/DeviceId';
 import { AbstractEmulationService, Executor } from '@common/service/AbstractEmulationService';
+import { ToastController } from '@ionic/angular';
 import { Mutex } from 'async-mutex';
 import { environment } from 'pwa/src/environments/environment';
 
@@ -27,6 +29,7 @@ import { KvsService } from './kvs.service';
 import { hasInitialImportRequest } from './link-api.service';
 import { LoaderService } from './loader.service';
 import { ModalWatcherService } from './modal-watcher.service';
+import { NativeSupportService } from './native-support.service';
 import { NetworkService } from './network.service';
 import { SessionService } from './session.service';
 import { SnapshotService } from './snapshot.service';
@@ -34,6 +37,7 @@ import { CardOwner, StorageCardContext } from './storage-card-context';
 import { StorageService } from './storage.service';
 import { TOKEN_CLOUDPILOT_INSTANCE, TOKEN_EMULATOR_LOCK, TOKEN_UARM_MODULE } from './token';
 import { UarmNetworkService } from './uarm-network.service';
+import { Vz90DalService } from './vz90-dal.service';
 
 // TODO: Get rid of cloudpilot service
 
@@ -59,6 +63,9 @@ export class EmulationService extends AbstractEmulationService {
         private storageCardContext: StorageCardContext,
         private sessionsService: SessionService,
         private featureService: FeatureService,
+        private nativeSupportService: NativeSupportService,
+        private vz90DalService: Vz90DalService,
+        private toastController: ToastController,
         modalWatcher: ModalWatcherService,
         @Inject(TOKEN_CLOUDPILOT_INSTANCE) cloudpilotPromise: Promise<Cloudpilot>,
         @Inject(TOKEN_UARM_MODULE) private uarmModulePromise: Promise<WebAssembly.Module>,
@@ -337,6 +344,9 @@ Sorry for the inconvenience.`,
             throw new Error(`invalid ROM ${session.rom}`);
         }
 
+        // a VZ90 session keeps the DAL it was created with; tell the user if that is not the built-in one
+        if (session.device === DeviceId.repalmPV) void this.checkVz90SessionDal(rom);
+
         const storageCard =
             session.mountedCard !== undefined ? await this.storageService.getCard(session.mountedCard) : undefined;
 
@@ -373,6 +383,31 @@ Sorry for the inconvenience.`,
         await this.snapshotService.initialize(session);
 
         return true;
+    }
+
+    private async checkVz90SessionDal(rom: Uint8Array): Promise<void> {
+        try {
+            if (!(await this.nativeSupportService.hasVz90Marker(rom))) return;
+
+            const dal = await this.vz90DalService.builtin();
+            const same = await this.nativeSupportService.vz90ImageHasDal(rom, dal.bundle);
+            if (same === 1) {
+                console.info(`VZ90 session: DAL is the built-in one (build ${dal.buildId})`);
+                return;
+            }
+
+            console.warn(`VZ90 session: created with another DAL than the built-in build ${dal.buildId}`);
+            const toast = await this.toastController.create({
+                message:
+                    'This VZ90 session was created with another DAL build than the built-in one. The session keeps ' +
+                    'its own DAL.',
+                duration: 6000,
+                position: 'top',
+            });
+            await toast.present();
+        } catch (e) {
+            console.warn('VZ90 session: DAL check not possible', e);
+        }
     }
 
     private onSessionChange = ([sessionId, session]: [number, Session | undefined]): void => {

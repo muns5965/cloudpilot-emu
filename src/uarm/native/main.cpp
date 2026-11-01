@@ -38,6 +38,7 @@
 #include "session/session_file5.h"
 #include "soc_PXA.h"
 #include "soc_pv.h"
+#include "vz90_dal_builtin.h"
 #include "vz90_pv_image.h"
 
 using namespace std;
@@ -193,6 +194,20 @@ namespace {
                      << endl;
             if (options.vz90Dal)
                 cerr << "--vz90-dal ignored: the session file holds its rebuilt VZ90 ROM" << endl;
+            // a VZ90 session keeps the DAL it was created with; say if it is the built-in one
+            if (Vz90HasMarker(static_cast<const uint8_t*>(sessionFile.GetNor()),
+                              sessionFile.GetNorSize()) &&
+                vz90DalBuiltinSize > 0) {
+                const int same =
+                    Vz90ImageHasDal(static_cast<const uint8_t*>(sessionFile.GetNor()),
+                                    sessionFile.GetNorSize(), {vz90DalBuiltin, vz90DalBuiltinSize});
+                if (same == 1)
+                    cerr << "VZ90 session: DAL is the built-in one" << endl;
+                else
+                    cerr << "warning: this VZ90 session was created with another DAL build than "
+                            "the built-in one; the session keeps its own DAL"
+                         << endl;
+            }
             if (options.nand) {
                 cerr << "separate NAND image cannot be used with session file" << endl;
                 return false;
@@ -218,20 +233,46 @@ namespace {
                     cerr << "--tg50/--nx70v/--boot-rom cannot be used with a VZ90 ROM" << endl;
                     return false;
                 }
-                if (!options.vz90Dal) {
-                    cerr << "original VZ90 ROM: the DAL bundle is required (--vz90-dal <bundle>)"
+                // the built-in DAL; --vz90-dal (development) replaces it, and a DAL given that way
+                // that cannot be used stops the start instead of falling back to the built-in one
+                size_t dalLen{0};
+                unique_ptr<uint8_t[]> dalData;
+                Vz90DalBundle dal;
+                if (options.vz90Dal) {
+                    if (!util::ReadFile(*options.vz90Dal, dalData, dalLen)) {
+                        cerr << "--vz90-dal: cannot read " << *options.vz90Dal << endl;
+                        return false;
+                    }
+                    dal = {dalData.get(), dalLen};
+                } else if (vz90DalBuiltinSize > 0) {
+                    dal = {vz90DalBuiltin, vz90DalBuiltinSize};
+                } else {
+                    cerr << "original VZ90 ROM: this build has no built-in DAL (built with "
+                            "VZ90_DAL=none); give one with --vz90-dal <bundle>"
                          << endl;
                     return false;
                 }
-                size_t dalLen{0};
-                unique_ptr<uint8_t[]> dalData;
-                if (!util::ReadFile(*options.vz90Dal, dalData, dalLen)) return false;
+
+                string dalBuildId, dalSha256, message;
+                if (Vz90DescribeBundle(dal, dalBuildId, dalSha256, message) != Vz90Status::ok) {
+                    cerr << (options.vz90Dal ? "--vz90-dal: " : "built-in VZ90 DAL: ") << message
+                         << endl;
+                    return false;
+                }
+                if (!options.vz90Dal && dalSha256 != vz90DalBuiltinSha256) {
+                    cerr << "built-in VZ90 DAL: SHA-256 differs from the value recorded at "
+                            "build time"
+                         << endl;
+                    return false;
+                }
+                cerr << "VZ90 DAL: " << (options.vz90Dal ? *options.vz90Dal : string("built-in"))
+                     << ", build " << dalBuildId << ", sha256 " << dalSha256;
+                if (!options.vz90Dal) cerr << " (" << vz90DalBuiltinSource << ")";
+                cerr << endl;
 
                 Vz90Image image;
-                string message;
-                const Vz90Status status =
-                    Vz90BuildPvImage(norOrSessionData.get(), norOrSessionLen,
-                                     {dalData.get(), dalLen}, Vz90Options(), image, message);
+                const Vz90Status status = Vz90BuildPvImage(norOrSessionData.get(), norOrSessionLen,
+                                                           dal, Vz90Options(), image, message);
                 if (status != Vz90Status::ok) {
                     cerr << Vz90StatusName(status) << ": " << message << endl;
                     return false;
@@ -577,7 +618,7 @@ int main(int argc, char** argv) {
         .implicit_value(true);
 
     program.add_argument("--vz90-dal")
-        .help("DAL bundle used to run an original Sony VZ90 ROM (pv-vz90-dal)")
+        .help("development: use this DAL bundle instead of the built-in one (original VZ90 ROM)")
         .metavar("<bundle>");
 
     program.add_argument("--gdb")

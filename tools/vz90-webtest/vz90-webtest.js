@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // VZ90 web emulator test runner (local, Playwright + headless Chromium).
 //
-//   node vz90-webtest.js setup  --build <build-pwa dir> --rom <original VZ90 ROM> --dal <bundle> --work <dir>
+//   node vz90-webtest.js setup  --build <build-pwa dir> --rom <original VZ90 ROM> [--dal <bundle>] --work <dir>
 //   node vz90-webtest.js rounds --build <build-pwa dir> --work <dir> [--rounds N] [--label name]
 //   node vz90-webtest.js soak   --build <build-pwa dir> --work <dir> [--loops N] [--label name]   (one browser kept open)
 //
-// setup: fresh browser profile -> register ROM + DAL bundle -> boot (boot time) -> Welcome steps (each tap must
+// setup: fresh browser profile -> register ROM (built-in DAL; --dal selects a bundle by hand through the
+//        development option ?vz90dal=select) -> boot (boot time) -> Welcome steps (each tap must
 //        change the screen) -> launcher -> session saved -> profile copied to <work>/baseline-profile.
 // rounds: each round copies the baseline profile and runs T0 (restore = baseline screen), T2 (Prefs/General and
 //        launching apps from the launcher, every step must answer), T4 (leave and relaunch = same screen), and
@@ -739,20 +740,29 @@ async function soak() {
     return r.failures.length === 0;
 }
 
+// SHA-256 of the DAL built into the PWA build (recorded by tools/vz90-dal/gen.py), or null when it has none
+function builtinDalSha256() {
+    try { return JSON.parse(fs.readFileSync(path.join(path.resolve(O.build), 'vz90-dal', 'vz90-dal.json'), 'utf8')).sha256; } catch { return null; }
+}
+
 async function setup() {
     const work = path.resolve(O.work); fs.mkdirSync(work, { recursive: true });
     const log = { t0: now(), steps: [], dir: path.join(work, 'setup') }; fs.rmSync(log.dir, { recursive: true, force: true }); fs.mkdirSync(log.dir, { recursive: true });
-    const server = await serve(path.resolve(O.build)); const url = `http://127.0.0.1:${server.address().port}/`;
+    const server = await serve(path.resolve(O.build));
+    const url = `http://127.0.0.1:${server.address().port}/` + (O.dal ? '?vz90dal=select' : '');
     const profile = path.join(work, 'setup-profile'); fs.rmSync(profile, { recursive: true, force: true });
     const { ctx: bctx, page, s } = await openBrowser(profile, url, log);
     const ctx = { page, s, log };
-    // register: ROM -> DAL dialog -> bundle -> settings -> save
+    // register: ROM -> (built-in DAL, or DAL dialog -> bundle with --dal) -> settings -> save
     s.step = 'register';
     await tabSessions(page);
     let [fc] = await Promise.all([page.waitForEvent('filechooser'), page.locator('ion-button:has(ion-icon[name="add-outline"])').click()]);
     await fc.setFiles(O.rom); await sleep(2500);
-    [fc] = await Promise.all([page.waitForEvent('filechooser'), page.locator('ion-alert button', { hasText: 'Select DAL bundle' }).click()]);
-    await fc.setFiles(O.dal); await sleep(6000);
+    if (O.dal) {
+        [fc] = await Promise.all([page.waitForEvent('filechooser'), page.locator('ion-alert button', { hasText: 'Select DAL bundle' }).click()]);
+        await fc.setFiles(O.dal);
+    }
+    await sleep(6000);
     await page.locator('ion-modal ion-button', { hasText: 'Save' }).click(); await sleep(3000);
     const name = path.basename(O.rom);
     // boot: time until the screen shows something and stays stable
@@ -795,7 +805,7 @@ async function setup() {
     const base = path.join(work, 'baseline-profile'); fs.rmSync(base, { recursive: true, force: true });
     fs.cpSync(profile, base, { recursive: true });
     const meta = { name, bootMs, created: new Date().toISOString(), romMd5: require('crypto').createHash('md5').update(fs.readFileSync(O.rom)).digest('hex'),
-        dalSha256: sha(O.dal), baselineScreenSha256: sha(path.join(work, 'baseline-screen.png')), browser: chromium.name() + ' ' + (await browserVersion()),
+        dal: O.dal ? path.basename(O.dal) : 'built-in', dalSha256: O.dal ? sha(O.dal) : builtinDalSha256(), baselineScreenSha256: sha(path.join(work, 'baseline-screen.png')), browser: chromium.name() + ' ' + (await browserVersion()),
         setupPassed: s.fails.length === 0, ...buildMeta() };
     fs.writeFileSync(path.join(work, 'baseline.json'), JSON.stringify(meta, null, 1));
     report(log, s, 'setup');

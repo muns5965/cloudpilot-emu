@@ -1,7 +1,8 @@
 # VZ90 web test runner (local)
 
 Automated tests of the web build with an original VZ90 ROM and a pv-vz90-dal bundle, driven by Playwright in
-headless Chromium. Nothing here contains ROM or DAL data; both are given on the command line.
+headless Chromium. Nothing here contains ROM or DAL data; the ROM is given on the command line. The build's own DAL is used unless
+`--dal` selects a bundle through the development option `?vz90dal=select`.
 
 ## Builds
 
@@ -13,7 +14,7 @@ headless Chromium. Nothing here contains ROM or DAL data; both are given on the 
 ## Runs
 
 ```
-node vz90-webtest.js setup  --build web/build-pwa --rom <VZ90 ROM> --dal <bundle> --work <dir> [--port 8790]
+node vz90-webtest.js setup  --build web/build-pwa --rom <VZ90 ROM> [--dal <bundle>] --work <dir> [--port 8790]
 node vz90-webtest.js rounds --build web/build-pwa --work <dir> [--rounds N] [--label name]
 node vz90-webtest.js soak   --build web/build-pwa --work <dir> [--loops N] [--label name]
 ```

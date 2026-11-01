@@ -37,6 +37,11 @@
                 "input": "node_modules/ionicons/dist/ionicons/svg",
                 "output": "./svg"
               },
+              {
+                "glob": "vz90-dal.*",
+                "input": "pwa/src/vz90-dal",
+                "output": "vz90-dal"
+              },
               "pwa/src/manifest.webmanifest",
               "pwa/src/revision.json"
             ],

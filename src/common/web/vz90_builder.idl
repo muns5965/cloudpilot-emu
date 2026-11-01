@@ -6,6 +6,12 @@ interface Vz90Builder {
 
     long Build([Const] VoidPtr rom, long romSize, [Const] VoidPtr dal, long dalSize);
 
+    long DescribeDal([Const] VoidPtr dal, long dalSize);
+    [Const] DOMString GetDalBuildId();
+    [Const] DOMString GetDalSha256();
+
+    long ImageHasDal([Const] VoidPtr image, long size, [Const] VoidPtr dal, long dalSize);
+
     VoidPtr GetImage();
     long GetImageSize();
     void ReleaseImage();

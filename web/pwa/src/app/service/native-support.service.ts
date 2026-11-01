@@ -1,5 +1,12 @@
 import { Inject, Injectable } from '@angular/core';
-import { CardSupportLevel, Cloudpilot, RomInfo, SessionImage, Vz90BuildResult } from '@common/bridge/Cloudpilot';
+import {
+    CardSupportLevel,
+    Cloudpilot,
+    RomInfo,
+    SessionImage,
+    Vz90BuildResult,
+    Vz90DalInfo,
+} from '@common/bridge/Cloudpilot';
 import { slotType } from '@common/helper/deviceProperties';
 import { DeviceId } from '@common/model/DeviceId';
 import { SlotType } from '@common/model/SlotType';
@@ -64,6 +71,18 @@ export class NativeSupportService {
 
     buildVz90Image(rom: Uint8Array, dalBundle: Uint8Array): Promise<Vz90BuildResult> {
         return this.cloudpilot.then((cp) => cp.buildVz90Image(rom, dalBundle));
+    }
+
+    describeVz90Dal(dalBundle: Uint8Array): Promise<Vz90DalInfo> {
+        return this.cloudpilot.then((cp) => cp.describeVz90Dal(dalBundle));
+    }
+
+    hasVz90Marker(image: Uint8Array): Promise<boolean> {
+        return this.cloudpilot.then((cp) => cp.hasVz90Marker(image));
+    }
+
+    vz90ImageHasDal(image: Uint8Array, dalBundle: Uint8Array): Promise<number> {
+        return this.cloudpilot.then((cp) => cp.vz90ImageHasDal(image, dalBundle));
     }
 
     getCardSupportLevel(size: number): Promise<CardSupportLevel> {

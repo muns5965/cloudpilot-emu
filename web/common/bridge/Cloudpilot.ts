@@ -87,6 +87,15 @@ export interface Vz90BuildResult {
     image?: Uint8Array;
 }
 
+// A DAL bundle as checked by the native code: build ID (40 hex digits, "-dirty" for a modified source tree) and
+// SHA-256 of the whole bundle file; only present when status is ok.
+export interface Vz90DalInfo {
+    status: Vz90Status;
+    message: string;
+    buildId?: string;
+    sha256?: string;
+}
+
 export interface Frame {
     bpp: number;
     lineWidth: number;
@@ -296,6 +305,56 @@ export class Cloudpilot {
             if (dalBuffer !== undefined) this.cloudpilot.Free(dalBuffer);
 
             builder.ReleaseImage();
+            this.module.destroy(builder);
+        }
+    }
+
+    // Check a DAL bundle (format, bounds, hashes) without building an image.
+    @guard()
+    describeVz90Dal(dalBundle: Uint8Array): Vz90DalInfo {
+        const builder = new this.module.Vz90Builder();
+        const buffer = this.copyIn(dalBundle);
+
+        try {
+            const status = builder.DescribeDal(buffer, dalBundle.length);
+            const message = builder.GetMessage();
+            if (status !== Vz90Status.ok) return { status, message };
+
+            return { status, message, buildId: builder.GetDalBuildId(), sha256: builder.GetDalSha256() };
+        } finally {
+            this.cloudpilot.Free(buffer);
+            this.module.destroy(builder);
+        }
+    }
+
+    // A PV image rebuilt from an original VZ90 ROM (also the ROM of a saved VZ90 session).
+    @guard()
+    hasVz90Marker(image: Uint8Array): boolean {
+        // the marker lives in the card header's token area (first 256 bytes): copy only that
+        const header = image.subarray(0, 0x100);
+        const builder = new this.module.Vz90Builder();
+        const buffer = this.copyIn(header);
+
+        try {
+            return builder.HasMarker(buffer, header.length);
+        } finally {
+            this.cloudpilot.Free(buffer);
+            this.module.destroy(builder);
+        }
+    }
+
+    // 1: the rebuilt VZ90 image carries this DAL bundle, 0: another DAL, -1: cannot tell.
+    @guard()
+    vz90ImageHasDal(image: Uint8Array, dalBundle: Uint8Array): number {
+        const builder = new this.module.Vz90Builder();
+        const imageBuffer = this.copyIn(image);
+        const dalBuffer = this.copyIn(dalBundle);
+
+        try {
+            return builder.ImageHasDal(imageBuffer, image.length, dalBuffer, dalBundle.length);
+        } finally {
+            this.cloudpilot.Free(imageBuffer);
+            this.cloudpilot.Free(dalBuffer);
             this.module.destroy(builder);
         }
     }

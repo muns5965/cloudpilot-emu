@@ -44,6 +44,15 @@ bool Vz90HasMarker(const uint8_t* pvImage, size_t size);
 // check a DAL bundle (format, bounds, hashes); fills buildId (40 hex digits) on success
 Vz90Status Vz90CheckBundle(const Vz90DalBundle& dal, std::string& buildId, std::string& message);
 
+// as Vz90CheckBundle, and also the SHA-256 of the whole bundle file (64 hex digits), to identify the DAL in use
+Vz90Status Vz90DescribeBundle(const Vz90DalBundle& dal, std::string& buildId, std::string& sha256Hex,
+                              std::string& message);
+
+// whether a rebuilt PV image (e.g. from a saved session) carries the DAL of this bundle: compares the bundle's
+// boot, amdd and amdi resources with the image at the places the build put them. 1 = same DAL, 0 = another DAL,
+// -1 = not a VZ90 PV image or the bundle is invalid
+int Vz90ImageHasDal(const uint8_t* pvImage, size_t size, const Vz90DalBundle& dal);
+
 Vz90Status Vz90BuildPvImage(const uint8_t* rom, size_t romSize, const Vz90DalBundle& dal,
                             const Vz90Options& options, Vz90Image& out, std::string& message);
 

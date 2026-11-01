@@ -148,6 +148,12 @@ export interface Vz90Builder<VoidPtr> {
 
     Build(rom: VoidPtr, romSize: number, dal: VoidPtr, dalSize: number): Vz90Status;
 
+    DescribeDal(dal: VoidPtr, dalSize: number): Vz90Status;
+    GetDalBuildId(): string;
+    GetDalSha256(): string;
+
+    ImageHasDal(image: VoidPtr, size: number, dal: VoidPtr, dalSize: number): number;
+
     GetImage(): VoidPtr;
     GetImageSize(): number;
     ReleaseImage(): void;

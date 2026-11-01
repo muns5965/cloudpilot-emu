@@ -16,7 +16,7 @@ import { applySonyBootRom, needsSonyBootRom } from '@common/helper/sonyBootRom';
 import { DeviceId } from '@common/model/DeviceId';
 import { ScreenSize } from '@common/model/Dimensions';
 import { SessionMetadata } from '@common/model/SessionMetadata';
-import { ModalController, PopoverController } from '@ionic/angular';
+import { ModalController, PopoverController, ToastController } from '@ionic/angular';
 import { Vz90Status } from '@native-common/index';
 
 import { DragDropClient, DragDropService } from '@pwa//service/drag-drop.service';
@@ -35,6 +35,7 @@ import { LoaderService } from '@pwa/service/loader.service';
 import { NativeSupportService } from '@pwa/service/native-support.service';
 import { SessionService } from '@pwa/service/session.service';
 import { StorageService } from '@pwa/service/storage.service';
+import { Vz90Dal, Vz90DalService } from '@pwa/service/vz90-dal.service';
 
 import { ActionMenuComponent } from './action-menu/action-menu.component';
 
@@ -63,6 +64,8 @@ export class SessionsPage implements DragDropClient, OnInit {
         private popoverController: PopoverController,
         private loaderService: LoaderService,
         private cd: ChangeDetectorRef,
+        private vz90DalService: Vz90DalService,
+        private toastController: ToastController,
     ) {
         this.currentSessionId = computed(() => this.currentSessionOverride() ?? this.emulationContext.session()?.id);
     }
@@ -396,8 +399,8 @@ export class SessionsPage implements DragDropClient, OnInit {
                 this.lastSessionTouched = session.id;
             }
         } else {
-            // An original Sony VZ90 ROM is rebuilt in memory with a DAL bundle the user selects; only the rebuilt
-            // image goes on (and is stored once the session settings are confirmed). Cancelling stores nothing.
+            // An original Sony VZ90 ROM is rebuilt in memory with the built-in DAL; only the rebuilt image goes on
+            // (and is stored once the session settings are confirmed). Cancelling stores nothing.
             if (await this.nativeSupportService.isVz90Candidate(content)) {
                 const rebuilt = await this.rebuildVz90Rom(content);
                 if (!rebuilt) return;
@@ -545,14 +548,51 @@ export class SessionsPage implements DragDropClient, OnInit {
     }
 
     private async rebuildVz90Rom(rom: Uint8Array): Promise<Uint8Array | undefined> {
+        let dal: Vz90Dal | undefined;
+        let builtin = true;
+
+        try {
+            if (this.vz90DalService.isManualSelectionEnabled()) {
+                // development override (?vz90dal=select): a DAL bundle file instead of the built-in one; a file that
+                // cannot be used stops here, without falling back to the built-in DAL
+                dal = await this.selectVz90Dal();
+                if (!dal) return undefined;
+                builtin = false;
+            } else {
+                dal = await this.vz90DalService.builtin();
+            }
+        } catch (e) {
+            await this.alertService.errorMessage(`Unable to run this Sony PEG-VZ90 ROM: ${(e as Error).message}.`);
+            return undefined;
+        }
+
+        const result = await this.nativeSupportService.buildVz90Image(rom, dal.bundle);
+        if (result.status === Vz90Status.ok && result.image) {
+            const what = builtin ? 'built-in DAL' : 'selected DAL';
+            console.info(`VZ90: ${what}, build ${dal.buildId}, sha256 ${dal.sha256}`, dal.manifest ?? '');
+            void this.toastController
+                .create({
+                    message: `VZ90 ${what}: build ${dal.buildId.slice(0, 12)}, SHA-256 ${dal.sha256.slice(0, 16)}…`,
+                    duration: 4000,
+                    position: 'top',
+                })
+                .then((toast) => toast.present());
+
+            return result.image;
+        }
+
+        await this.alertService.errorMessage(vz90ErrorMessage(result.status, result.message));
+        return undefined;
+    }
+
+    private async selectVz90Dal(): Promise<Vz90Dal | undefined> {
         let selectDal = false;
 
         await this.alertService.message(
-            'DAL bundle required',
+            'Select DAL bundle',
             `
-                This is an original Sony PEG-VZ90 ROM. It runs on the PV platform with a separate DAL bundle
-                (pv-vz90-dal), from which a PV image is built in this browser. The ROM file itself is not changed.
-                Select the DAL bundle to continue.
+                Development option: this Sony PEG-VZ90 ROM is rebuilt with a DAL bundle file of your choice instead
+                of the built-in DAL.
             `,
             { 'Select DAL bundle': () => (selectDal = true) },
             'Cancel',
@@ -562,21 +602,17 @@ export class SessionsPage implements DragDropClient, OnInit {
         // no callback when the file dialog is dismissed: nothing has been stored at this point
         const dalFile = await new Promise<FileDescriptor>((resolve) => this.fileService.openFile(resolve));
 
-        let dalBundle: Uint8Array;
+        let bundle: Uint8Array;
         try {
-            dalBundle = await dalFile.getContent();
+            bundle = await dalFile.getContent();
         } catch (e) {
             console.warn(e);
-
-            await this.alertService.errorMessage(`Unable to open ${dalFile.name}.`);
-            return undefined;
+            throw new Error(`cannot open ${dalFile.name}`);
         }
 
-        const result = await this.nativeSupportService.buildVz90Image(rom, dalBundle);
-        if (result.status === Vz90Status.ok && result.image) return result.image;
-
-        await this.alertService.errorMessage(vz90ErrorMessage(result.status, result.message));
-        return undefined;
+        return this.vz90DalService.describe(bundle).catch((e: Error) => {
+            throw new Error(`${dalFile.name} is not a valid VZ90 DAL bundle (${e.message})`);
+        });
     }
 
     private async continueWithoutBootRom(): Promise<boolean> {

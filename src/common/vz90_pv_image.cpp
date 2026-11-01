@@ -367,6 +367,32 @@ Vz90Status Vz90CheckBundle(const Vz90DalBundle& dal, string& buildId, string& me
     return s;
 }
 
+Vz90Status Vz90DescribeBundle(const Vz90DalBundle& dal, string& buildId, string& sha256Hex, string& message) {
+    Vz90Status s = Vz90CheckBundle(dal, buildId, message);
+    if (s != Vz90Status::ok) return s;
+    uint8_t h[32];
+    sha256(dal.data, dal.size, h);
+    static constexpr char hex[] = "0123456789abcdef";
+    sha256Hex.clear();
+    for (uint8_t b : h) {
+        sha256Hex += hex[b >> 4];
+        sha256Hex += hex[b & 15];
+    }
+    return s;
+}
+
+int Vz90ImageHasDal(const uint8_t* pv, size_t size, const Vz90DalBundle& dal) {
+    if (!Vz90HasMarker(pv, size) || !dal.data) return -1;
+    Bundle b;
+    string message;
+    if (checkBundle(dal, b, message) != Vz90Status::ok) return -1;
+    // boot at its link address; amdd and amdi where the card header points (see Vz90BuildPvImage)
+    const size_t at[3] = {DAL_LINK - PV_BASE, rd32(pv + 0x78), rd32(pv + 0xac)};
+    for (int i = 0; i < 3; i++)
+        if (at[i] > size || b.len[i] > size - at[i] || memcmp(pv + at[i], b.res[i], b.len[i]) != 0) return 0;
+    return 1;
+}
+
 Vz90Status Vz90BuildPvImage(const uint8_t* rom, size_t romSize, const Vz90DalBundle& dal,
                             const Vz90Options& options, Vz90Image& out, string& message) {
     out.data.reset();

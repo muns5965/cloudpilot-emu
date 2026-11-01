@@ -140,6 +140,7 @@ SOURCE_CXX_NATIVE =						\
 	native/SdlAudioDriver.cpp			\
 	native/Commands.cpp					\
 	native/NetlibNative.cpp				\
+	native/vz90_dal_builtin.gen.cpp		\
 	netlib/backend_NetworkSession.cpp	\
 	netlib/backend_networkBackend.cpp	\
 	netlib/backend_codes.cpp			\
@@ -180,6 +181,12 @@ include ../Makefile.common
 
 bin: $(BINARY_NATIVE)
 
+# built-in VZ90 DAL from the pinned pv-vz90-dal submodule (VZ90_DAL=none: no built-in DAL); rewritten only on change
+native/vz90_dal_builtin.gen.cpp: FORCE
+	python3 ../../tools/vz90-dal/gen.py --native $@
+
+FORCE:
+
 test: $(BINARY_TEST)
 	$(BINARY_TEST)
 
@@ -192,4 +199,4 @@ $(OPTIMIZED_BINARY_WASM): $(PROCESSED_BINARY_WASM)
 	if test -n "$(DEVELOP)"; then cp $^ $@; else $(WASMOPT) $(WASMOPT_FLAGS) -o $@ $^; fi
 	if test -z "$(DEVELOP)"; then $(WASMSTRIP) $@; fi
 
-.PHONY: bin emscripten clean test
+.PHONY: bin emscripten clean test FORCE

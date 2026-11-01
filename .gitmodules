@@ -1,3 +1,6 @@
 [submodule "src/cloudpilot/native/network-backend"]
 	path = src/cloudpilot/native/network-backend
 	url = https://github.com/cloudpilot-emu/cpe-network-backend.git
+[submodule "external/pv-vz90-dal"]
+	path = external/pv-vz90-dal
+	url = https://github.com/muns5965/pv-vz90-dal-public.git
