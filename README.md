@@ -1,71 +1,108 @@
-# CloudpilotEmu fork — Sony CLIÉ (Palm OS 5)
+# CloudpilotEmu — Sony CLIÉ PEG-VZ90 branch
 
-> **Experimental, unofficial fork** of [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu): the Sony PEG-TG50 hardware model from the original [uARM](https://github.com/uARM-Palm/uARM), ported and adapted to CloudpilotEmu's Palm OS 5 (uARM) engine, plus PEG-NX70V support, which the original uARM does not have. This is **not an official CloudpilotEmu release**. No ROM is included; bring your own.
+> **Experimental.** VZ90 work and tests happen on this branch. The emulator takes the user's own original VZ90 ROM and
+> rebuilds it at load time into an image for CloudpilotEmu's paravirtualized ("PV") machine, together with an
+> independent DAL (device abstraction layer) bundle built by the separate project `pv-vz90-dal`. No ROM and no DAL are
+> included in this repository. **The DAL project is not published yet**, so this branch cannot run a VZ90 on its own
+> for now.
 
-[한국어](#cloudpilotemu-포크--sony-clié-palm-os-5)
+[**Original CloudpilotEmu README**](doc/README-upstream.md) · [**Upstream repository**](https://github.com/cloudpilot-emu/cloudpilot-emu) · [**Web test runner**](tools/vz90-webtest/README.md)
 
-## Try it in the browser
+[한국어](#cloudpilotemu--sony-clié-peg-vz90-브랜치)
 
-**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50 and PEG-NX70V. Open **Sessions → +** and choose your ROM; the device is detected from it. For the NX70V, the settings dialog also asks for a TG50 ROM, which supplies the missing boot ROM. ROM files stay in your browser.
+## How it runs
 
-## Screenshots
+- The original ROM (Palm OS 5.2.1, 320×480) is read, never changed, and rebuilt in memory into a PV image with the
+  DAL bundle. The Sony hardware drivers in the ROM do not run; the DAL implements the Palm OS hardware interface on
+  the PV machine.
+- Native: `cp-uarm --vz90-dal <DAL bundle> <original VZ90 ROM>`. A saved session (`save-session <file>`) is started
+  with the session file alone; it holds the rebuilt image.
+- Browser (build of this branch; the deployed browser version does not include VZ90 yet): **Sessions → +**, choose the
+  ROM, then **Select DAL bundle**.
+- Two PV additions are enabled only for VZ90 images: a 4 KB Sony shared page at `0x3F843000` and 4 KB of RAM at
+  physical address 0. Sessions saved before the address-0 RAM existed are restored by the current build; a session
+  saved by the current build is not accepted by older builds.
 
-Browser build of `master` (revision 0fd3d89) in Chromium: Memo typed with the on-screen keyboard (Shift for capitals, Blue/Fn for digits), then the keyboard folded with **⌨ ▼ Hide** (**⌨ ▲ Show keyboard** brings it back).
+## Status (2026-11-01)
 
-| PEG-TG50 | PEG-TG50 (keyboard hidden) | PEG-NX70V | PEG-NX70V (keyboard hidden) |
-| --- | --- | --- | --- |
-| <img src="docs/images/tg50-web-keyboard.png" width="200" alt="TG50 with on-screen keyboard"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="200" alt="TG50 keyboard hidden"> | <img src="docs/images/nx70v-web-keyboard.png" width="200" alt="NX70V with on-screen keyboard"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="200" alt="NX70V keyboard hidden"> |
+Status: **works (where)** = implemented and tested in the environment named; **untested**; **not implemented** / known
+limit.
 
-## Branches
+| Item | Status | Notes |
+| --- | --- | --- |
+| Boot, Welcome setup, Launcher | **Works** (native, browser) | |
+| Preferences, launcher apps, Calculator, hard buttons | **Works** (browser test runner) | |
+| CLIE Organizer: address book (add, edit, delete), ToDo, Memo Pad (text) | **Works** (browser test runner) | Text entry with the on-screen kana keyboard |
+| Session save and restore | **Works** (native, browser) | Including sessions from builds before the address-0 RAM |
+| Stability | **Works**: one-hour browser run (launcher apps opened and closed, 26 loops) | Nothing longer tested |
+| Sound | **Not implemented** | No audio output on PV |
+| Memory Stick, CF, NAND slots | **Not implemented** | Slot drivers are not loaded on PV, so 辞書 (dictionary) refuses to start |
+| Serial ports | **Not implemented** | CFUtility refuses to start (Serial Manager features not registered) |
+| CLIE Organizer 手書きメモ (handwritten memo) | **Known defect** | Creating a new memo ends in a fatal error. The app clears each new record with a length read from the record's own uninitialised first word; same code in the Japanese and English ROMs; why a real device is not affected is not established |
+| Power key | **Known limit** | A 68k fault, then the DAL stops |
+| Landscape | **Known limit** | One intermittent fatal error in 19 runs, cause not found |
 
-Status: **works (where)** = implemented and tested in the environment named; **untested** = implemented, not tested there; **in development**; **not implemented** / known limit.
+TG50 and NX70V: browser boot to the Setup screen was compared before and after the VZ90 changes, with no difference
+other than animation frame and clock.
 
-| Branch | Device | Browser | Native Linux | Android | Status |
-| --- | --- | --- | --- | --- | --- |
-| [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50 (Palm OS 5.0, 320×320, QWERTY keyboard) | **works** (phone and PC) | **works** | — (see `verify/android-apk`) | Native and browser: Setup, Launcher, touch, hard buttons, keyboard (PC keyboard in Chromium on a PC, on-screen keyboard on a phone). Native: apps, sleep/resume. Sessions: **works** natively and in the PC browser (Chromium); phone browser **untested**. Sound and Memory Stick media **not implemented** |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V (Palm OS 5.0, 320×480) | **boots** (phone test) | **works** | — | Native: Setup, Launcher, apps, PC keyboard, hard buttons, sleep/resume. Browser (phone): Setup with pen calibration, Date Book, on-screen keyboard (Fn, Alt, Shift). Sessions: **works** natively; browser **untested**. Limit: the known dump lacks the small boot ROM, so a TG50 ROM supplies it at run time (`--boot-rom`) |
-| `master` | TG50 + NX70V | deployed from here | **works** | not merged | Integration branch: tested changes go here, and the browser version is built from it |
-| `verify/android-apk` | PEG-TG50 | — | — | **in development** (arm64, Android 8 or later) | Tested on a phone (Android 17): boot, on-screen buttons, phone keyboard (Latin letters), session save and restore. **Untested** on a phone: PRC/PDB install. Not merged, no release (CI test builds only) |
+## Tests
 
-Workflow: device-specific work and tests happen on the feature branches; finished changes are merged into `master`, which deploys the browser version. Fixes to shared code (emulator core, web input) go to `master` first and are merged into the feature branches. Each branch keeps its own README: when a feature branch merges `master` and the README conflicts, the feature branch's README is kept; changes to other files are reviewed and merged on their own. Details, keys and build steps: [TG50 README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md), [NX70V README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-nx70v/README.md), technical notes in [docs/](docs/).
+`tools/vz90-webtest/` drives the browser build with Playwright (setup, rounds of steps T0–T9 with golden images,
+soak). ROM and DAL are given on the command line. Diagnostic builds (`-DUARM_DIAG`) print `[diag]` lines; regular
+builds compile none of it.
 
 ## Notes
 
-- ROM files and session files are never committed or published.
-- The upstream README (emulator overview, supported devices, build, license) is kept in [doc/README-upstream.md](doc/README-upstream.md). Upstream: [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu). The TG50 hardware model is ported from [uARM](https://github.com/uARM-Palm/uARM); the NX70V support is new (uARM has no NX70V model).
+- ROM files, DAL bundles and session files are never committed or published.
+- Each branch keeps its own README; see [`master`](https://github.com/muns5965/cloudpilot-emu) for the TG50 and
+  NX70V branches.
 
 ---
 
-# CloudpilotEmu 포크 — Sony CLIÉ (Palm OS 5)
+# CloudpilotEmu — Sony CLIÉ PEG-VZ90 브랜치
 
-> 원본 [uARM](https://github.com/uARM-Palm/uARM)의 Sony PEG-TG50 하드웨어 모델을 [CloudpilotEmu](https://github.com/cloudpilot-emu/cloudpilot-emu)의 Palm OS 5(uARM) 엔진에 이식해 맞추고, 원본 uARM에 없는 PEG-NX70V 지원을 더한 **실험용 비공식 포크**입니다. **공식 CloudpilotEmu 배포판이 아닙니다.** ROM은 포함하지 않으므로 직접 준비해야 합니다.
+> **실험용입니다.** VZ90 작업과 시험은 이 브랜치에서 합니다. 에뮬레이터는 사용자가 가진 원본 VZ90 ROM을 읽어, 별도
+> 프로젝트 `pv-vz90-dal`이 만든 독립 DAL(장치 추상화 계층) 번들과 함께 CloudpilotEmu의 PV(paravirtualized) 머신용
+> 이미지로 실행 시점에 다시 구성합니다. 이 저장소에는 ROM도 DAL도 들어 있지 않습니다. **DAL 프로젝트는 아직 공개하지
+> 않았으므로**, 지금은 이 브랜치만으로 VZ90을 실행할 수 없습니다.
 
-## 브라우저에서 실행
+## 실행 방식
 
-**[muns5965.github.io/cloudpilot-emu](https://muns5965.github.io/cloudpilot-emu/)** — Sony PEG-TG50, PEG-NX70V. **Sessions → +** 에서 ROM을 고르면 기종이 자동으로 인식됩니다. NX70V는 설정 창에서 빠진 부트 ROM을 채울 TG50 ROM을 하나 더 고릅니다. ROM 파일은 브라우저 안에서만 쓰입니다.
+- 원본 ROM(Palm OS 5.2.1, 320×480)은 읽기만 하고, 메모리 안에서 DAL 번들과 함께 PV 이미지로 다시 구성합니다. ROM의
+  Sony 하드웨어 드라이버는 실행되지 않고, DAL이 PV 머신에서 Palm OS 하드웨어 인터페이스를 구현합니다.
+- 네이티브: `cp-uarm --vz90-dal <DAL 번들> <원본 VZ90 ROM>`. 저장한 세션(`save-session <파일>`)은 세션 파일만으로
+  시작합니다(다시 구성한 이미지가 들어 있음).
+- 브라우저(이 브랜치의 빌드. 배포된 브라우저 버전에는 아직 VZ90이 없음): **Sessions → +** 에서 ROM을 고른 뒤
+  **Select DAL bundle**.
+- VZ90 이미지에서만 켜지는 PV 추가 사항: `0x3F843000`의 4 KB Sony 공유 페이지, 물리 주소 0의 4 KB RAM. 주소 0 RAM이
+  생기기 전에 저장한 세션은 현재 빌드에서 복원되며, 현재 빌드가 저장한 세션은 이전 빌드가 받아들이지 않습니다.
 
-## 실행 화면
+## 현황 (2026-11-01)
 
-`master` 브라우저 빌드(리비전 0fd3d89)를 Chromium에서 실행한 화면입니다. 화면 키보드로 메모를 입력(대문자는 Shift, 숫자는 Blue/Fn)한 뒤 **⌨ ▼ Hide** 로 키보드를 접었습니다(**⌨ ▲ Show keyboard** 로 다시 펼침).
+상태 표기: **동작(환경)** = 구현하고 적힌 환경에서 시험함 · **미검증** · **미구현**·알려진 제약.
 
-| PEG-TG50 | PEG-TG50 (키보드 접음) | PEG-NX70V | PEG-NX70V (키보드 접음) |
-| --- | --- | --- | --- |
-| <img src="docs/images/tg50-web-keyboard.png" width="200" alt="TG50 화면 키보드"> | <img src="docs/images/tg50-web-keyboard-hidden.png" width="200" alt="TG50 키보드 접음"> | <img src="docs/images/nx70v-web-keyboard.png" width="200" alt="NX70V 화면 키보드"> | <img src="docs/images/nx70v-web-keyboard-hidden.png" width="200" alt="NX70V 키보드 접음"> |
+| 항목 | 상태 | 비고 |
+| --- | --- | --- |
+| 부팅, 초기 설정(Welcome), 런처 | **동작**(네이티브, 브라우저) | |
+| 환경설정, 런처 앱, 계산기, 하드 버튼 | **동작**(브라우저 시험 도구) | |
+| CLIE Organizer: 주소록(추가·수정·삭제), ToDo, 메모장(텍스트) | **동작**(브라우저 시험 도구) | 화면 가나 키보드로 입력 |
+| 세션 저장·복원 | **동작**(네이티브, 브라우저) | 주소 0 RAM 이전 빌드의 세션 포함 |
+| 안정성 | **동작**: 브라우저 1시간 실행(런처 앱 열고 닫기 26회) | 더 긴 시험은 하지 않음 |
+| 소리 | **미구현** | PV에 오디오 출력 없음 |
+| Memory Stick·CF·NAND 슬롯 | **미구현** | PV에서 슬롯 드라이버를 올리지 않아 辞書(사전)가 실행을 거부 |
+| 시리얼 포트 | **미구현** | CFUtility가 실행을 거부(Serial Manager 기능 미등록) |
+| CLIE Organizer 手書きメモ(손글씨 메모) | **알려진 결함** | 새 메모를 만들면 치명적 오류. 앱이 새 레코드를 그 레코드의 초기화되지 않은 첫 워드를 길이로 삼아 지움. 일본어·영어 ROM 모두 같은 코드. 실기에서 문제가 없는 이유는 밝히지 못함 |
+| 전원 키 | **알려진 제약** | 68k 오류 후 DAL이 멈춤 |
+| 가로 화면 | **알려진 제약** | 19회 중 1회 간헐적 치명적 오류, 원인 미확인 |
 
-## 브랜치
+TG50·NX70V: VZ90 변경 전후로 브라우저에서 Setup 화면까지의 부팅을 비교했고, 애니메이션 프레임과 시계 외 차이는 없었습니다.
 
-상태 표기: **동작(환경)** = 구현하고 적힌 환경에서 시험함 · **미검증** = 구현했으나 그 환경에서 시험하지 않음 · **개발 중** · **미구현**·알려진 제약.
+## 시험
 
-| 브랜치 | 기종 | 브라우저 | Linux 네이티브 | Android | 현황 |
-| --- | --- | --- | --- | --- | --- |
-| [`feature/sony-tg50`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-tg50) | PEG-TG50(Palm OS 5.0, 320×320, QWERTY 키보드) | **동작**(휴대폰·PC) | **동작** | —(`verify/android-apk` 참고) | 네이티브·브라우저: Setup, 런처, 터치, 하드 버튼, 키보드(PC 키보드는 PC Chromium, 화면 키보드는 휴대폰에서 확인). 네이티브: 앱, 절전·복귀. 세션: 네이티브와 PC 브라우저(Chromium) **동작**, 휴대폰 브라우저 **미검증**. 소리·Memory Stick 카드 **미구현** |
-| [`feature/sony-nx70v`](https://github.com/muns5965/cloudpilot-emu/tree/feature/sony-nx70v) | PEG-NX70V(Palm OS 5.0, 320×480) | **부팅 확인**(휴대폰 시험) | **동작** | — | 네이티브: Setup, 런처, 앱, PC 키보드, 하드 버튼, 절전·복귀. 브라우저(휴대폰): 펜 보정 포함 Setup, 일정(Date Book), 화면 키보드(Fn·Alt·Shift). 세션: 네이티브 **동작**, 브라우저 **미검증**. 제약: 알려진 덤프에 작은 부트 ROM이 없어 실행 때 TG50 ROM에서 빌려 씀(`--boot-rom`) |
-| `master` | TG50 + NX70V | 여기서 배포 | **동작** | 합치지 않음 | 통합 브랜치: 시험을 마친 변경을 모으고, 브라우저 버전을 여기서 빌드 |
-| `verify/android-apk` | PEG-TG50 | — | — | **개발 중**(arm64, Android 8 이상) | 휴대폰 실기 확인(Android 17): 부팅, 화면 버튼, 휴대폰 키보드(영문), 세션 저장·복원. 휴대폰 실기 **미검증**: PRC/PDB 설치. `master`에 합치지 않았고 배포하지 않음(CI 시험 빌드만) |
-
-작업 방식: 기종별 작업과 시험은 각 기능 브랜치에서 하고, 마친 변경을 `master`에 합쳐 브라우저 버전을 배포합니다. 공통 코드(에뮬레이터 코어, 웹 입력) 수정은 `master`에서 먼저 하고 기능 브랜치로 받아 옵니다. README는 브랜치마다 따로 둡니다. 기능 브랜치에서 `master`를 병합할 때 README 충돌이 발생하면 해당 기능 브랜치의 README를 우선 유지하고, 다른 파일의 변경 사항은 별도로 검토하여 병합합니다. 자세한 내용, 키 연결, 빌드 방법: [TG50 README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-tg50/README.md), [NX70V README](https://github.com/muns5965/cloudpilot-emu/blob/feature/sony-nx70v/README.md), 기술 문서는 [docs/](docs/).
+`tools/vz90-webtest/`가 Playwright로 브라우저 빌드를 조작합니다(setup, 기준 이미지가 있는 T0–T9 반복, soak). ROM과
+DAL은 명령줄로 넘깁니다. 진단 빌드(`-DUARM_DIAG`)는 `[diag]` 줄을 출력하고, 일반 빌드에는 포함되지 않습니다.
 
 ## 참고
 
-- ROM 파일과 세션 파일은 절대 커밋·공개하지 않습니다.
-- 원본 README(에뮬레이터 소개, 지원 기종, 빌드, 라이선스)는 [doc/README-upstream.md](doc/README-upstream.md)에 보존했습니다. 원본 저장소: [cloudpilot-emu/cloudpilot-emu](https://github.com/cloudpilot-emu/cloudpilot-emu). TG50 하드웨어 모델은 [uARM](https://github.com/uARM-Palm/uARM)에서 이식했고, NX70V 지원은 새로 만든 것입니다(uARM에는 NX70V 모델이 없음).
+- ROM 파일, DAL 번들, 세션 파일은 절대 커밋·공개하지 않습니다.
+- README는 브랜치마다 따로 둡니다. TG50·NX70V 브랜치는 [`master`](https://github.com/muns5965/cloudpilot-emu) 참고.
