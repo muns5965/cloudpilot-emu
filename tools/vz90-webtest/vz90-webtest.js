@@ -29,7 +29,10 @@ const args = require('util').parseArgs({
     options: {
         build: { type: 'string' }, rom: { type: 'string' }, dal: { type: 'string' }, work: { type: 'string' },
         rounds: { type: 'string', default: '1' }, label: { type: 'string', default: 'run' },
-        port: { type: 'string', default: '8790' }, loops: { type: 'string', default: '4' },   // fixed: browser storage (the saved session) belongs to the origin
+        port: { type: 'string', default: '8790' }, loops: { type: 'string', default: '4' },
+        // ROM profile, set at setup and kept in baseline.json: jp (original Japanese ROM, default) or en-mini
+        // (RomFlash.VZ English "mini" ROM: standard Palm applications, no CLIE Organizer)
+        profile: { type: 'string', default: 'jp' },   // fixed: browser storage (the saved session) belongs to the origin
     },
 });
 const MODE = args.positionals[0];
@@ -388,8 +391,9 @@ function goldenState(work, g = GOLDEN.calc) {
     return { state: m.verified ? 'verified' : 'unverified' };
 }
 function verifyGolden() {
-    const g = GOLDEN[args.positionals[1] || 'calc'];
-    if (!g) { console.log(`verify-golden [${Object.keys(GOLDEN).join('|')}]`); return false; }
+    const key = args.positionals[1] || 'calc';
+    const g = key.startsWith('mini-') ? GOLDEN_MINI[key.slice(5)] : GOLDEN[key];
+    if (!g) { console.log(`verify-golden [${Object.keys(GOLDEN).join('|')}|${Object.keys(GOLDEN_MINI).map((k) => 'mini-' + k).join('|')}]`); return false; }
     const st = goldenState(O.work, g);
     if (st.state !== 'unverified' && st.state !== 'verified') { console.log(`golden: ${st.state} ${st.why || ''}`); return false; }
     writeGoldenManifest(O.work, true, g); console.log(`golden image ${g.file} marked verified (${g.what})`); return true;
@@ -626,7 +630,48 @@ function buildMeta() {
     let rev = ''; try { rev = execSync('git rev-parse HEAD', { cwd: dir }).toString().trim(); } catch {}
     return { buildRevision: rev, wasm: Object.fromEntries(wasm.map((f) => [f, sha(path.join(dir, 'wasm', f)).slice(0, 16)])) };
 }
-const LAUNCHER = [[56, 62], [160, 62], [264, 62], [56, 130], [264, 130], [160, 198], [264, 198], [56, 266], [160, 266], [264, 266]];
+const LAUNCHER_JP = [[56, 62], [160, 62], [264, 62], [56, 130], [264, 130], [160, 198], [264, 198], [56, 266], [160, 266], [264, 266]];
+let LAUNCHER = LAUNCHER_JP;          // replaced by MINI.launcher for the en-mini profile (useProfile)
+
+// ---------------------------------------------------------------- profile en-mini (English RomFlash "mini" ROM)
+// Standard Palm applications (Address, To Do, Memo Pad, Date Book) with the Sony input area; the on-screen keyboard
+// is QWERTY. Home goes to the standard launcher (nothing to unassign). Coordinates measured with explore, launcher
+// with the input area shown (4 rows visible; Prefs only after one tap on the scroll-down arrow).
+const MINI = {
+    welcomeAfterCalibration: [[125, 302], [125, 302], [125, 302]],
+    showInputArea: [304, 465],
+    // launcher entries; NetFront (264,266) is left out: it stays on a black screen and home does not return (recorded)
+    launcher: [[56, 62], [160, 62], [264, 62], [56, 130], [160, 130], [264, 130], [56, 198], [160, 198], [264, 198], [56, 266], [160, 266]],
+    calcIcon: [160, 62], firstIcon: [56, 62],
+    scrollDown: [312, 312], prefs: [56, 198], panelMenu: [300, 12], general: [238, 122],
+    kb: { open: [296, 342], abc: [117, 294], num: [161, 294], two: [160, 163], done: [52, 294],
+        test: [[120, 175], [69, 175], [76, 203], [120, 175]] },      // t e s t
+    address: { newEntry: [218, 306], formDone: [22, 302], firstRow: [40, 48], edit: [119, 306], details: [113, 302], del: [197, 294], ok: [51, 294] },
+    todo: { newItem: [25, 302], check: [9, 47] },
+    memo: { newMemo: [37, 302], done: [33, 302], firstRow: [40, 48] },
+    date: { slot8: [150, 47], headerMask: [[0, 0, 320, 20]] },
+    rows: [0, 290],
+    // an application opened from the launcher: these dark-theme screens differ by about 23 % from the launcher
+    openTolerance: 0.1,
+};
+// the inputs a golden image depends on: the data-test coordinates and compared rows (not the launcher list)
+const G_MINI = (file, what) => ({ file: `golden-mini-${file}`, what,
+    inputs: () => JSON.stringify({ kb: MINI.kb, address: MINI.address, todo: MINI.todo, memo: MINI.memo, date: MINI.date, rows: MINI.rows, BUTTONS, MEMO_BUTTON }) });
+const GOLDEN_MINI = {
+    entrySaved: G_MINI('entry-saved', 'Address list right after saving: Test'),
+    entry: G_MINI('entry', 'Address list reopened: Test'),
+    edited: G_MINI('edited', 'Address list after the edit: 2Test'),
+    deleted: G_MINI('deleted', 'Address list after the delete: empty'),
+    todoChecked: G_MINI('todo-checked', 'To Do list: Test, checked'),
+    todoReopen: G_MINI('todo-reopen', 'To Do list reopened: Test, checked'),
+    memoList: G_MINI('memo-list', 'Memo Pad list: 1. Test'),
+    memoText: G_MINI('memo-text', 'Memo Test opened: its text is Test'),
+    date: G_MINI('date', 'Date Book day view: Test at 8:00 (date header masked)'),
+};
+function useProfile(profile) {
+    if (profile === 'en-mini') LAUNCHER = MINI.launcher;
+    else if (profile !== 'jp') throw new Error(`unknown profile ${profile}`);
+}
 
 // each launcher entry: start from the baseline launcher (scrolled to the top), launch, return home; stops when home
 // does not lead back to the launcher (later taps would land in another application)
@@ -645,7 +690,7 @@ async function appCycle(ctx, ref, tag) {
 }
 
 // T3: hard buttons, rocker, rapid input, and one function inside an application (Calculator, golden image)
-async function inputTests(ctx, ref, work) {
+async function inputTests(ctx, ref, work, calcIcon = [160, 198]) {
     const { page, s } = ctx;
     const rest = (from) => notRun(ctx, ['T3 rocker', 'T3 rapid rocker x20', 'T3 calculator'].slice(from));
     for (const [name, xy] of Object.entries(BUTTONS)) {
@@ -662,7 +707,7 @@ async function inputTests(ctx, ref, work) {
     }, { wait: 3000 });
     if (!(await ensureLauncher(ctx, ref, 'T3 after rapid input'))) return rest(2);
     // Calculator: C 1 2 + 3 4 = ; the display row is compared with the golden image of the first run
-    await step(ctx, 'T3 open Calculator', () => tap(page, 160, 198), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS });
+    await step(ctx, 'T3 open Calculator', () => tap(page, ...calcIcon), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS });
     s.step = 'T3 calculator input';
     for (const k of ['C', 1, 2, 'plus', 3, 4, 'eq']) { await tap(page, ...CALC[k]); await sleep(700); }
     await sleep(1500);
@@ -717,6 +762,7 @@ async function selftest() {
 
 async function soak() {
     const work = path.resolve(O.work); const base = await checkBaseline(work);
+    useProfile(base.profile || 'jp');
     const ref = { data: fs.readFileSync(path.join(work, 'baseline-screen.raw')) };
     const server = await serve(path.resolve(O.build)); const url = `http://127.0.0.1:${server.address().port}/`;
     const log = { t0: now(), steps: [], dir: path.join(work, `${O.label}-soak`), loops: [] };
@@ -788,8 +834,15 @@ async function setup() {
         const t = calibrationTarget(ctx.last); if (!t) break;
         await step(ctx, `T1 calibrate ${t.where} (${t.x},${t.y})`, () => tap(page, t.x, t.y), { wait: 4000, expect: 'change' });
     }
+    const mini = O.profile === 'en-mini'; useProfile(O.profile);
     if (!calibrationTarget(ctx.last))
-        for (const [x, y] of WELCOME_AFTER_CALIBRATION) await step(ctx, `T1 welcome ${++n} (${x},${y})`, () => tap(page, x, y), { wait: 6000, expect: 'change' });
+        for (const [x, y] of mini ? MINI.welcomeAfterCalibration : WELCOME_AFTER_CALIBRATION) await step(ctx, `T1 welcome ${++n} (${x},${y})`, () => tap(page, x, y), { wait: 6000, expect: 'change' });
+    if (mini) {
+        // standard launcher already; show the input area (as the applications leave it), so that home returns to
+        // the same launcher layout
+        await step(ctx, 'T1 show input area', () => tap(page, ...MINI.showInputArea), { wait: 3000, expect: 'change' });
+        await step(ctx, 'T1 settle', null, { wait: 6000 });
+    } else {
     // Home goes to the Media Launcher by default: unassign it (Options > Media Launcher settings), as in the native runs
     await step(ctx, 'T1 menu', () => tap(page, ...MENU), { wait: 3000, expect: 'change' });
     await step(ctx, 'T1 options', () => tap(page, 145, 14), { wait: 3000, expect: 'change' });
@@ -798,6 +851,7 @@ async function setup() {
     await step(ctx, 'T1 OK', () => tap(page, 60, 297), { wait: 4000, expect: 'change' });
     await step(ctx, 'T1 Home -> launcher', () => tap(page, ...HOME), { wait: 6000, expect: 'change' });
     await step(ctx, 'T1 settle', null, { wait: 6000 });
+    }
     fs.writeFileSync(path.join(work, 'baseline-screen.png'), ctx.last.png);
     fs.writeFileSync(path.join(work, 'baseline-screen.raw'), ctx.last.data);
     await tabSessions(page); await sleep(6000);              // leaving the emulator saves the session
@@ -805,7 +859,7 @@ async function setup() {
     const base = path.join(work, 'baseline-profile'); fs.rmSync(base, { recursive: true, force: true });
     fs.cpSync(profile, base, { recursive: true });
     const meta = { name, bootMs, created: new Date().toISOString(), romMd5: require('crypto').createHash('md5').update(fs.readFileSync(O.rom)).digest('hex'),
-        dal: O.dal ? path.basename(O.dal) : 'built-in', dalSha256: O.dal ? sha(O.dal) : builtinDalSha256(), baselineScreenSha256: sha(path.join(work, 'baseline-screen.png')), browser: chromium.name() + ' ' + (await browserVersion()),
+        profile: O.profile, dal: O.dal ? path.basename(O.dal) : 'built-in', dalSha256: O.dal ? sha(O.dal) : builtinDalSha256(), baselineScreenSha256: sha(path.join(work, 'baseline-screen.png')), browser: chromium.name() + ' ' + (await browserVersion()),
         setupPassed: s.fails.length === 0, ...buildMeta() };
     fs.writeFileSync(path.join(work, 'baseline.json'), JSON.stringify(meta, null, 1));
     report(log, s, 'setup');
@@ -863,8 +917,136 @@ async function explore() {
     await bctx.close(); server.close(); return true;
 }
 
+// ---------------------------------------------------------------- rounds for the en-mini profile
+// T0 restore, T2 Prefs/General and the launcher entries, T3 hard buttons/rocker/Calculator (as jp), T4 save and
+// relaunch, then data in the standard applications, each checked right away, after reopening (hard button) and
+// after a session relaunch: T6 Address entry added, T7 edited (2Test) and deleted, T8 To Do item checked, T9 Memo
+// Pad memo, T10 Date Book event at 8:00. Text is typed on the on-screen QWERTY keyboard.
+async function typeTest(ctx, label, page0 = true) {
+    const { page } = ctx, K = MINI.kb;
+    await step(ctx, `${label} keyboard`, () => tap(page, ...K.open), { wait: 2500, expect: 'change' });
+    if (page0) await step(ctx, `${label} abc page`, () => tap(page, ...K.abc), { wait: 1500 });
+    await step(ctx, `${label} type Test`, async () => { for (const k of K.test) { await tap(page, ...k); await sleep(700); } }, { wait: 1200, expect: 'change', tolerance: 0.0005 });
+    await step(ctx, `${label} keyboard done`, () => tap(page, ...K.done), { wait: 2500, expect: 'change' });
+}
+async function miniRelaunch(ctx, base, label) {
+    const { page } = ctx;
+    ctx.s.step = `${label} save session`; await tabSessions(page); await sleep(5000);
+    await launchSession(page, base.name); await sleep(6000);
+}
+async function miniCheck(ctx, ref, base, label, button, g, { relaunch = true, mask = null, prep = null } = {}) {
+    const { page } = ctx;
+    // reopen through the launcher and the hard button
+    if (!(await backToLauncher(ctx, ref, `${label} home`))) return false;
+    await step(ctx, `${label} reopen`, () => tap(page, ...button), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: MINI.openTolerance });
+    if (prep) await prep(`${label} reopen`);
+    await goldenStep(ctx, `${label} after reopen (golden)`, g, await screen(page), MINI.rows, mask);
+    if (!relaunch) return true;
+    await miniRelaunch(ctx, base, label);
+    if (prep) await prep(`${label} relaunch`);
+    await goldenStep(ctx, `${label} after session relaunch (golden)`, g, await screen(page), MINI.rows, mask);
+    return true;
+}
+async function miniData(ctx, ref, base) {
+    const { page } = ctx, A = MINI.address, K = MINI.kb, G = GOLDEN_MINI;
+    // T6 Address: new entry
+    if (!(await ensureLauncher(ctx, ref, 'T6 launcher'))) return;
+    await step(ctx, 'T6 address button', () => tap(page, ...BUTTONS.address), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: MINI.openTolerance });
+    await step(ctx, 'T6 new entry', () => tap(page, ...A.newEntry), { wait: 3000, expect: 'change' });
+    await typeTest(ctx, 'T6', false);
+    await step(ctx, 'T6 save entry', () => tap(page, ...A.formDone), { wait: 3000, expect: 'change' });
+    await goldenStep(ctx, 'T6 entry in list (golden)', G.entrySaved, await screen(page), MINI.rows);
+    if (!(await miniCheck(ctx, ref, base, 'T6', BUTTONS.address, G.entry))) return;
+    // T7 Address: edit (2 typed in front) and delete
+    await step(ctx, 'T7 open Test', () => tap(page, ...A.firstRow), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T7 edit', () => tap(page, ...A.edit), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T7 keyboard', () => tap(page, ...K.open), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T7 digits', () => tap(page, ...K.num), { wait: 1500 });
+    await step(ctx, 'T7 type 2', () => tap(page, ...K.two), { wait: 1200, expect: 'change' });
+    await step(ctx, 'T7 keyboard done', () => tap(page, ...K.done), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T7 save edit', () => tap(page, ...A.formDone), { wait: 3000, expect: 'change' });
+    await goldenStep(ctx, 'T7 after edit (golden)', G.edited, await screen(page), MINI.rows);
+    if (!(await miniCheck(ctx, ref, base, 'T7 edited', BUTTONS.address, G.edited))) return;
+    await step(ctx, 'T7 open 2Test', () => tap(page, ...A.firstRow), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T7 edit for delete', () => tap(page, ...A.edit), { wait: 3000, expect: 'change' });
+    await step(ctx, 'T7 details', () => tap(page, ...A.details), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T7 delete', () => tap(page, ...A.del), { wait: 2500, expect: 'change' });
+    await step(ctx, 'T7 confirm delete', () => tap(page, ...A.ok), { wait: 3000, expect: 'change' });
+    await goldenStep(ctx, 'T7 after delete (golden)', G.deleted, await screen(page), MINI.rows);
+    if (!(await miniCheck(ctx, ref, base, 'T7 deleted', BUTTONS.address, G.deleted))) return;
+    // T8 To Do: new item, checked
+    if (!(await backToLauncher(ctx, ref, 'T8 launcher'))) return;
+    await step(ctx, 'T8 to do button', () => tap(page, ...BUTTONS.todo), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: MINI.openTolerance });
+    await step(ctx, 'T8 new item', () => tap(page, ...MINI.todo.newItem), { wait: 3000, expect: 'change' });
+    await typeTest(ctx, 'T8');
+    await step(ctx, 'T8 check as completed', () => tap(page, ...MINI.todo.check), { wait: 2500, expect: 'change', tolerance: 0.0003 });
+    await goldenStep(ctx, 'T8 completed item (golden)', G.todoChecked, await screen(page), MINI.rows);
+    if (!(await miniCheck(ctx, ref, base, 'T8', BUTTONS.todo, G.todoReopen))) return;
+    // T9 Memo Pad: new memo; list and text
+    if (!(await backToLauncher(ctx, ref, 'T9 launcher'))) return;
+    await step(ctx, 'T9 memo button', () => tap(page, ...MEMO_BUTTON), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: MINI.openTolerance });
+    await step(ctx, 'T9 new memo', () => tap(page, ...MINI.memo.newMemo), { wait: 3000, expect: 'change' });
+    await typeTest(ctx, 'T9');
+    await step(ctx, 'T9 save memo', () => tap(page, ...MINI.memo.done), { wait: 3000, expect: 'change' });
+    await goldenStep(ctx, 'T9 memo list (golden)', G.memoList, await screen(page), MINI.rows);
+    const openText = async (label) => {
+        await step(ctx, `${label} open memo`, () => tap(page, ...MINI.memo.firstRow), { wait: 3000, expect: 'change' });
+        await goldenStep(ctx, `${label} memo text (golden)`, G.memoText, await screen(page), MINI.rows);
+        await step(ctx, `${label} back to list`, () => tap(page, ...MINI.memo.done), { wait: 3000, expect: 'change' });
+    };
+    await openText('T9');
+    if (!(await miniCheck(ctx, ref, base, 'T9', MEMO_BUTTON, G.memoList, { prep: null }))) return;
+    await openText('T9 relaunched');
+    // T10 Date Book: event at 8:00 today; checked after leaving (home commits the record), the date header masked
+    if (!(await backToLauncher(ctx, ref, 'T10 launcher'))) return;
+    await step(ctx, 'T10 date book button', () => tap(page, ...BUTTONS.datebook), { wait: 6000, expect: 'change', ref, rows: LAUNCHER_ROWS, tolerance: MINI.openTolerance });
+    await step(ctx, 'T10 8:00 slot', () => tap(page, ...MINI.date.slot8), { wait: 3000, expect: 'change', tolerance: 0.0003 });
+    await typeTest(ctx, 'T10');
+    await miniCheck(ctx, ref, base, 'T10', BUTTONS.datebook, G.date, { mask: MINI.date.headerMask });
+    await backToLauncher(ctx, ref, 'T10 end home');
+}
+async function miniRounds(work, base) {
+    const ref = { data: fs.readFileSync(path.join(work, 'baseline-screen.raw')) };
+    const server = await serve(path.resolve(O.build)); const url = `http://127.0.0.1:${server.address().port}/`;
+    const all = [];
+    for (let r = 1; r <= +O.rounds; r++) {
+        const log = { t0: now(), steps: [], dir: path.join(work, `${O.label}-round${r}`) }; fs.rmSync(log.dir, { recursive: true, force: true }); fs.mkdirSync(log.dir, { recursive: true });
+        const profile = path.join(work, `${O.label}-profile`); fs.rmSync(profile, { recursive: true, force: true });
+        fs.cpSync(path.join(work, 'baseline-profile'), profile, { recursive: true });
+        console.log(`round ${r} (en-mini)`);
+        const { ctx: bctx, page, s } = await openBrowser(profile, url, log);
+        const ctx = { page, s, log };
+        const rss0 = rendererRssMB();
+        s.step = 'T0 restore'; const tL = now();
+        await launchSession(page, base.name);
+        await step(ctx, 'T0 restore = baseline', null, { wait: 8000, expect: 'same', ref, tolerance: 0.01, rows: LAUNCHER_ROWS });
+        log.restoreMs = now() - tL;
+        await step(ctx, 'T2 scroll launcher', () => tap(page, ...MINI.scrollDown), { wait: 2000, expect: 'change' });
+        await step(ctx, 'T2 open Prefs', () => tap(page, ...MINI.prefs), { wait: 6000, expect: 'change' });
+        await step(ctx, 'T2 panel menu', () => tap(page, ...MINI.panelMenu), { wait: 3000, expect: 'change' });
+        await step(ctx, 'T2 General', () => tap(page, ...MINI.general), { wait: 4000, expect: 'change' });
+        await step(ctx, 'T2 home', () => tap(page, ...HOME), { wait: 5000, expect: 'change' });
+        await appCycle(ctx, ref, 'T2');
+        if (!s.fails.length) await inputTests(ctx, ref, work, MINI.calcIcon);
+        const beforeSave = await screen(page);
+        s.step = 'T4 save'; await tabSessions(page); await sleep(5000);
+        await launchSession(page, base.name);
+        await step(ctx, 'T4 relaunch = before', null, { wait: 6000, expect: 'same', ref: beforeSave, tolerance: 0.01 });
+        await step(ctx, 'T4 still answers', () => tap(page, ...MINI.firstIcon), { wait: 6000, expect: 'change' });
+        if (!s.fails.length) await miniData(ctx, ref, base);
+        log.rssMB = [rss0, rendererRssMB()];
+        await bctx.close();
+        all.push(report(log, s, `${O.label} round ${r} (en-mini)`));
+    }
+    server.close();
+    fs.writeFileSync(path.join(work, `${O.label}-summary.json`), JSON.stringify(all, null, 1));
+    return all.every((x) => x.failures.length === 0);
+}
+
 async function rounds() {
     const work = path.resolve(O.work); const base = await checkBaseline(work);
+    useProfile(base.profile || 'jp');
+    if (base.profile === 'en-mini') return miniRounds(work, base);
     const ref = { data: fs.readFileSync(path.join(work, 'baseline-screen.raw')) };
     const server = await serve(path.resolve(O.build)); const url = `http://127.0.0.1:${server.address().port}/`;
     const all = [];

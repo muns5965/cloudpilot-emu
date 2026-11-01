@@ -14,7 +14,7 @@ headless Chromium. Nothing here contains ROM or DAL data; the ROM is given on th
 ## Runs
 
 ```
-node vz90-webtest.js setup  --build web/build-pwa --rom <VZ90 ROM> [--dal <bundle>] --work <dir> [--port 8790]
+node vz90-webtest.js setup  --build web/build-pwa --rom <VZ90 ROM> [--dal <bundle>] [--profile jp|en-mini] --work <dir> [--port 8790]
 node vz90-webtest.js rounds --build web/build-pwa --work <dir> [--rounds N] [--label name]
 node vz90-webtest.js soak   --build web/build-pwa --work <dir> [--loops N] [--label name]
 ```
@@ -24,6 +24,12 @@ node vz90-webtest.js soak   --build web/build-pwa --work <dir> [--loops N] [--la
 - `rounds`: each round starts from a copy of the baseline profile: T0 restore equals the baseline, T2 Prefs/General
   and launching ten launcher entries (each must answer and home must lead back to the launcher), T4 leave and
   relaunch equals the screen before.
+- `--profile en-mini` (setup; kept in `baseline.json`, used by `rounds` and `soak`): the RomFlash.VZ English "mini"
+  ROM. Setup ends on the standard launcher with the input area shown (nothing to unassign); rounds run T0, T2 (Prefs
+  through the launcher scroll arrow, eleven launcher entries), T3, T4 and then data in the standard applications with
+  the on-screen QWERTY keyboard: T6/T7 Address (add, edit to 2Test, delete), T8 To Do (checked), T9 Memo Pad, T10
+  Date Book (event at 8:00), each checked right away, after reopening and after a session relaunch (golden images
+  `golden-mini-*`, verified with `verify-golden mini-<name>`).
 - `soak`: one browser kept open, the launcher cycle repeated `--loops` times; memory and speed per loop.
 - The port is fixed per work directory: the saved session lives in the browser storage of that origin.
 

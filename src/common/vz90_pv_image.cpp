@@ -21,6 +21,9 @@ namespace {
     // original images this loader has been verified with (MD5 of the whole file)
     const char* const SUPPORTED[] = {
         "c034b590bd59547664fff254bc995840",  // CLIE PEG-VZ90, Japanese (fullrom.jpJP)
+        "c8ddf3aff8aba8da030af1a22c69a713",  // CLIE PEG-VZ90, English "mini", modified (RomFlash.VZ fullrom.mini.enUS)
+        // not listed: RomFlash.VZ fullrom.full.enUS (e148cc70...): its CLIE Organizer passes a NULL field to the field
+        // functions (To Do item checked while editing, then scrolled) and ends in "MemoryMgr.c, Line:3654, Free handle"
     };
 
     uint16_t rd16(const uint8_t* p) { return p[0] | (p[1] << 8); }
