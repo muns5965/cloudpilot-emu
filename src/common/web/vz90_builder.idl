@@ -10,8 +10,6 @@ interface Vz90Builder {
     [Const] DOMString GetDalBuildId();
     [Const] DOMString GetDalSha256();
 
-    long ImageHasDal([Const] VoidPtr image, long size, [Const] VoidPtr dal, long dalSize);
-
     VoidPtr GetImage();
     long GetImageSize();
     void ReleaseImage();

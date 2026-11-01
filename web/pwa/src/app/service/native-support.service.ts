@@ -81,10 +81,6 @@ export class NativeSupportService {
         return this.cloudpilot.then((cp) => cp.hasVz90Marker(image));
     }
 
-    vz90ImageHasDal(image: Uint8Array, dalBundle: Uint8Array): Promise<number> {
-        return this.cloudpilot.then((cp) => cp.vz90ImageHasDal(image, dalBundle));
-    }
-
     getCardSupportLevel(size: number): Promise<CardSupportLevel> {
         return this.cloudpilot.then((cp) => cp.getCardSupportLevel(size));
     }

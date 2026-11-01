@@ -46,10 +46,17 @@ def build():
         commit, dirty = 'unknown', True
     toolchain = run(['arm-none-eabi-gcc', '-dumpversion']).strip()
     build_id = data[0x18:0x18 + 20].hex() + ('-dirty' if data[0x2c] & 1 else '')
+    # resource table (format 1): boot, amdd, amdi with length and SHA-256, so that a rebuilt image (a saved session)
+    # can be compared with this DAL without the bundle itself
+    resources = []
+    for i in range(3):
+        e = 0x30 + 16 * i
+        resources.append({'type': data[e:e + 4].decode('ascii'), 'length': int.from_bytes(data[e + 12:e + 16], 'little'),
+                          'sha256': data[0x60 + 32 * i:0x80 + 32 * i].hex()})
     info = {
         'source': 'pv-vz90-dal', 'sourceCommit': commit, 'sourceDirty': dirty, 'buildId': build_id,
         'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data),
-        'toolchain': 'arm-none-eabi-gcc ' + toolchain, 'options': 'DAL_LOG=0',
+        'toolchain': 'arm-none-eabi-gcc ' + toolchain, 'options': 'DAL_LOG=0', 'resources': resources,
     }
     return data, info
 

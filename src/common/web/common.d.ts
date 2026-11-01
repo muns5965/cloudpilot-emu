@@ -152,8 +152,6 @@ export interface Vz90Builder<VoidPtr> {
     GetDalBuildId(): string;
     GetDalSha256(): string;
 
-    ImageHasDal(image: VoidPtr, size: number, dal: VoidPtr, dalSize: number): number;
-
     GetImage(): VoidPtr;
     GetImageSize(): number;
     ReleaseImage(): void;

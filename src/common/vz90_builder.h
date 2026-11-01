@@ -28,9 +28,6 @@ class Vz90Builder {
     const char* GetDalBuildId() const;
     const char* GetDalSha256() const;
 
-    // 1 = the PV image (a saved VZ90 session) carries this DAL, 0 = another DAL, -1 = cannot tell
-    long ImageHasDal(const void* image, long size, const void* dal, long dalSize) const;
-
     void* GetImage();
     long GetImageSize() const;
     void ReleaseImage();

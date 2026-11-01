@@ -29,7 +29,6 @@ import { KvsService } from './kvs.service';
 import { hasInitialImportRequest } from './link-api.service';
 import { LoaderService } from './loader.service';
 import { ModalWatcherService } from './modal-watcher.service';
-import { NativeSupportService } from './native-support.service';
 import { NetworkService } from './network.service';
 import { SessionService } from './session.service';
 import { SnapshotService } from './snapshot.service';
@@ -63,7 +62,6 @@ export class EmulationService extends AbstractEmulationService {
         private storageCardContext: StorageCardContext,
         private sessionsService: SessionService,
         private featureService: FeatureService,
-        private nativeSupportService: NativeSupportService,
         private vz90DalService: Vz90DalService,
         private toastController: ToastController,
         modalWatcher: ModalWatcherService,
@@ -387,22 +385,18 @@ Sorry for the inconvenience.`,
 
     private async checkVz90SessionDal(rom: Uint8Array): Promise<void> {
         try {
-            if (!(await this.nativeSupportService.hasVz90Marker(rom))) return;
-
-            const dal = await this.vz90DalService.builtin();
-            const same = await this.nativeSupportService.vz90ImageHasDal(rom, dal.bundle);
-            if (same === 1) {
-                console.info(`VZ90 session: DAL is the built-in one (build ${dal.buildId})`);
+            const same = await this.vz90DalService.sessionHasBuiltinDal(rom);
+            if (same === undefined) return;
+            if (same) {
+                console.info('VZ90 session: DAL is the built-in one');
                 return;
             }
 
-            console.warn(`VZ90 session: created with another DAL than the built-in build ${dal.buildId}`);
+            console.warn('VZ90 session: created with another DAL build than the built-in one');
             const toast = await this.toastController.create({
-                message:
-                    'This VZ90 session was created with another DAL build than the built-in one. The session keeps ' +
-                    'its own DAL.',
-                duration: 6000,
-                position: 'top',
+                message: 'This VZ90 session uses another DAL build than the built-in one.',
+                duration: 2500,
+                position: 'bottom',
             });
             await toast.present();
         } catch (e) {

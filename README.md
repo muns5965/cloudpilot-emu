@@ -22,8 +22,10 @@
   (`save-session <file>`) is started with the session file alone; it holds the rebuilt image with its DAL, and a
   message says whether that DAL is the built-in one.
 - Browser (build of this branch; the deployed browser version does not include VZ90 yet): **Sessions → +**, choose the
-  ROM. The DAL is a separate file of the build, loaded only for a VZ90 ROM or session and checked against the SHA-256
-  recorded at build time; a short message shows its build ID and hash.
+  ROM. The DAL is a separate file of the build, downloaded only when a VZ90 ROM is rebuilt and checked against the
+  SHA-256 recorded at build time; a short message shows its build ID and hash. The downloaded copy is kept, so later
+  VZ90 ROMs can also be added offline. Restoring a session needs no download: the session holds its DAL, and a short
+  note appears if that is not the built-in one (compared with the DAL description that is part of the build).
 - Development option: `--vz90-dal <bundle>` (native) or the page parameter `?vz90dal=select` (browser, then
   **Select DAL bundle**) uses another DAL bundle. A bundle given this way that cannot be used stops the start; there
   is no fallback to the built-in DAL.
@@ -84,8 +86,10 @@ builds compile none of it.
   <파일>`)은 세션 파일만으로 시작하며, 세션에는 다시 구성한 이미지와 그 DAL이 들어 있고 그 DAL이 내장 DAL과 같은지
   알려 줍니다.
 - 브라우저(이 브랜치의 빌드. 배포된 브라우저 버전에는 아직 VZ90이 없음): **Sessions → +** 에서 ROM을 고릅니다. DAL은
-  빌드에 포함된 별도 파일로, VZ90 ROM·세션일 때만 불러오며 빌드 때 기록한 SHA-256과 맞는지 확인하고 빌드 ID와 해시를
-  짧게 표시합니다.
+  빌드에 포함된 별도 파일로, VZ90 ROM을 다시 구성할 때만 내려받아 빌드 때 기록한 SHA-256과 맞는지 확인하고 빌드 ID와
+  해시를 짧게 표시합니다. 내려받은 사본을 보관하므로 이후에는 오프라인에서도 VZ90 ROM을 추가할 수 있습니다. 세션
+  복원에는 내려받기가 필요 없으며(세션에 DAL이 들어 있음), 그 DAL이 내장 DAL과 다르면 짧게 알려 줍니다(빌드에 포함된
+  DAL 설명과 비교).
 - 개발용 옵션: `--vz90-dal <번들>`(네이티브) 또는 페이지 매개변수 `?vz90dal=select`(브라우저, **Select DAL bundle**)로
   다른 DAL 번들을 씁니다. 이렇게 지정한 번들을 쓸 수 없으면 시작을 중단하며, 내장 DAL로 대체하지 않습니다.
 - VZ90 이미지에서만 켜지는 PV 추가 사항: `0x3F843000`의 4 KB Sony 공유 페이지, 물리 주소 0의 4 KB RAM. 주소 0 RAM이

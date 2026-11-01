@@ -343,22 +343,6 @@ export class Cloudpilot {
         }
     }
 
-    // 1: the rebuilt VZ90 image carries this DAL bundle, 0: another DAL, -1: cannot tell.
-    @guard()
-    vz90ImageHasDal(image: Uint8Array, dalBundle: Uint8Array): number {
-        const builder = new this.module.Vz90Builder();
-        const imageBuffer = this.copyIn(image);
-        const dalBuffer = this.copyIn(dalBundle);
-
-        try {
-            return builder.ImageHasDal(imageBuffer, image.length, dalBuffer, dalBundle.length);
-        } finally {
-            this.cloudpilot.Free(imageBuffer);
-            this.cloudpilot.Free(dalBuffer);
-            this.module.destroy(builder);
-        }
-    }
-
     @guard()
     initializeSession(rom: Uint8Array, deviceType: string): boolean {
         const buffer = this.copyIn(rom);

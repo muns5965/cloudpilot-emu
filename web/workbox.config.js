@@ -9,6 +9,8 @@ module.exports = {
         '**/*.css',
         'assets/**/*',
         'assets-pwa/**/*',
+        // VZ90 DAL description only; the bundle itself is fetched (and kept for offline use) when a VZ90 ROM needs it
+        'vz90-dal/vz90-dal.json',
         'svg/add-outline.svg',
         'svg/albums-outline.svg',
         'svg/apps-outline.svg',

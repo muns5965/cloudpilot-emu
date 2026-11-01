@@ -41,12 +41,6 @@ const char* Vz90Builder::GetDalBuildId() const { return dalBuildId.c_str(); }
 
 const char* Vz90Builder::GetDalSha256() const { return dalSha256.c_str(); }
 
-long Vz90Builder::ImageHasDal(const void* image, long size, const void* dal, long dalSize) const {
-    if (!image || size <= 0 || !dal || dalSize <= 0) return -1;
-    return Vz90ImageHasDal(static_cast<const uint8_t*>(image), static_cast<size_t>(size),
-                           {static_cast<const uint8_t*>(dal), static_cast<size_t>(dalSize)});
-}
-
 void* Vz90Builder::GetImage() { return image.data.get(); }
 
 long Vz90Builder::GetImageSize() const { return static_cast<long>(image.size); }
