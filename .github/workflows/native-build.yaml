@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - '*'
+      - 'verify/**'
 jobs:
   build:
     # 24.04: its gcc-arm-none-eabi builds the built-in VZ90 DAL (tools/vz90-dal/gen.py)
