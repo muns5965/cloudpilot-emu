@@ -40,18 +40,19 @@ limit.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Supported ROM images | **Works**: original Japanese ROM (`fullrom.jpJP`, MD5 `c034b590bd59547664fff254bc995840`) and the RomFlash.VZ English "mini" ROM (`fullrom.mini.enUS`, MD5 `c8ddf3aff8aba8da030af1a22c69a713`) | Other images are refused. The RomFlash.VZ English "full" ROM is refused because of a known application defect (below) |
+| Supported ROM images | **Works**: original Japanese ROM (`fullrom.jpJP`, MD5 `c034b590bd59547664fff254bc995840`) and the RomFlash.VZ English "mini" ROM (`fullrom.mini.enUS`, MD5 `c8ddf3aff8aba8da030af1a22c69a713`) | Other images are refused, including the RomFlash.VZ English "full" ROM (`fullrom.full.enUS`, MD5 `e148cc70a3e7c14c072aecb092766d3f`; below) |
 | Boot, Welcome setup, Launcher | **Works** (native, browser) | |
 | Preferences, launcher apps, Calculator, hard buttons | **Works** (browser test runner) | |
 | CLIE Organizer: address book (add, edit, delete), ToDo, Memo Pad (text) | **Works** (browser test runner) | Text entry with the on-screen kana keyboard |
 | Session save and restore | **Works** (native, browser) | Including sessions from builds before the address-0 RAM |
 | Stability | **Works**: one-hour browser run (launcher apps opened and closed, 26 loops) | Nothing longer tested |
-| English "mini" ROM: launcher apps, Calculator, hard buttons, Address (add, edit, delete), To Do, Memo Pad, Date Book, session save and restore | **Works** (browser test runner, profile `en-mini`); one-hour run (24 loops) | Text entry with the on-screen QWERTY keyboard. NetFront stays on a black screen (no network) and is left out of the tests |
+| English "mini" ROM: launcher apps, Calculator, hard buttons, Address (add, edit, delete), To Do, Memo Pad, Date Book, session save and restore | **Works** (browser test runner, profile `en-mini`); one-hour run (24 loops) | Text entry with the on-screen QWERTY keyboard. NetFront is left out (see below) |
 | Sound | **Not implemented** | No audio output on PV |
 | Memory Stick, CF, NAND slots | **Not implemented** | Slot drivers are not loaded on PV, so 辞書 (dictionary) refuses to start |
 | Serial ports | **Not implemented** | CFUtility refuses to start (Serial Manager features not registered) |
 | CLIE Organizer 手書きメモ (handwritten memo) | **Known defect** | Creating a new memo ends in a fatal error. The app clears each new record with a length read from the record's own uninitialised first word; same code in the Japanese and English ROMs; why a real device is not affected is not established |
-| English "full" ROM (not supported) | **Known defect** | Its CLIE Organizer, after a To Do item is checked while it is being edited and the list is scrolled, passes a NULL field to the field functions and ends in "MemoryMgr.c, Line:3654, Free handle" (the Japanese ROM does not). Whether a real device shows the same is not established |
+| English "full" ROM | **Not supported** | In this emulator its CLIE Organizer To Do ends in a reproducible memory error ("MemoryMgr.c, Line:3654, Free handle") when an item is checked while it is being edited and the list is then scrolled; the Japanese ROM does not. Observed just before: a NULL field pointer used by the field functions and writes near address 0. Whether the original hardware behaves the same, and whether the emulator's memory at address 0 contributes, is not established |
+| NetFront (English "mini" ROM) | **Known limit** | Stays on a black screen and does not return with the Home button in the tested environment |
 | Power key | **Known limit** | A 68k fault, then the DAL stops |
 | Landscape | **Known limit** | One intermittent fatal error in 19 runs, cause not found |
 
@@ -105,18 +106,19 @@ builds compile none of it.
 
 | 항목 | 상태 | 비고 |
 | --- | --- | --- |
-| 지원 ROM 이미지 | **동작**: 일본어 순정 ROM(`fullrom.jpJP`, MD5 `c034b590bd59547664fff254bc995840`)과 RomFlash.VZ 영문 "mini" ROM(`fullrom.mini.enUS`, MD5 `c8ddf3aff8aba8da030af1a22c69a713`) | 그 밖의 이미지는 거부. RomFlash.VZ 영문 "full" ROM은 알려진 앱 결함(아래) 때문에 거부 |
+| 지원 ROM 이미지 | **동작**: 일본어 순정 ROM(`fullrom.jpJP`, MD5 `c034b590bd59547664fff254bc995840`)과 RomFlash.VZ 영문 "mini" ROM(`fullrom.mini.enUS`, MD5 `c8ddf3aff8aba8da030af1a22c69a713`) | 영문 "full" ROM(`fullrom.full.enUS`, MD5 `e148cc70a3e7c14c072aecb092766d3f`, 아래)을 포함해 그 밖의 이미지는 거부 |
 | 부팅, 초기 설정(Welcome), 런처 | **동작**(네이티브, 브라우저) | |
 | 환경설정, 런처 앱, 계산기, 하드 버튼 | **동작**(브라우저 시험 도구) | |
 | CLIE Organizer: 주소록(추가·수정·삭제), ToDo, 메모장(텍스트) | **동작**(브라우저 시험 도구) | 화면 가나 키보드로 입력 |
 | 세션 저장·복원 | **동작**(네이티브, 브라우저) | 주소 0 RAM 이전 빌드의 세션 포함 |
 | 안정성 | **동작**: 브라우저 1시간 실행(런처 앱 열고 닫기 26회) | 더 긴 시험은 하지 않음 |
-| 영문 "mini" ROM: 런처 앱, 계산기, 하드 버튼, 주소록(추가·수정·삭제), To Do, Memo Pad, Date Book, 세션 저장·복원 | **동작**(브라우저 시험 도구, 프로필 `en-mini`), 1시간 실행(24회) | 화면 QWERTY 키보드로 입력. NetFront는 검은 화면에 머물러(네트워크 없음) 시험에서 제외 |
+| 영문 "mini" ROM: 런처 앱, 계산기, 하드 버튼, 주소록(추가·수정·삭제), To Do, Memo Pad, Date Book, 세션 저장·복원 | **동작**(브라우저 시험 도구, 프로필 `en-mini`), 1시간 실행(24회) | 화면 QWERTY 키보드로 입력. NetFront는 시험에서 제외(아래 참고) |
 | 소리 | **미구현** | PV에 오디오 출력 없음 |
 | Memory Stick·CF·NAND 슬롯 | **미구현** | PV에서 슬롯 드라이버를 올리지 않아 辞書(사전)가 실행을 거부 |
 | 시리얼 포트 | **미구현** | CFUtility가 실행을 거부(Serial Manager 기능 미등록) |
 | CLIE Organizer 手書きメモ(손글씨 메모) | **알려진 결함** | 새 메모를 만들면 치명적 오류. 앱이 새 레코드를 그 레코드의 초기화되지 않은 첫 워드를 길이로 삼아 지움. 일본어·영어 ROM 모두 같은 코드. 실기에서 문제가 없는 이유는 밝히지 못함 |
-| 영문 "full" ROM(미지원) | **알려진 결함** | CLIE Organizer에서 To Do 항목을 편집 중에 완료 체크하고 목록을 스크롤하면, 앱이 NULL 필드를 필드 함수에 넘겨 "MemoryMgr.c, Line:3654, Free handle" 오류가 남(일본어 ROM은 나지 않음). 실기에서도 같은지는 확인하지 못함 |
+| 영문 "full" ROM | **미지원** | 이 에뮬레이터에서 CLIE Organizer To Do 항목을 편집 중에 완료 체크한 뒤 목록을 스크롤하면 재현 가능한 메모리 오류("MemoryMgr.c, Line:3654, Free handle")가 남(일본어 ROM은 나지 않음). 직전에 NULL 필드 포인터 사용과 주소 0 부근 쓰기가 관찰됨. 실기에서도 같은지, 에뮬레이터의 주소 0 메모리가 영향을 주는지는 확인하지 못함 |
+| NetFront(영문 "mini" ROM) | **알려진 제약** | 시험 환경에서 검은 화면에 머물고 홈 버튼으로 돌아오지 않음 |
 | 전원 키 | **알려진 제약** | 68k 오류 후 DAL이 멈춤 |
 | 가로 화면 | **알려진 제약** | 19회 중 1회 간헐적 치명적 오류, 원인 미확인 |
 
