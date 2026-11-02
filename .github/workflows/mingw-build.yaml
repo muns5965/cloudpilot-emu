@@ -5,12 +5,19 @@ on:
       - '*'
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 24.04: its gcc-arm-none-eabi builds the built-in VZ90 DAL (tools/vz90-dal/gen.py)
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+      - name: Install the Arm toolchain (built-in VZ90 DAL)
+        # Ubuntu 24.04 gcc-arm-none-eabi (13.2.rel1): the same compiler the published DAL bundle was checked with
+        run: sudo apt-get update && sudo apt-get -y install gcc-arm-none-eabi
+      - name: Generate the built-in VZ90 DAL source
+        # the Docker build copies only src; the Makefile then uses this file as it is
+        run: make -C src/uarm native/vz90_dal_builtin.gen.cpp
       - name: Set up buildx
         uses: docker/setup-buildx-action@v3
       - name: Build MinGW binaries (x64 only)

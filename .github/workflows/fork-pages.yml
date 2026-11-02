@@ -20,7 +20,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    # 24.04: its gcc-arm-none-eabi builds the built-in VZ90 DAL (yarn vz90-dal -> tools/vz90-dal/gen.py)
+    runs-on: ubuntu-24.04
     permissions:
       # write: the build is also pushed to the pwa-build branch (for local browser tests)
       contents: write
@@ -39,8 +40,8 @@ jobs:
         with:
           version: ${{env.EM_VERSION}}
           actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
-      - name: Setup wabt
-        run: sudo apt-get install wabt
+      - name: Setup wabt and the Arm toolchain (built-in VZ90 DAL)
+        run: sudo apt-get update && sudo apt-get -y install wabt gcc-arm-none-eabi
       - name: Build wasm
         run: make -Csrc -j2 emscripten
       - name: Setup node

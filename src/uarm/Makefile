@@ -181,9 +181,12 @@ include ../Makefile.common
 
 bin: $(BINARY_NATIVE)
 
-# built-in VZ90 DAL from the pinned pv-vz90-dal submodule (VZ90_DAL=none: no built-in DAL); rewritten only on change
+# built-in VZ90 DAL from the pinned pv-vz90-dal submodule (VZ90_DAL=none: no built-in DAL); rewritten only on change.
+# Without tools/vz90-dal (the MinGW Docker build copies only src) a file generated beforehand is used as it is.
 native/vz90_dal_builtin.gen.cpp: FORCE
-	python3 ../../tools/vz90-dal/gen.py --native $@
+	@if [ -f ../../tools/vz90-dal/gen.py ]; then python3 ../../tools/vz90-dal/gen.py --native $@; \
+	elif [ -f $@ ]; then echo "vz90-dal: tools/vz90-dal not present, using the existing $@"; \
+	else echo "vz90-dal: tools/vz90-dal/gen.py not found and no $@" >&2; exit 1; fi
 
 FORCE:
 
