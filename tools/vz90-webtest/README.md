@@ -32,6 +32,9 @@ node vz90-webtest.js soak   --build web/build-pwa --work <dir> [--loops N] [--la
   `golden-mini-*`, verified with `verify-golden mini-<name>`).
 - `soak`: one browser kept open, the launcher cycle repeated `--loops` times; memory and speed per loop.
 - The port is fixed per work directory: the saved session lives in the browser storage of that origin.
+- `--date` (default `2026-11-02T09:00:00`, UTC, browser time zone UTC): the page clock, and so the emulated device
+  clock, starts at this time on every page load, so screens with the date (Date Book) match their golden images on any
+  day. `--date ''` uses the real clock.
 
 ## Verdict
 

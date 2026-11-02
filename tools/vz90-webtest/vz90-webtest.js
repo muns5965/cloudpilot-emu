@@ -33,6 +33,9 @@ const args = require('util').parseArgs({
         // ROM profile, set at setup and kept in baseline.json: jp (original Japanese ROM, default) or en-mini
         // (RomFlash.VZ English "mini" ROM: standard Palm applications, no CLIE Organizer)
         profile: { type: 'string', default: 'jp' },   // fixed: browser storage (the saved session) belongs to the origin
+        // date and time the page (and so the emulated device clock) starts at, UTC, on every page load; screens with the
+        // date (Date Book) then match their golden images on any day. Empty: the real clock
+        date: { type: 'string', default: '2026-11-02T09:00:00' },
     },
 });
 const MODE = args.positionals[0];
@@ -175,11 +178,22 @@ const IDB_PROBE = () => {
     IDBDatabase.prototype.close = function () { log(`close() by page #${this.__probeId} at ${(new Error().stack || '').split('\n')[2] || ''}`.trim()); return close.call(this); };
     setInterval(() => { if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then((e) => log(`estimate usage=${e.usage} quota=${e.quota}`), (x) => log(`estimate failed ${x}`)); }, 30000);
 };
+// Date starts at the given time on each page load and then runs normally (the emulator reads Date.now() for its RTC);
+// performance.now() and timers are not touched
+const FIXED_START_DATE = (start) => {
+    const Real = Date; const shift = start - Real.now();
+    class TestDate extends Real {
+        constructor(...a) { if (a.length === 0) super(Real.now() + shift); else super(...a); }
+        static now() { return Real.now() + shift; }
+    }
+    globalThis.Date = TestDate;
+};
 async function openBrowser(profile, url, log) {
     const free = diskFree(path.dirname(profile)); (log.diskFreeGiB ||= []).push(+(free / 1024 ** 3).toFixed(2));
     if (free >= 0 && free < DISK_MIN) console.log(`  WARNING disk: ${(free / 1024 ** 3).toFixed(2)} GiB free (< ${DISK_MIN / 1024 ** 3} GiB): browser storage writes may be refused, results not valid for storage-related steps`);
-    const ctx = await chromium.launchPersistentContext(profile, { viewport: { width: 1000, height: 800 } });
+    const ctx = await chromium.launchPersistentContext(profile, { viewport: { width: 1000, height: 800 }, timezoneId: 'UTC' });
     await ctx.addInitScript(IDB_PROBE);
+    if (O.date) await ctx.addInitScript(FIXED_START_DATE, Date.parse(O.date + 'Z'));
     const page = ctx.pages()[0] || (await ctx.newPage());
     const s = new Session(page, log);
     // free disk every 10 s in the console record, and at each failure
