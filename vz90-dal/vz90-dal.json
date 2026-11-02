@@ -1,0 +1,27 @@
+{
+ "source": "pv-vz90-dal",
+ "sourceCommit": "ffaed62334108ca995ff046e4b289bb41fdfdb8e",
+ "sourceDirty": false,
+ "buildId": "ffaed62334108ca995ff046e4b289bb41fdfdb8e",
+ "sha256": "a4a8e4f40e5d1bf884dfec79573c3361e0b0e3fe06ff863c763ef4033d8194b3",
+ "size": 107484,
+ "toolchain": "arm-none-eabi-gcc 13.2.1",
+ "options": "DAL_LOG=0",
+ "resources": [
+  {
+   "type": "boot",
+   "length": 107192,
+   "sha256": "1b0d417ea54b69113180a251f8faf304c37e20d5bac33ff98c7b86512eee58ab"
+  },
+  {
+   "type": "amdd",
+   "length": 27,
+   "sha256": "c14146c46720bd06957fe74982b1bed20b2b2456b94d5e2c43b31f6a12f9fd64"
+  },
+  {
+   "type": "amdi",
+   "length": 8,
+   "sha256": "f24fd292e56a1be07c341616a419200fe27c4f4f377a3c57cd68968a8f3a29ae"
+  }
+ ]
+}
