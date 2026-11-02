@@ -51,7 +51,8 @@ limit.
 | Memory Stick, CF, NAND slots | **Not implemented** | Slot drivers are not loaded on PV, so 辞書 (dictionary) refuses to start |
 | Serial ports | **Not implemented** | CFUtility refuses to start (Serial Manager features not registered) |
 | CLIE Organizer 手書きメモ (handwritten memo) | **Known defect** | Creating a new memo ends in a fatal error. The app clears each new record with a length read from the record's own uninitialised first word; same code in the Japanese and English ROMs; why a real device is not affected is not established |
-| English "full" ROM | **Not supported** | In this emulator its CLIE Organizer To Do ends in a reproducible memory error ("MemoryMgr.c, Line:3654, Free handle") when an item is checked while it is being edited and the list is then scrolled; the Japanese ROM does not. Observed just before: a NULL field pointer used by the field functions and writes near address 0. Whether the original hardware behaves the same, and whether the emulator's memory at address 0 contributes, is not established |
+| CLIE Organizer To Do: item checked while it is being edited, then the list scrolled | **Known defect** (Japanese and English "full" ROMs) | Can end in a memory error ("MemoryMgr.c, Line:3654", "Free handle"); not every time (Japanese ROM 1 of 5 runs, English "full" ROM 3 of 9). The To Do app passes a NULL field to the field functions, which then keep the app's text handle in a field-like structure near address 0; the app frees that handle and the next call uses it again. Same code in both ROMs. Whether the original hardware behaves the same is not established |
+| English "full" ROM | **Not supported** | Checked less than the supported images, and the To Do memory error above was observed there first and more often |
 | NetFront (English "mini" ROM) | **Known limit** | Stays on a black screen and does not return with the Home button in the tested environment |
 | Power key | **Known limit** | A 68k fault, then the DAL stops |
 | Landscape | **Known limit** | One intermittent fatal error in 19 runs, cause not found |
@@ -117,7 +118,8 @@ builds compile none of it.
 | Memory Stick·CF·NAND 슬롯 | **미구현** | PV에서 슬롯 드라이버를 올리지 않아 辞書(사전)가 실행을 거부 |
 | 시리얼 포트 | **미구현** | CFUtility가 실행을 거부(Serial Manager 기능 미등록) |
 | CLIE Organizer 手書きメモ(손글씨 메모) | **알려진 결함** | 새 메모를 만들면 치명적 오류. 앱이 새 레코드를 그 레코드의 초기화되지 않은 첫 워드를 길이로 삼아 지움. 일본어·영어 ROM 모두 같은 코드. 실기에서 문제가 없는 이유는 밝히지 못함 |
-| 영문 "full" ROM | **미지원** | 이 에뮬레이터에서 CLIE Organizer To Do 항목을 편집 중에 완료 체크한 뒤 목록을 스크롤하면 재현 가능한 메모리 오류("MemoryMgr.c, Line:3654, Free handle")가 남(일본어 ROM은 나지 않음). 직전에 NULL 필드 포인터 사용과 주소 0 부근 쓰기가 관찰됨. 실기에서도 같은지, 에뮬레이터의 주소 0 메모리가 영향을 주는지는 확인하지 못함 |
+| CLIE Organizer To Do: 항목 편집 중 완료 체크 후 목록 스크롤 | **알려진 결함**(일본어·영문 "full" ROM) | 메모리 오류("MemoryMgr.c, Line:3654", "Free handle")가 날 수 있음. 매번 나지는 않음(일본어 ROM 5회 중 1회, 영문 "full" ROM 9회 중 3회). To Do 앱이 NULL 필드를 필드 함수에 넘기면 앱의 텍스트 핸들이 주소 0 부근의 필드 모양 구조에 남고, 앱이 그 핸들을 해제한 뒤 다음 호출이 그것을 다시 사용함. 두 ROM이 같은 코드. 실기에서도 같은지는 확인하지 못함 |
+| 영문 "full" ROM | **미지원** | 지원 이미지보다 검증 범위가 좁고, 위 To Do 메모리 오류가 이 ROM에서 먼저, 더 자주 관찰됨 |
 | NetFront(영문 "mini" ROM) | **알려진 제약** | 시험 환경에서 검은 화면에 머물고 홈 버튼으로 돌아오지 않음 |
 | 전원 키 | **알려진 제약** | 68k 오류 후 DAL이 멈춤 |
 | 가로 화면 | **알려진 제약** | 19회 중 1회 간헐적 치명적 오류, 원인 미확인 |

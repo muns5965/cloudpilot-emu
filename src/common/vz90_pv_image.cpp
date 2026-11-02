@@ -22,8 +22,8 @@ namespace {
     const char* const SUPPORTED[] = {
         "c034b590bd59547664fff254bc995840",  // CLIE PEG-VZ90, Japanese (fullrom.jpJP)
         "c8ddf3aff8aba8da030af1a22c69a713",  // CLIE PEG-VZ90, English "mini", modified (RomFlash.VZ fullrom.mini.enUS)
-        // not listed: RomFlash.VZ fullrom.full.enUS (e148cc70...): a reproducible "MemoryMgr.c, Line:3654, Free handle"
-        // in its CLIE Organizer To Do (item checked while editing, then scrolled), cause not fully established
+        // not listed: RomFlash.VZ fullrom.full.enUS (e148cc70...): checked less, and the CLIE Organizer To Do "Free handle"
+        // error (also seen with the Japanese ROM, see README) was observed there first and more often
     };
 
     uint16_t rd16(const uint8_t* p) { return p[0] | (p[1] << 8); }
